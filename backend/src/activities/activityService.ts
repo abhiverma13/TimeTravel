@@ -1,9 +1,13 @@
+import { Types, isValidObjectId } from 'mongoose';
+
 import { HttpError } from '../middleware/errorHandler';
 import { type ActivityDocument, ActivityModel, type CityCatalogue, CityCatalogueModel, toCityKey } from './activityModel';
-import { cityMeanRating, communityScore } from './communityScore';
+import { DEFAULT_CITY_MEAN_RATING, cityMeanRating, communityScore } from './communityScore';
 import { INTEREST_TAGS, type InterestTag, SEARCH_PHRASE_BY_TAG, interestsForPlace, typicalVisitMinutes } from './interests';
 import { type OpeningPeriod, toOpeningPeriods } from './openingHours';
 import type { PlaceResult, PlacesClient } from './placesClient';
+import { type ReviewDocument, type ReviewDto, ReviewModel, reviewTagsOf, toReviewDto } from './reviewModel';
+import { type CommunityTags, type ReviewTags, TAG_VALUES, communityTags, tagCounterChanges, visitMinutes } from './reviewTags';
 
 /** Google Places results are reused for a week before the city is fetched again. */
 export const CATALOGUE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -20,13 +24,19 @@ export interface ActivityDto {
   address: string;
   location: { lat: number; lng: number };
   interests: InterestTag[];
+  /** Typical visit length, replaced by travellers' reported average once enough have reported it. */
   durationMinutes: number;
+  communityTags: CommunityTags;
   googleRating: number | null;
   googleRatingCount: number;
   reviewCount: number;
   communityScore: number;
   /** null when opening hours are unknown. */
   openingHours: OpeningPeriod[] | null;
+}
+
+function tagCountsOf(activity: ActivityDocument): Map<string, number> {
+  return new Map(TAG_VALUES.map((value) => [value, Number(activity.get(`tagCounts.${value}`) ?? 0)]));
 }
 
 export function toActivityDto(activity: ActivityDocument, meanRating: number): ActivityDto {
@@ -37,7 +47,8 @@ export function toActivityDto(activity: ActivityDocument, meanRating: number): A
     address: activity.address,
     location: { lat, lng },
     interests: [...activity.interests],
-    durationMinutes: activity.durationMinutes,
+    durationMinutes: visitMinutes(activity.reportedDurationSum, activity.reportedDurationCount, activity.durationMinutes),
+    communityTags: communityTags(tagCountsOf(activity)),
     googleRating: activity.googleRating,
     googleRatingCount: activity.googleRatingCount,
     reviewCount: activity.reviewCount,
@@ -52,6 +63,20 @@ export function toActivityDto(activity: ActivityDocument, meanRating: number): A
     ),
     openingHours: activity.openingHours?.map(({ day, openMinute, closeMinute }) => ({ day, openMinute, closeMinute })) ?? null,
   };
+}
+
+export interface ReviewInput {
+  rating: number;
+  comment: string;
+  tags: ReviewTags;
+}
+
+export interface ReviewResult {
+  /** false when the traveller had already reviewed this activity and the review was edited. */
+  created: boolean;
+  review: ReviewDto;
+  /** The activity with its community score recomputed. */
+  activity: ActivityDto;
 }
 
 function byCommunityScore(left: ActivityDto, right: ActivityDto): number {
@@ -85,6 +110,42 @@ export class ActivityService {
     const catalogue = await this.ensureCatalogue(cityKey, city);
     const activities = await ActivityModel.find(interest ? { cityKey, interests: interest } : { cityKey });
     return activities.map((activity) => toActivityDto(activity, catalogue.meanRating)).sort(byCommunityScore);
+  }
+
+  /** Creates or edits the traveller's review of an activity and returns its updated community score. */
+  async reviewActivity(userId: string, activityId: string, input: ReviewInput): Promise<ReviewResult> {
+    if (!isValidObjectId(activityId) || (await ActivityModel.exists({ _id: activityId })) === null) {
+      throw new HttpError(404, 'Activity not found');
+    }
+    const activityObjectId = new Types.ObjectId(activityId);
+    const userObjectId = new Types.ObjectId(userId);
+
+    const existing = await ReviewModel.findOne({ activityId: activityObjectId, userId: userObjectId });
+    const counterChanges = tagCounterChanges(existing ? reviewTagsOf(existing) : null, input.tags);
+    let review: ReviewDocument;
+    if (existing) {
+      counterChanges.set('reviewRatingSum', input.rating - existing.rating);
+      existing.rating = input.rating;
+      existing.comment = input.comment;
+      existing.tags = input.tags;
+      review = await existing.save();
+    } else {
+      counterChanges.set('reviewCount', 1);
+      counterChanges.set('reviewRatingSum', input.rating);
+      review = await ReviewModel.create({ activityId: activityObjectId, userId: userObjectId, ...input });
+    }
+    await ActivityModel.updateOne({ _id: activityObjectId }, { $inc: Object.fromEntries(counterChanges) });
+
+    const activity = await ActivityModel.findById(activityObjectId);
+    if (!activity) {
+      throw new HttpError(404, 'Activity not found');
+    }
+    const catalogue = await CityCatalogueModel.findOne({ cityKey: activity.cityKey });
+    return {
+      created: existing === null,
+      review: toReviewDto(review),
+      activity: toActivityDto(activity, catalogue?.meanRating ?? DEFAULT_CITY_MEAN_RATING),
+    };
   }
 
   /** Stores places as a city's catalogue. Reviews already left on known places are kept. */

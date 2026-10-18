@@ -2,6 +2,7 @@ import { type HydratedDocument, Schema, model } from 'mongoose';
 
 import { INTEREST_TAGS, type InterestTag } from './interests';
 import type { OpeningPeriod } from './openingHours';
+import { TAG_VALUES, type TagValue } from './reviewTags';
 
 export interface Activity {
   placeId: string;
@@ -18,6 +19,11 @@ export interface Activity {
   openingHours: OpeningPeriod[] | null;
   reviewCount: number;
   reviewRatingSum: number;
+  /** Sum and count of the visit lengths travellers reported in reviews. */
+  reportedDurationSum: number;
+  reportedDurationCount: number;
+  /** How many reviews carry each structured tag value. */
+  tagCounts: Record<TagValue, number>;
 }
 
 const openingPeriodSchema = new Schema<OpeningPeriod>(
@@ -46,6 +52,9 @@ const activitySchema = new Schema<Activity>(
     openingHours: { type: [openingPeriodSchema], default: null },
     reviewCount: { type: Number, default: 0 },
     reviewRatingSum: { type: Number, default: 0 },
+    reportedDurationSum: { type: Number, default: 0 },
+    reportedDurationCount: { type: Number, default: 0 },
+    tagCounts: Object.fromEntries(TAG_VALUES.map((value) => [value, { type: Number, default: 0 }])),
   },
   { timestamps: true },
 );

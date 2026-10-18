@@ -161,6 +161,22 @@ describe('Mocked: GET /api/activities', () => {
     expect(placesClient.searchText).toHaveBeenCalledTimes(7);
   });
 
+  // Mocked behavior: Google Places returns a place that has no Google rating yet
+  // Input: city=Smallville
+  // Expected status code: 200
+  // Expected behavior: with no ratings in the city, the score falls back to the default city mean of 4
+  // Expected output: one activity with googleRating null and communityScore 4
+  test('Unrated place in an unrated city', async () => {
+    const placesClient = placesClientReturning([{ ...harbourWalk, rating: null, userRatingCount: 0 }]);
+    const { app, authService } = createTestApp({ placesClient });
+    const { authorization } = await signedInUser(authService);
+
+    const response = await request(app).get('/api/activities').query({ city: 'Smallville' }).set(authorization);
+
+    expect(response.status).toBe(200);
+    expect((response.body as ActivitiesBody).activities[0]).toMatchObject({ googleRating: null, communityScore: 4 });
+  });
+
   // Mocked behavior: the activity database read fails
   // Input: city=Vancouver, cached
   // Expected status code: 500
