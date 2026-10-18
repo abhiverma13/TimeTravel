@@ -1,15 +1,31 @@
 # Requires Docker Compose v2.24+ for the `env_file: required:` syntax below.
 
-name: cpen321-project
+# Its own project name, so its MongoDB volume never collides with another
+# template-based project (such as an M1 app) on the same machine.
+name: timetravel
 
 services:
+  mongo:
+    image: mongo:8.0
+    restart: unless-stopped
+    # Not published to the host: only the backend container talks to the database.
+    volumes:
+      - mongo-data:/data/db
+
   backend:
     build: ./backend
+    depends_on:
+      - mongo
     # Local defaults are HTTP on 3000. The deployment script exports PORT from
     # backend/.env, so production can set PORT=443 and publish HTTPS on 443.
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
     env_file:
       - path: ./backend/.env
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/timetravel
     volumes:
       - ./backend/certs:/certs:ro
+
+volumes:
+  mongo-data:
