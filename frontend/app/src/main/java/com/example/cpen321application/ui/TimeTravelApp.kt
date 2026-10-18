@@ -9,13 +9,19 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.cpen321application.ui.common.FullScreenLoading
 import com.example.cpen321application.ui.common.appViewModel
+import com.example.cpen321application.ui.explore.ExploreScreen
+import com.example.cpen321application.ui.explore.ExploreViewModel
 import com.example.cpen321application.ui.home.HomeScreen
 import com.example.cpen321application.ui.home.ProfileDialog
 import com.example.cpen321application.ui.signin.SignInScreen
 
 private object Routes {
     const val HOME = "home"
+    const val EXPLORE = "explore"
 }
+
+// Used to prefill searches until the traveller sets a home city.
+private const val DEFAULT_CITY = "Vancouver"
 
 /** Shows sign-in until there is a session, then the signed-in screens. */
 @Composable
@@ -52,7 +58,19 @@ private fun SignedInScreens(session: SessionState.SignedIn, viewModel: SessionVi
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
-            HomeScreen(user = session.user, onEditProfile = viewModel::editProfile, onSignOut = viewModel::signOut)
+            HomeScreen(
+                user = session.user,
+                onExplore = { navController.navigate(Routes.EXPLORE) },
+                onEditProfile = viewModel::editProfile,
+                onSignOut = viewModel::signOut,
+            )
+        }
+        composable(Routes.EXPLORE) {
+            val startCity = session.user.homeCity.ifBlank { DEFAULT_CITY }
+            ExploreScreen(
+                viewModel = appViewModel { ExploreViewModel(it, startCity) },
+                onBack = navController::popBackStack,
+            )
         }
     }
 }

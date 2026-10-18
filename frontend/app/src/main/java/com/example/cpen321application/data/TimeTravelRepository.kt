@@ -48,4 +48,12 @@ class TimeTravelRepository(
     /** Saves the traveller's home city and interest tags. */
     suspend fun updateProfile(homeCity: String, interests: List<String>): Result<UserProfile> =
         apiCall { api.updateProfile(ProfileUpdateRequest(homeCity.trim(), interests)) }
+
+    /** A city's activities, best community score first; `interest` narrows them to one tag. */
+    suspend fun activities(city: String, interest: String?): Result<List<TravelActivity>> =
+        apiCall { api.activities(city, interest) }.map { response -> response.activities }
+
+    /** Saves the traveller's rating and tags, returning the activity with its updated community score. */
+    suspend fun reviewActivity(activityId: String, rating: Int, comment: String, tags: ReviewTags): Result<TravelActivity> =
+        apiCall { api.reviewActivity(activityId, ReviewRequest(rating, comment, tags)) }.map { response -> response.activity }
 }

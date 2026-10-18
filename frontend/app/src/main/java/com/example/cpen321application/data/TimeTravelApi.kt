@@ -4,6 +4,8 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Path
+import retrofit2.http.Query
 
 /** Retrofit description of the back-end endpoints the app calls. */
 interface TimeTravelApi {
@@ -15,4 +17,10 @@ interface TimeTravelApi {
 
     @PUT("api/users/me")
     suspend fun updateProfile(@Body body: ProfileUpdateRequest): UserProfile
+
+    @GET("api/activities")
+    suspend fun activities(@Query("city") city: String, @Query("interest") interest: String?): ActivitiesResponse
+
+    @POST("api/activities/{activityId}/reviews")
+    suspend fun reviewActivity(@Path("activityId") activityId: String, @Body body: ReviewRequest): ReviewResponse
 }
