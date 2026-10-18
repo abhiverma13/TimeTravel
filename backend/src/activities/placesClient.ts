@@ -1,0 +1,104 @@
+import { z } from 'zod';
+
+import type { PlacesPeriod } from './openingHours';
+
+const PLACES_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
+const PLACES_FIELD_MASK = [
+  'places.id',
+  'places.displayName',
+  'places.formattedAddress',
+  'places.location',
+  'places.types',
+  'places.rating',
+  'places.userRatingCount',
+  'places.regularOpeningHours.periods',
+].join(',');
+const PLACES_PAGE_SIZE = 20;
+const PLACES_TIMEOUT_MS = 10_000;
+
+/** A place returned by Google Places, reduced to the fields TimeTravel stores. */
+export interface PlaceResult {
+  placeId: string;
+  name: string;
+  address: string;
+  location: { lat: number; lng: number };
+  types: string[];
+  rating: number | null;
+  userRatingCount: number;
+  openingPeriods: PlacesPeriod[] | undefined;
+}
+
+/** External module boundary for Google Places, so tests and the demo seed can substitute it. */
+export interface PlacesClient {
+  searchText(query: string): Promise<PlaceResult[]>;
+}
+
+export class PlacesApiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PlacesApiError';
+  }
+}
+
+const periodPointSchema = z.object({
+  day: z.number().int().min(0).max(6),
+  hour: z.number().int().min(0).max(24),
+  minute: z.number().int().min(0).max(59),
+});
+
+const placeSchema = z.object({
+  id: z.string(),
+  displayName: z.object({ text: z.string() }).optional(),
+  formattedAddress: z.string().optional(),
+  location: z.object({ latitude: z.number(), longitude: z.number() }).optional(),
+  types: z.array(z.string()).optional(),
+  rating: z.number().optional(),
+  userRatingCount: z.number().optional(),
+  regularOpeningHours: z
+    .object({ periods: z.array(z.object({ open: periodPointSchema, close: periodPointSchema.optional() })).optional() })
+    .optional(),
+});
+
+const searchResponseSchema = z.object({ places: z.array(placeSchema).optional() });
+
+/** Calls Places API (New) Text Search: https://developers.google.com/maps/documentation/places/web-service/text-search */
+export class GooglePlacesClient implements PlacesClient {
+  constructor(private readonly apiKey: string) {}
+
+  async searchText(query: string): Promise<PlaceResult[]> {
+    const response = await fetch(PLACES_SEARCH_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': this.apiKey,
+        'X-Goog-FieldMask': PLACES_FIELD_MASK,
+      },
+      body: JSON.stringify({ textQuery: query, pageSize: PLACES_PAGE_SIZE }),
+      signal: AbortSignal.timeout(PLACES_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      throw new PlacesApiError(`Places text search failed with HTTP ${String(response.status)}`);
+    }
+    const parsed = searchResponseSchema.safeParse(await response.json());
+    if (!parsed.success) {
+      throw new PlacesApiError('Places text search returned an unexpected response');
+    }
+    return (parsed.data.places ?? []).flatMap((place) => {
+      if (place.location === undefined || place.displayName === undefined) {
+        return [];
+      }
+      return [
+        {
+          placeId: place.id,
+          name: place.displayName.text,
+          address: place.formattedAddress ?? '',
+          location: { lat: place.location.latitude, lng: place.location.longitude },
+          types: place.types ?? [],
+          rating: place.rating ?? null,
+          userRatingCount: place.userRatingCount ?? 0,
+          openingPeriods: place.regularOpeningHours?.periods,
+        },
+      ];
+    });
+  }
+}

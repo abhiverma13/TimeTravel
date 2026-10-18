@@ -1,5 +1,7 @@
 import express, { type Express } from 'express';
 
+import { createActivityRouter } from './activities/activityRoutes';
+import type { ActivityService } from './activities/activityService';
 import { createAuthRouter, createUserRouter } from './auth/authRoutes';
 import type { AuthService } from './auth/authService';
 import { isDatabaseConnected } from './db/connection';
@@ -7,6 +9,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
 export interface AppDependencies {
   authService: AuthService;
+  activityService: ActivityService;
 }
 
 export function createApp(dependencies: AppDependencies): Express {
@@ -19,6 +22,7 @@ export function createApp(dependencies: AppDependencies): Express {
 
   app.use('/api/auth', createAuthRouter(dependencies.authService));
   app.use('/api/users', createUserRouter(dependencies.authService));
+  app.use('/api/activities', createActivityRouter(dependencies.authService, dependencies.activityService));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
