@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Keep platform CAs for Google and Open-Meteo, and additionally trust the
-         M1 backend's self-signed certificate bundled in this app. -->
+    <!-- Keep platform CAs for Google, and additionally trust the deployed backend's
+         self-signed certificate bundled in this app. -->
     <base-config>
         <trust-anchors>
             <certificates src="system" />
             <certificates src="@raw/m1_backend_certificate" />
         </trust-anchors>
     </base-config>
+    <!-- Local development only: plain HTTP to a backend on the development machine
+         (10.0.2.2 is the emulator's alias for the host). The cloud backend uses HTTPS. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
 </network-security-config>

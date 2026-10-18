@@ -7,4 +7,11 @@ API_BASE_URL=http://10.0.2.2:3000
 # Google OAuth client ID.
 GOOGLE_CLIENT_ID=
 
+# Optional release signing (paths are relative to frontend/). Without these, assembleRelease
+# produces an unsigned APK that cannot be installed.
+RELEASE_STORE_FILE=
+RELEASE_STORE_PASSWORD=
+RELEASE_KEY_ALIAS=
+RELEASE_KEY_PASSWORD=
+
 # Other API keys, secrets, and configurations

@@ -1,0 +1,18 @@
+package com.example.cpen321application.data
+
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.PUT
+
+/** Retrofit description of the back-end endpoints the app calls. */
+interface TimeTravelApi {
+    @POST("api/auth/google")
+    suspend fun signInWithGoogle(@Body body: GoogleSignInRequest): SignInResponse
+
+    @GET("api/users/me")
+    suspend fun currentUser(): UserProfile
+
+    @PUT("api/users/me")
+    suspend fun updateProfile(@Body body: ProfileUpdateRequest): UserProfile
+}
