@@ -92,8 +92,8 @@ export function fillDay(
 export function dayContext(request: PlanRequest, day: TripDay, travelMinutes: TravelTimeEstimator): DayContext {
   return {
     weekday: day.weekday,
-    dayStartMinute: request.dayStartMinute,
-    dayEndMinute: request.dayEndMinute,
+    dayStartMinute: day.startMinute ?? request.dayStartMinute,
+    dayEndMinute: day.endMinute ?? request.dayEndMinute,
     origin: request.origin,
     bufferMinutes: paceSettings(request.pace).bufferMinutes,
     travelMinutes,

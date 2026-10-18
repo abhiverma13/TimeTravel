@@ -37,8 +37,8 @@ export function utilityOf(candidate: Candidate, interests: readonly string[]): n
 function fitsSomeDay(candidate: Candidate, request: PlanRequest): boolean {
   return request.days.some((day) =>
     windowsOn(candidate.openingHours, day.weekday).some((window) => {
-      const start = Math.max(window.openMinute, request.dayStartMinute);
-      const end = Math.min(window.closeMinute, request.dayEndMinute);
+      const start = Math.max(window.openMinute, day.startMinute ?? request.dayStartMinute);
+      const end = Math.min(window.closeMinute, day.endMinute ?? request.dayEndMinute);
       return end - start >= candidate.durationMinutes;
     }),
   );

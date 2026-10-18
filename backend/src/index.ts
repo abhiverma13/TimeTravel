@@ -9,6 +9,7 @@ import { AuthService } from './auth/authService';
 import { createGoogleTokenVerifier } from './auth/googleTokenVerifier';
 import { env } from './config/env';
 import { connectToDatabase, disconnectFromDatabase } from './db/connection';
+import { ItineraryService } from './itineraries/itineraryService';
 
 async function main(): Promise<void> {
   if (!env.jwtSecret) {
@@ -22,7 +23,8 @@ async function main(): Promise<void> {
   }
   const placesClient = env.googlePlacesApiKey ? new GooglePlacesClient(env.googlePlacesApiKey) : null;
   const activityService = new ActivityService(placesClient);
-  const app = createApp({ authService, activityService });
+  const itineraryService = new ItineraryService(activityService, placesClient);
+  const app = createApp({ authService, activityService, itineraryService });
   const hasTlsConfiguration = Boolean(env.tlsCertPath && env.tlsKeyPath);
   const server = hasTlsConfiguration
     ? createHttpsServer({ cert: readFileSync(env.tlsCertPath), key: readFileSync(env.tlsKeyPath) }, app)

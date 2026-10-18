@@ -7,6 +7,7 @@ import { AuthService } from '../../src/auth/authService';
 import { createGoogleTokenVerifier, type GoogleTokenVerifier } from '../../src/auth/googleTokenVerifier';
 import { UserModel } from '../../src/auth/userModel';
 import { DEMO_VANCOUVER_PLACES } from '../../src/dev/demoVancouverPlaces';
+import { ItineraryService } from '../../src/itineraries/itineraryService';
 
 export const TEST_JWT_SECRET = 'test-jwt-secret';
 export const TEST_GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com';
@@ -24,6 +25,7 @@ export interface TestApp {
   app: Express;
   authService: AuthService;
   activityService: ActivityService;
+  itineraryService: ItineraryService;
 }
 
 export function createTestApp(options: TestAppOptions = {}): TestApp {
@@ -31,8 +33,15 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     options.verifyGoogleToken ?? createGoogleTokenVerifier(TEST_GOOGLE_CLIENT_ID),
     TEST_JWT_SECRET,
   );
-  const activityService = new ActivityService(options.placesClient ?? null, options.now);
-  return { app: createApp({ authService, activityService }), authService, activityService };
+  const placesClient = options.placesClient ?? null;
+  const activityService = new ActivityService(placesClient, options.now);
+  const itineraryService = new ItineraryService(activityService, placesClient);
+  return {
+    app: createApp({ authService, activityService, itineraryService }),
+    authService,
+    activityService,
+    itineraryService,
+  };
 }
 
 /** Creates a user directly in the database and returns an Authorization header for them. */

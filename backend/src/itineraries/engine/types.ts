@@ -22,14 +22,18 @@ export interface Candidate {
   openingHours: readonly WeeklyWindow[] | null;
 }
 
-export type Pace = 'relaxed' | 'moderate' | 'packed';
-export const PACES: readonly Pace[] = ['relaxed', 'moderate', 'packed'];
+export const PACES = ['relaxed', 'moderate', 'packed'] as const;
+export type Pace = (typeof PACES)[number];
 
 export interface TripDay {
   /** ISO date, YYYY-MM-DD. */
   date: string;
   /** 0 = Sunday. */
   weekday: number;
+  /** Overrides the request's day start, e.g. a later start on the arrival day. */
+  startMinute?: number | undefined;
+  /** Overrides the request's day end, e.g. an earlier end on the departure day. */
+  endMinute?: number | undefined;
 }
 
 export interface PlanRequest {

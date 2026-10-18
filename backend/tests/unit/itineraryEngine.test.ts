@@ -205,6 +205,18 @@ describe('Itinerary Engine: trip planning', () => {
     expect(museumStops).toBeGreaterThan(interests.length / 2);
   });
 
+  test('a day can start later and end earlier than the rest of the trip', () => {
+    const many = Array.from({ length: 12 }, (_, index) => candidate(`c${String(index)}`, { durationMinutes: 45 }));
+    const arrival: TripDay = { ...SUNDAY, startMinute: 15 * 60 };
+    const departure: TripDay = { ...MONDAY, endMinute: 12 * 60 };
+    const plan = planTrip(many, request({ days: [arrival, departure], pace: 'packed' }), { travelMinutes: () => 5 });
+    const [first, last] = plan.days;
+    expect(first?.stops.every((stop) => stop.startMinute >= 15 * 60)).toBe(true);
+    expect((last?.stops.at(-1)?.endMinute ?? 0) + (last?.returnTravelMinutes ?? 0)).toBeLessThanOrEqual(12 * 60);
+    expect(first?.stops.length).toBeGreaterThan(0);
+    expect(last?.stops.length).toBeGreaterThan(0);
+  });
+
   test('no candidates gives empty days rather than failing', () => {
     const plan = planTrip([], request({ days: [SUNDAY, MONDAY] }));
     expect(plan.days.map((day) => day.stops)).toEqual([[], []]);
