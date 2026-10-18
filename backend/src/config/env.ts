@@ -17,6 +17,7 @@ export const env = {
   port: parsePort(process.env.PORT),
   mongodbUri: nonEmpty(process.env.MONGODB_URI, 'mongodb://localhost:27017/timetravel'),
   googleClientId: nonEmpty(process.env.GOOGLE_CLIENT_ID, ''),
+  jwtSecret: nonEmpty(process.env.JWT_SECRET, ''),
   tlsCertPath: nonEmpty(process.env.TLS_CERT_PATH, ''),
   tlsKeyPath: nonEmpty(process.env.TLS_KEY_PATH, ''),
 } as const;

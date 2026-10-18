@@ -1,6 +1,6 @@
 import request from 'supertest';
 
-import { createApp } from '../../src/app';
+import { createTestApp } from '../helpers/testApp';
 import * as connection from '../../src/db/connection';
 
 afterEach(() => {
@@ -17,7 +17,7 @@ describe('Mocked: GET /health', () => {
   test('Database unavailable', async () => {
     jest.spyOn(connection, 'isDatabaseConnected').mockReturnValue(false);
 
-    const response = await request(createApp()).get('/health');
+    const response = await request(createTestApp().app).get('/health');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: 'ok', database: 'disconnected' });

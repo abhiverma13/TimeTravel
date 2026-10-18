@@ -3,13 +3,19 @@ import { createServer as createHttpServer } from 'node:http';
 import { createServer as createHttpsServer } from 'node:https';
 
 import { createApp } from './app';
+import { AuthService } from './auth/authService';
+import { createGoogleTokenVerifier } from './auth/googleTokenVerifier';
 import { env } from './config/env';
 import { connectToDatabase, disconnectFromDatabase } from './db/connection';
 
 async function main(): Promise<void> {
+  if (!env.jwtSecret) {
+    throw new Error('JWT_SECRET must be set in backend/.env');
+  }
   await connectToDatabase(env.mongodbUri);
 
-  const app = createApp();
+  const authService = new AuthService(createGoogleTokenVerifier(env.googleClientId), env.jwtSecret);
+  const app = createApp({ authService });
   const hasTlsConfiguration = Boolean(env.tlsCertPath && env.tlsKeyPath);
   const server = hasTlsConfiguration
     ? createHttpsServer({ cert: readFileSync(env.tlsCertPath), key: readFileSync(env.tlsKeyPath) }, app)
