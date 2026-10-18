@@ -1,78 +1,96 @@
-# CPEN 321 M1 App
+# TimeTravel
+
+Crowd-rated activities, scheduled into a trip that actually fits your days.
+
+TimeTravel is an Android app (Kotlin, Jetpack Compose) with a Node.js and TypeScript back-end (Express, MongoDB). Travellers rate and tag the activities they have done; a visitor describes their trip, and TimeTravel's itinerary engine builds a day-by-day plan around opening hours, travel time and the traveller's pace. Requirements and design: [`documentation/Requirements_and_Design.md`](documentation/Requirements_and_Design.md). Tests: [`documentation/Testing.md`](documentation/Testing.md).
 
 ## Prerequisites
 
-- Docker Desktop running, with `docker version` and `docker compose version` working
+- Docker Desktop running, with `docker version` and `docker compose version` working (to run the back-end)
+- Node.js 22 and npm 10 (to run the back-end tests)
 - Android Studio, JDK 17+, and a Pixel 9 API 36 emulator named `Pixel_9`
-- Node.js 22 and npm 10 for backend tests
+- A Google Cloud project with:
+  - an **OAuth web client** (its client ID is used by both the app and the back-end) and an **Android OAuth client** for package `com.example.cpen321application` with the SHA-1 of every key that signs the app (each developer's debug key and the release key). Find a key's SHA-1 with `keytool -list -v -keystore <keystore> -alias <alias>`; the debug key is `~/.android/debug.keystore`, alias `androiddebugkey`, password `android`.
+  - the **Places API (New)** enabled and an API key for it (optional: without it, only cities already in the database can be browsed, see "Demo data" below).
 
-## Local setup
+## 1. Back-end
 
-Clone the repository and enter it:
-
-```powershell
-git clone https://github.com/abhiverma13/CPEN321-M1-Abhi.git
-cd CPEN321-M1-Abhi
-```
-
-Create the backend configuration file:
+From the repository root, create the back-end configuration:
 
 ```powershell
-Copy-Item backend\.env.example backend\.env
+Copy-Item backend\.env.example backend\.env      # Windows
+cp backend/.env.example backend/.env             # macOS / Linux
 ```
 
-Set `backend/.env` to:
+Edit `backend/.env`:
 
-```properties
-PORT=3000
-NODE_ENV=development
-GOOGLE_CLIENT_ID=986175081923-12poichbpt3ej109488ist07e5omivqh.apps.googleusercontent.com
-OWNER_FIRST_NAME=Abhi
-OWNER_LAST_NAME=Verma
-SERVER_PUBLIC_IP=127.0.0.1
-COURSE_WEBSOCKET_URL=wss://8.229.22.124
-TLS_CERT_PATH=
-TLS_KEY_PATH=
+| Variable | Value |
+| --- | --- |
+| `PORT` | `3000` locally; `443` on the cloud VM with HTTPS |
+| `MONGODB_URI` | leave as is; Docker Compose points the back-end at its own MongoDB container |
+| `GOOGLE_CLIENT_ID` | the OAuth **web** client ID |
+| `JWT_SECRET` | a long random string, for example the output of `openssl rand -hex 32` |
+| `GOOGLE_PLACES_API_KEY` | the Places API (New) key |
+| `TLS_CERT_PATH`, `TLS_KEY_PATH` | blank locally; on the VM, the certificate and key paths inside the container (`/certs/...`, mounted from `backend/certs`) |
+
+Start the back-end and its MongoDB:
+
+```powershell
+.\scripts\run-backend.ps1       # Windows
+./scripts/run-backend.sh        # macOS / Linux
 ```
 
-Create `frontend/local.properties`. It must contain the Android SDK location and:
+The script waits until `GET /health` answers. Stop everything with `docker compose down`.
+
+### Demo data
+
+To try the app without a Places API key, load the labelled Vancouver demo catalogue (30 activities with illustrative ratings and hours, not live Google data):
+
+```
+docker compose exec backend npm run seed:demo
+```
+
+## 2. Android app
+
+Create `frontend/local.properties` (Android Studio usually writes `sdk.dir` for you):
 
 ```properties
-sdk.dir=C\:\\Users\\<username>\\AppData\\Local\\Android\\Sdk
+sdk.dir=C:/Users/<username>/AppData/Local/Android/Sdk
 API_BASE_URL=http://10.0.2.2:3000
-GOOGLE_CLIENT_ID=986175081923-12poichbpt3ej109488ist07e5omivqh.apps.googleusercontent.com
+GOOGLE_CLIENT_ID=<the OAuth web client ID>
 ```
 
-`10.0.2.2` is the Android emulator alias for the development computer. Do not commit `.env`,
-`local.properties`, keystores, or private keys.
+`10.0.2.2` is the emulator's address for the development computer; the app allows plain HTTP only to that address and `localhost`. For the deployed back-end, set `API_BASE_URL=https://<server address>`.
 
-## Run locally
-
-From the repository root, start the backend:
+Build, install and launch the app on the `Pixel_9` emulator:
 
 ```powershell
-.\scripts\run-backend.ps1
+.\scripts\run-frontend.ps1      # Windows
+./scripts/run-frontend.sh       # macOS / Linux
 ```
 
-Then build, install, and launch the Android app:
+Sign in with Google. If sign-in reports "Sign-in was cancelled" immediately after choosing an account, the SHA-1 of the key that signed this build is missing from the Android OAuth client (see Prerequisites).
+
+### Release APK
+
+Add the release keystore to `frontend/local.properties` (the keystore path is relative to `frontend/`; never commit the keystore):
+
+```properties
+RELEASE_STORE_FILE=release.keystore
+RELEASE_STORE_PASSWORD=<password>
+RELEASE_KEY_ALIAS=<alias>
+RELEASE_KEY_PASSWORD=<password>
+```
+
+Then build it with `cd frontend; .\gradlew.bat assembleRelease` (or `./gradlew assembleRelease`); the APK is `frontend/app/build/outputs/apk/release/app-release.apk`.
+
+## 3. Tests
 
 ```powershell
-.\scripts\run-frontend.ps1
+.\scripts\run-backend-interface-tests.ps1   # back-end interface tests, with and without mocks, with coverage
+.\scripts\run-backend-nfr-tests.ps1         # non-functional requirement tests
 ```
 
-Stop the local backend with:
+The back-end tests start their own in-memory MongoDB, so they need neither Docker nor a Places key. They also run in GitHub Actions on every push to `main` ([`.github/workflows/backend-tests.yml`](.github/workflows/backend-tests.yml)). See [`documentation/Testing.md`](documentation/Testing.md) for details.
 
-```powershell
-docker compose down
-```
-
-## Tests
-
-Run backend interface tests from the repository root:
-
-```powershell
-.\scripts\run-backend-interface-tests.ps1
-```
-
-For a local debug build, Google Sign-In requires the Android OAuth client to include the SHA-1 of
-the debug key used to sign that build.
+Do not commit `backend/.env`, `frontend/local.properties`, keystores or private keys.
