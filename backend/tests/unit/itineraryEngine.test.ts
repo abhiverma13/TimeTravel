@@ -152,7 +152,7 @@ describe('Itinerary Engine: trip planning', () => {
   test('pace limits the number of stops per day', () => {
     const many = Array.from({ length: 12 }, (_, index) => candidate(`c${String(index)}`, { durationMinutes: 30 }));
     for (const pace of ['relaxed', 'moderate', 'packed'] as const) {
-      const plan = planTrip(many, request({ pace }), () => 5);
+      const plan = planTrip(many, request({ pace }), { travelMinutes: () => 5 });
       expect(plan.days.at(0)?.stops.length).toBe(paceSettings(pace).maxStopsPerDay);
     }
   });
