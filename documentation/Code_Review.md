@@ -2,99 +2,55 @@
 
 ## 1. Change History
 
-| **Change Date**   | **Modified Sections** | **Rationale** |
-| ----------------- | --------------------- | ------------- |
-| _Nothing to show_ |
+| **Change Date** | **Modified Sections** | **Rationale** |
+| --------------- | --------------------- | ------------- |
+| 2026-10-18 | 2, 3 | CP1: recorded the status of the automated and manual code reviews. Neither has run yet; both are scheduled for later checkpoints (see below). |
 
 ---
 
 ## 2. Automated Code Review Results
 
+**Status at CP1:** Codacy has not been set up on `abhiverma13/TimeTravel` yet. Setting it up, fixing the issues it reports and completing this section is planned for **November 2** (CP1 Progress, carried-forward task 6). Sections 2.1-2.4 will be filled in from that run.
+
 ### 2.1. Commit Hash Where Codacy Ran
 
-`[Insert Commit SHA here]`
+_Not run yet (planned for November 2)._
 
 ### 2.2. Unfixed Issues per Codacy Category
 
-_(Placeholder for screenshots of Codacy's Category Breakdown table in Overview)_
+_Not run yet. Screenshots of Codacy's Category Breakdown table will be added after the first run._
 
 ### 2.3. Unfixed Issues per Codacy Code Pattern
 
-_(Placeholder for screenshots of Codacy's Issues page)_
+_Not run yet. Screenshots of Codacy's Issues page will be added after the first run._
 
 ### 2.4. Justifications for Unfixed Issues
 
-- **Code Pattern: [Usage of Deprecated Modules](#)**
-
-  1. **Issue**
-
-     - **Location in Git:** [`src/services/chatService.js#L31`](#)
-     - **Justification:** ...
-
-  2. ...
-
-- ...
+_Not run yet. Each issue left unfixed after the first run will be listed here by code pattern, with its location in Git and a justification._
 
 ---
 
 ## 3. Manual Code Review Results
 
+**Status at CP1:** the peer review has not started. Artifacts are exchanged with the peer group by **November 2** (CP1 Progress, task 7), and the review report and this section are due **November 16** (task 10).
+
 ### 3.1. Review You Performed
 
-- **Peer group reviewed:** [WRITE_HERE]
-- **Commit SHA reviewed:** `[Insert Commit SHA here]`
-- **Date the artifacts were exchanged:** [WRITE_HERE]
-- **Review report submitted:** [`<CP#>_<YourPeerGroupName>_Review.pdf`](#)
+- **Peer group reviewed:** _to be assigned_
+- **Commit SHA reviewed:** _not yet exchanged_
+- **Date the artifacts were exchanged:** _planned for November 2_
+- **Review report submitted:** _not yet written_
 
-| **Section**          | **Item**                                                                                                                                             | **Score** |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| Manual code review   | Code is maintainable (well-documented, uses self-explanatory variable names, does not have complicated and long methods, magic numbers, etc.), efficient, handles error cases well | x/10      |
-| Manual test review   | Tests are complete (all APIs exposed to the front-end are tested, three main features are tested), errors and edge cases are thoroughly tested, correct assertions are used | x/10      |
-| Manual test review   | Test code is maintainable and well-structured                                                                                                          | x/10      |
-| Manual test review   | Test implementation matches the requirements and design                                                                                                | x/10      |
-| Manual test review   | Non-functional requirements are tested well                                                                                                            | x/10      |
-| Manual test review   | Tests achieve high coverage and cases of < 100% coverage are well-justified                                                                            | x/10      |
-| Manual test review   | All back-end tests can be run automatically                                                                                                            | x/10      |
-| Automated code review| Codacy runs with the required setup                                                                                                                    | x/10      |
-| Automated code review| All remaining Codacy issues are well-justified                                                                                                          | x/10      |
-
-**Major fault reported**
-
-- **Description:** ...
-- **Steps to reproduce:** ...
-- **Screenshots:** _(Placeholder for screenshots of the reported fault)_
-- **Severity:** ...
+The scores (manual code review, manual test review, automated code review) and the major fault will be recorded here after the review.
 
 ### 3.2. Review You Received
 
-- **Reviewing group:** [WRITE_HERE]
-- **Commit SHA that was reviewed:** `[Insert Commit SHA here]`
-- **Review report received:** [`<CP#>_<YourGroupName>_Review.pdf`](#)
+- **Reviewing group:** _to be assigned_
+- **Commit SHA that was reviewed:** _not yet exchanged_
+- **Review report received:** _not yet received_
 
-| **Section**          | **Item**                                                                                                                                             | **Score** |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| Manual code review   | Code is maintainable, efficient, handles error cases well                                                                                               | x/10      |
-| Manual test review   | Tests are complete, errors and edge cases are thoroughly tested, correct assertions are used                                                            | x/10      |
-| Manual test review   | Test code is maintainable and well-structured                                                                                                          | x/10      |
-| Manual test review   | Test implementation matches the requirements and design                                                                                                | x/10      |
-| Manual test review   | Non-functional requirements are tested well                                                                                                            | x/10      |
-| Manual test review   | Tests achieve high coverage and cases of < 100% coverage are well-justified                                                                            | x/10      |
-| Manual test review   | All back-end tests can be run automatically                                                                                                            | x/10      |
-| Automated code review| Codacy runs with the required setup                                                                                                                    | x/10      |
-| Automated code review| All remaining Codacy issues are well-justified                                                                                                          | x/10      |
-
-**Major fault reported against your project**
-
-- **Description:** ...
-- **Severity:** ...
+The scores and the major fault reported against TimeTravel will be recorded here when the report is received.
 
 ### 3.3. Actions Taken in Response to the Review
 
-| **Finding** | **Action Taken** | **Commit / Location in Git** |
-| ----------- | ---------------- | ---------------------------- |
-| ...         | ...              | [`src/...`](#)               |
-| ...         | ...              | ...                          |
-
-- **Findings not acted on.** For each finding you decided not to address, give the reason:
-  1. **Finding:** ...
-     - **Justification:** ...
+_None yet. Each finding from the review received, the action taken and the commit or location in Git will be listed here, together with a justification for any finding not acted on._
