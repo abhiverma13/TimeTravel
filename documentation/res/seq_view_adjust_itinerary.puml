@@ -1,0 +1,31 @@
+@startuml seq_view_adjust_itinerary
+!include style.iuml
+title View & Adjust Itinerary (planned for CP2)
+
+actor Traveller
+participant "Android App" as App
+participant "Trip Sync &\nDisruption Service" as Sync
+participant "Itinerary\nEngine" as Engine
+database MongoDB
+participant "Other party members'\nAndroid Apps" as Party
+
+Traveller -> App : opens a trip
+App -> Engine : GET /api/itineraries/{itineraryId}
+alt itinerary not found or not the traveller's
+  Engine --> App : 404 { error: "Itinerary not found" }
+  App --> Traveller : shows the error with Try again
+end
+Engine --> App : 200 ItineraryDto
+App -> Sync : WebSocket connect /ws/trips/{tripId} (session token)
+Traveller -> App : locks, removes or moves a stop
+App -> Sync : ws message adjustStop { itineraryId, activityId, action }
+Sync -> Engine : replanItinerary(itineraryId, affectedWindow, frozenStops): Itinerary
+Engine -> MongoDB : saveItinerary(itinerary)
+Sync -> App : ws message itineraryUpdated { itinerary }
+Sync -> Party : ws message itineraryUpdated { itinerary }
+App --> Traveller : timeline re-renders with the change
+alt connection lost
+  App --> Traveller : "Offline: your change will sync when you reconnect"
+  App -> Engine : GET /api/itineraries/{itineraryId} after reconnecting
+end
+@enduml

@@ -1,0 +1,25 @@
+' Shared look for the sequence diagrams: the M2 presentation's palette.
+skinparam backgroundColor #F8F4E8
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 13
+skinparam shadowing false
+skinparam roundCorner 4
+skinparam ArrowColor #1C382C
+skinparam ArrowFontColor #26332C
+skinparam SequenceLifeLineBorderColor #9AA093
+skinparam SequenceGroupBorderColor #3C6850
+skinparam SequenceGroupBackgroundColor #E4ECE0
+skinparam SequenceGroupHeaderFontColor #1C382C
+skinparam SequenceBoxBorderColor #DCD8C8
+skinparam NoteBackgroundColor #F4E4D8
+skinparam NoteBorderColor #9A4F2D
+skinparam ParticipantBackgroundColor #FCF8F4
+skinparam ParticipantBorderColor #3C6850
+skinparam ParticipantFontColor #1C382C
+skinparam ParticipantFontStyle bold
+skinparam ActorBorderColor #3C6850
+skinparam ActorBackgroundColor #FCF8F4
+skinparam DatabaseBackgroundColor #E4ECE0
+skinparam DatabaseBorderColor #1C382C
+skinparam sequenceMessageAlign left
+autonumber "<b>0."

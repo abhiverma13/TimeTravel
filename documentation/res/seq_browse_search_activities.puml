@@ -1,0 +1,42 @@
+@startuml seq_browse_search_activities
+!include style.iuml
+title Browse & Search Activities
+
+actor Traveller
+participant "Android App" as App
+participant "Auth & Profile\nService" as Auth
+participant "Activity & Review\nService" as Activities
+database MongoDB
+participant "Google Places API" as Places
+
+Traveller -> App : enters a city, picks an interest, taps Search
+App -> Activities : GET /api/activities?city=<city>&interest=<tag>
+Activities -> Auth : verifySessionToken(token): userId
+alt session missing or invalid
+  Activities --> App : 401 { error }
+  App --> Traveller : returns to Sign In
+end
+Activities -> MongoDB : findCatalogue(cityKey): CityCatalogue | null
+alt catalogue missing or older than 7 days
+  loop for each of the 7 interest tags
+    Activities -> Places : POST places:searchText(textQuery "<phrase> in <city>", pageSize 20): Place[]
+  end
+  alt Places fails and nothing is cached
+    Activities --> App : 502 { error: "Could not load activities from Google Places" }
+    App --> Traveller : shows the error; the search can be retried
+  else Places fails but a stale catalogue exists
+    Activities -> Activities : keeps serving the stale catalogue
+  else Places answers
+    Activities -> MongoDB : upsertActivities(places with interest tags, visit length, opening hours)
+    Activities -> MongoDB : saveCatalogue(cityKey, fetchedAt, meanRating)
+  end
+end
+Activities -> MongoDB : findActivities(cityKey, interest): Activity[]
+Activities -> Activities : communityScore(activity, cityMeanRating) for each; sort best first
+Activities --> App : 200 { city, activities: ActivityDto[] }
+alt no activities in the city
+  App --> Traveller : "No activities found for <city>."
+else
+  App --> Traveller : activity cards: score, ratings, visit length, today's hours, community tags
+end
+@enduml

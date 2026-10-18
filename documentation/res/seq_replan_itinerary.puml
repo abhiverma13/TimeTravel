@@ -1,0 +1,29 @@
+@startuml seq_replan_itinerary
+!include style.iuml
+title Re-plan Itinerary on a disruption (planned for CP2-CP3)
+
+actor Time
+participant "Trip Sync &\nDisruption Service" as Sync
+participant "OpenWeather API" as Weather
+participant "Google Places API" as Places
+participant "Itinerary\nEngine" as Engine
+database MongoDB
+participant "Firebase Cloud\nMessaging" as FCM
+participant "Party members'\nAndroid Apps" as Apps
+
+Time -> Sync : checkActiveTrips() every 30 minutes
+Sync -> MongoDB : findActiveTrips(now): Itinerary[]
+loop for each active trip
+  Sync -> Weather : GET forecast(lat, lng): HourlyForecast[]
+  Sync -> Places : GET placeDetails(placeId, businessStatus) for today's stops
+  alt an outdoor stop meets rain, or a venue is closed
+    Sync -> Engine : replanItinerary(itineraryId, affectedWindow, frozenStops): Itinerary
+    Engine -> MongoDB : saveItinerary(itinerary)
+    Sync -> Apps : ws message itineraryUpdated { itinerary, reason }
+    Sync -> FCM : send(deviceTokens, "Your plan changed: <reason>")
+    FCM -> Apps : push notification to backgrounded devices
+  else forecast or Places unavailable
+    Sync -> Sync : keeps the current plan and retries on the next check
+  end
+end
+@enduml

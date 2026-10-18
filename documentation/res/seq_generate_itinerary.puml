@@ -1,0 +1,49 @@
+@startuml seq_generate_itinerary
+!include style.iuml
+title Generate Itinerary
+
+actor "Trip Organizer" as Organizer
+participant "Android App" as App
+participant "Auth & Profile\nService" as Auth
+participant "Itinerary\nEngine" as Engine
+participant "Activity & Review\nService" as Activities
+database MongoDB
+participant "Google Places API" as Places
+participant "Google Routes API" as Routes
+
+Organizer -> App : fills in the Trip Builder, taps Generate itinerary
+alt no city, no dates, longer than 7 days, or a day shorter than 2 hours
+  App --> Organizer : explains what to fix; nothing is sent
+end
+App -> Engine : POST /api/itineraries/generate { city, startDate, endDate, dayStart, dayEnd,\n arrivalTime, departureTime, interests, pace, lodging }
+Engine -> Auth : verifySessionToken(token): userId
+Engine -> Activities : listActivities(city, null): ActivityDto[]
+note right of Activities : may refresh the city from Google Places,\nas in Browse & Search Activities
+alt the city has no activities
+  Engine --> App : 404 { error: "No activities found for <city>" }
+  App --> Organizer : shows the error under the form
+end
+opt lodging was entered
+  Engine -> Places : POST places:searchText(textQuery "<lodging>, <city>"): Place[]
+  alt lodging not found or Places fails
+    Engine -> Engine : uses the centre of the city's activities and adds a warning
+  end
+end
+Engine -> Engine : pruneCandidates(candidates, request): RankedCandidate[] (within 25 km, open, top 40)
+Engine -> MongoDB : findTravelMatrix(candidateIds): TravelMatrix | null
+alt no cached matrix
+  Engine -> Routes : POST computeRouteMatrix(origins, destinations): RouteMatrixElement[]
+  alt Routes fails or quota is exhausted
+    Engine -> Engine : estimateTravelMinutes(from, to) (distance / modal speed)
+  else
+    Engine -> MongoDB : saveTravelMatrix(candidateIds, matrix, ttl)
+  end
+end
+note right of Engine : CP1: the matrix steps are planned;\ntravel times use estimateTravelMinutes
+loop for each trip day
+  Engine -> Engine : planDay: greedy insertion by score density (3 starts),\nthen reorder and swap moves within 200 ms
+end
+Engine -> MongoDB : saveItinerary(userId, trip, days, warnings): Itinerary
+Engine --> App : 201 ItineraryDto
+App --> Organizer : day-by-day timeline with transit times and warnings
+@enduml
