@@ -1,0 +1,53 @@
+# Runs every back-end test suite on each push to main (and on pull requests into main).
+name: Backend tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      # The interface tests start their own in-memory MongoDB; no database service is needed.
+      - name: Interface tests with mocks
+        run: npx jest tests/mock --coverage --coverageDirectory=coverage/mock
+
+      - name: Interface tests without mocks
+        run: npx jest tests/no-mock --coverage --coverageDirectory=coverage/no-mock
+
+      - name: All interface tests (combined coverage)
+        run: npx jest tests/mock tests/no-mock --coverage --coverageDirectory=coverage/interface
+
+      - name: Unit tests (Itinerary Engine)
+        run: npx jest tests/unit --coverage=false
+
+      - name: Non-functional requirement tests
+        run: npx jest tests/nfr --coverage=false
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage/
