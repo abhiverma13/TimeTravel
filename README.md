@@ -86,11 +86,28 @@ Then build it with `cd frontend; .\gradlew.bat assembleRelease` (or `./gradlew a
 
 ## 3. Tests
 
+### Back-end
+
 ```powershell
 .\scripts\run-backend-interface-tests.ps1   # back-end interface tests, with and without mocks, with coverage
 .\scripts\run-backend-nfr-tests.ps1         # non-functional requirement tests
 ```
 
-The back-end tests start their own in-memory MongoDB, so they need neither Docker nor a Places key. They also run in GitHub Actions on every push to `main` ([`.github/workflows/backend-tests.yml`](.github/workflows/backend-tests.yml)). See [`documentation/Testing.md`](documentation/Testing.md) for details.
+On macOS / Linux, run `./scripts/run-backend-interface-tests.sh` and `./scripts/run-backend-nfr-tests.sh`.
+
+The back-end tests start their own in-memory MongoDB, so they need neither Docker nor a Places key. They also run in GitHub Actions on every push to `main` ([`.github/workflows/backend-tests.yml`](.github/workflows/backend-tests.yml)).
+
+### Front-end
+
+```powershell
+.\scripts\run-frontend-e2e-tests.ps1   # end-to-end tests (frontend/app/src/androidTest/.../e2e)
+.\scripts\run-frontend-nfr-tests.ps1   # non-functional requirement tests (frontend/app/src/androidTest/.../nfr)
+```
+
+On macOS / Linux, run `./scripts/run-frontend-e2e-tests.sh` and `./scripts/run-frontend-nfr-tests.sh`.
+
+They need Docker running, `frontend/local.properties` set up as in section 2, and the `Pixel_9` emulator. Each script starts the back-end, installs and launches the app, and waits: sign in inside the app, then press Enter in the terminal to run the tests. A suite with no test files is skipped. The Generate Itinerary end-to-end test is designed in Testing.md and is implemented in CP2.
+
+See [`documentation/Testing.md`](documentation/Testing.md) for details.
 
 Do not commit `backend/.env`, `frontend/local.properties`, keystores or private keys.
