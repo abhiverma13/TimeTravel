@@ -60,3 +60,67 @@ data class ReviewRequest(val rating: Int, val comment: String, val tags: ReviewT
 data class Review(val id: String, val activityId: String, val rating: Int, val comment: String, val updatedAt: String)
 
 data class ReviewResponse(val review: Review, val activity: TravelActivity)
+
+/** A trip for the Itinerary Engine. Times are HH:MM; null optional fields are left out of the request. */
+data class GenerateItineraryRequest(
+    val city: String,
+    val startDate: String,
+    val endDate: String,
+    val dayStart: String,
+    val dayEnd: String,
+    val arrivalTime: String?,
+    val departureTime: String?,
+    val interests: List<String>,
+    val pace: String,
+    val lodging: String?,
+)
+
+/** Where each day starts and ends; source is "places" or "city-centre". */
+data class Lodging(val label: String, val lat: Double, val lng: Double, val source: String)
+
+data class ItineraryStop(
+    val activityId: String,
+    val name: String,
+    val address: String,
+    val location: GeoPoint,
+    val interests: List<String>,
+    val startTime: String,
+    val endTime: String,
+    /** Travel from the previous stop, or from the lodging for the first stop. */
+    val travelMinutes: Int,
+    val communityScore: Double,
+)
+
+data class ItineraryDay(val date: String, val weekday: Int, val stops: List<ItineraryStop>, val returnTravelMinutes: Int)
+
+data class Itinerary(
+    val id: String,
+    val city: String,
+    val startDate: String,
+    val endDate: String,
+    val dayStart: String,
+    val dayEnd: String,
+    val arrivalTime: String?,
+    val departureTime: String?,
+    val interests: List<String>,
+    val pace: String,
+    val lodging: Lodging,
+    val days: List<ItineraryDay>,
+    val candidateCount: Int,
+    val unscheduledCount: Int,
+    val warnings: List<String>,
+    val generationMs: Int,
+    val createdAt: String,
+)
+
+data class ItinerarySummary(
+    val id: String,
+    val city: String,
+    val startDate: String,
+    val endDate: String,
+    val pace: String,
+    val stopCount: Int,
+    val createdAt: String,
+)
+
+data class ItinerariesResponse(val itineraries: List<ItinerarySummary>)

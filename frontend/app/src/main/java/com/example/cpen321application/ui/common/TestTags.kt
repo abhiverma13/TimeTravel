@@ -20,5 +20,18 @@ object TestTags {
     const val RATE_BUTTON = "rateButton"
     const val SUBMIT_RATING_BUTTON = "submitRatingButton"
 
+    const val HOME_PLAN_TRIP = "homePlanTrip"
+    const val RECENT_TRIP = "recentTrip"
+
+    const val TRIP_CITY_FIELD = "tripCityField"
+    const val TRIP_DATES_BUTTON = "tripDatesButton"
+    const val TRIP_LODGING_FIELD = "tripLodgingField"
+    const val TRIP_ERROR = "tripError"
+    const val GENERATE_BUTTON = "generateButton"
+
+    const val ITINERARY_DAY = "itineraryDay"
+    const val ITINERARY_STOP = "itineraryStop"
+    const val ITINERARY_WARNING = "itineraryWarning"
+
     fun ratingStar(stars: Int): String = "ratingStar$stars"
 }

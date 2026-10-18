@@ -22,22 +22,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import com.example.cpen321application.data.ItinerarySummary
 import com.example.cpen321application.data.UserProfile
 import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.SectionLabel
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.Wordmark
+import com.example.cpen321application.ui.common.countText
 import com.example.cpen321application.ui.common.interestLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(user: UserProfile, onExplore: () -> Unit, onEditProfile: () -> Unit, onSignOut: () -> Unit) {
+fun HomeScreen(
+    user: UserProfile,
+    recentTrips: List<ItinerarySummary>,
+    actions: HomeActions,
+) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Wordmark(style = MaterialTheme.typography.titleLarge) },
                 actions = {
-                    TextButton(onClick = onSignOut, modifier = Modifier.testTag(TestTags.SIGN_OUT_BUTTON)) {
+                    TextButton(onClick = actions.onSignOut, modifier = Modifier.testTag(TestTags.SIGN_OUT_BUTTON)) {
                         Text("Sign out")
                     }
                 },
@@ -54,12 +62,50 @@ fun HomeScreen(user: UserProfile, onExplore: () -> Unit, onEditProfile: () -> Un
         ) {
             Text("Hi, ${user.name.substringBefore(' ')}", style = MaterialTheme.typography.headlineMedium)
             HomeActionCard(
+                title = "Plan a trip",
+                subtitle = "Dates, lodging, interests and pace in; a ranked, time-feasible, day-by-day plan out.",
+                onClick = actions.onPlanTrip,
+                modifier = Modifier.testTag(TestTags.HOME_PLAN_TRIP),
+                highlighted = true,
+            )
+            HomeActionCard(
                 title = "Explore & review",
                 subtitle = "Browse a city's best-rated activities, and rate and tag the ones you have done.",
-                onClick = onExplore,
+                onClick = actions.onExplore,
                 modifier = Modifier.testTag(TestTags.HOME_EXPLORE),
             )
-            ProfileCard(user = user, onEdit = onEditProfile)
+            if (recentTrips.isNotEmpty()) {
+                SectionLabel("Recent trips")
+                recentTrips.forEach { trip -> RecentTripCard(trip, onClick = { actions.onOpenItinerary(trip.id) }) }
+            }
+            ProfileCard(user = user, onEdit = actions.onEditProfile)
+        }
+    }
+}
+
+/** What the home screen can ask the app to do. */
+data class HomeActions(
+    val onPlanTrip: () -> Unit,
+    val onExplore: () -> Unit,
+    val onOpenItinerary: (String) -> Unit,
+    val onEditProfile: () -> Unit,
+    val onSignOut: () -> Unit,
+)
+
+private val TRIP_DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d")
+
+@Composable
+private fun RecentTripCard(trip: ItinerarySummary, onClick: () -> Unit) {
+    val start = LocalDate.parse(trip.startDate).format(TRIP_DATE_FORMAT)
+    val end = LocalDate.parse(trip.endDate).format(TRIP_DATE_FORMAT)
+    BrandCard(onClick = onClick, modifier = Modifier.fillMaxWidth().testTag(TestTags.RECENT_TRIP)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(trip.city, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = (if (start == end) start else "$start to $end") + " · " + countText(trip.stopCount, "stop"),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -71,11 +117,15 @@ private fun HomeActionCard(
     subtitle: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    highlighted: Boolean = false,
 ) {
-    BrandCard(onClick = onClick, modifier = modifier.fillMaxWidth()) {
+    // The highlighted card is filled green, like the presentation's itinerary-engine box.
+    val container = if (highlighted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceContainerLowest
+    val content = if (highlighted) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurface
+    BrandCard(onClick = onClick, containerColor = container, modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium)
+            Text(title, style = MaterialTheme.typography.titleLarge, color = content)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = content)
         }
         Box(modifier = Modifier.fillMaxWidth().height(5.dp).background(MaterialTheme.colorScheme.secondary))
     }

@@ -2,6 +2,7 @@ package com.example.cpen321application.ui
 
 import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.compose.NavHost
@@ -11,13 +12,24 @@ import com.example.cpen321application.ui.common.FullScreenLoading
 import com.example.cpen321application.ui.common.appViewModel
 import com.example.cpen321application.ui.explore.ExploreScreen
 import com.example.cpen321application.ui.explore.ExploreViewModel
+import com.example.cpen321application.ui.home.HomeActions
 import com.example.cpen321application.ui.home.HomeScreen
+import com.example.cpen321application.ui.home.HomeViewModel
+import com.example.cpen321application.ui.itinerary.ItineraryScreen
+import com.example.cpen321application.ui.itinerary.ItineraryViewModel
+import com.example.cpen321application.ui.trip.TripBuilderScreen
+import com.example.cpen321application.ui.trip.TripBuilderViewModel
 import com.example.cpen321application.ui.home.ProfileDialog
 import com.example.cpen321application.ui.signin.SignInScreen
 
 private object Routes {
     const val HOME = "home"
     const val EXPLORE = "explore"
+    const val TRIP_BUILDER = "tripBuilder"
+    const val ITINERARY_ID = "itineraryId"
+    const val ITINERARY = "itinerary/{$ITINERARY_ID}"
+
+    fun itinerary(itineraryId: String) = "itinerary/$itineraryId"
 }
 
 // Used to prefill searches until the traveller sets a home city.
@@ -58,11 +70,38 @@ private fun SignedInScreens(session: SessionState.SignedIn, viewModel: SessionVi
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
+            val home = appViewModel { HomeViewModel(it) }
+            val recentTrips by home.recentTrips.collectAsState()
+            LaunchedEffect(Unit) { home.refresh() }
             HomeScreen(
                 user = session.user,
-                onExplore = { navController.navigate(Routes.EXPLORE) },
-                onEditProfile = viewModel::editProfile,
-                onSignOut = viewModel::signOut,
+                recentTrips = recentTrips,
+                actions = HomeActions(
+                    onPlanTrip = { navController.navigate(Routes.TRIP_BUILDER) },
+                    onExplore = { navController.navigate(Routes.EXPLORE) },
+                    onOpenItinerary = { navController.navigate(Routes.itinerary(it)) },
+                    onEditProfile = viewModel::editProfile,
+                    onSignOut = viewModel::signOut,
+                ),
+            )
+        }
+        composable(Routes.TRIP_BUILDER) {
+            val city = session.user.homeCity.ifBlank { DEFAULT_CITY }
+            TripBuilderScreen(
+                viewModel = appViewModel { TripBuilderViewModel(it, city, session.user.interests) },
+                onBack = navController::popBackStack,
+                onItineraryReady = { itineraryId ->
+                    navController.navigate(Routes.itinerary(itineraryId)) {
+                        popUpTo(Routes.TRIP_BUILDER) { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable(Routes.ITINERARY) { entry ->
+            val itineraryId = entry.arguments?.getString(Routes.ITINERARY_ID).orEmpty()
+            ItineraryScreen(
+                viewModel = appViewModel(key = itineraryId) { ItineraryViewModel(it, itineraryId) },
+                onBack = navController::popBackStack,
             )
         }
         composable(Routes.EXPLORE) {
