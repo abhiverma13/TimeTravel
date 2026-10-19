@@ -5,7 +5,7 @@
     <base-config>
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="@raw/m1_backend_certificate" />
+            <certificates src="@raw/backend_certificate" />
         </trust-anchors>
     </base-config>
     <!-- Local development only: plain HTTP to a backend on the development machine
