@@ -6,7 +6,9 @@ name: timetravel
 
 services:
   mongo:
-    image: mongo:8.0
+    # MongoDB 8.x refuses to start on Linux kernels 6.19+ (SERVER-121912), which
+    # current Ubuntu cloud images ship. 7.0 runs there and Mongoose 8 supports it.
+    image: mongo:7.0
     restart: unless-stopped
     # Not published to the host: only the backend container talks to the database.
     volumes:
