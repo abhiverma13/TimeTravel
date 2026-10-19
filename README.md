@@ -50,6 +50,26 @@ To try the app without a Places API key, load the labelled Vancouver demo catalo
 docker compose exec backend npm run seed:demo
 ```
 
+### Cloud deployment (HTTPS)
+
+The CP1 back-end runs at `https://136.67.87.217` on a Google Cloud VM (Ubuntu 24.04, e2-medium, HTTPS allowed through the firewall). To deploy it on a fresh VM:
+
+1. Install Docker, then log out and back in so the group change applies:
+   ```bash
+   curl -fsSL https://get.docker.com | sudo sh
+   sudo usermod -aG docker $USER
+   ```
+2. Clone this repository and create a self-signed certificate for the VM's public IP:
+   ```bash
+   IP=<VM public IP>
+   mkdir -p backend/certs
+   openssl req -x509 -newkey rsa:2048 -nodes -days 365 -keyout backend/certs/server.key -out backend/certs/server.crt -subj "/CN=$IP" -addext "subjectAltName=IP:$IP"
+   ```
+3. Create `backend/.env` as above, with `PORT=443`, `TLS_CERT_PATH=/certs/server.crt` and `TLS_KEY_PATH=/certs/server.key`.
+4. Run `./scripts/run-backend.sh`, then check that `https://<VM public IP>/health` answers `{"status":"ok","database":"connected"}`. If the VM restarts, run the script again.
+
+The app trusts this self-signed certificate because it bundles a copy of it: [`frontend/app/src/main/res/raw/backend_certificate.pem`](frontend/app/src/main/res/raw/backend_certificate.pem), referenced from `res/xml/network_security_config.xml`. The committed copy belongs to the server at `136.67.87.217`. For a different server, replace that file with the new `backend/certs/server.crt` before building the app.
+
 ## 2. Android app
 
 Create `frontend/local.properties` (Android Studio usually writes `sdk.dir` for you):
@@ -60,7 +80,7 @@ API_BASE_URL=http://10.0.2.2:3000
 GOOGLE_CLIENT_ID=<the OAuth web client ID>
 ```
 
-`10.0.2.2` is the emulator's address for the development computer; the app allows plain HTTP only to that address and `localhost`. For the deployed back-end, set `API_BASE_URL=https://<server address>`.
+`10.0.2.2` is the emulator's address for the development computer; the app allows plain HTTP only to that address and `localhost`. For the deployed back-end, set `API_BASE_URL=https://136.67.87.217` (or your own server, see "Cloud deployment" above).
 
 Build, install and launch the app on the `Pixel_9` emulator:
 
