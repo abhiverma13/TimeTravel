@@ -5,6 +5,8 @@ import type { ActivityService } from './activities/activityService';
 import { createAuthRouter, createUserRouter } from './auth/authRoutes';
 import type { AuthService } from './auth/authService';
 import { isDatabaseConnected } from './db/connection';
+import { createSuggestionRouter } from './disruptions/disruptionRoutes';
+import type { DisruptionService } from './disruptions/disruptionService';
 import { createFriendRouter, createTravellerRouter } from './friends/friendRoutes';
 import type { FriendService } from './friends/friendService';
 import { createGroupRouter } from './groups/groupRoutes';
@@ -25,6 +27,7 @@ export interface AppDependencies {
   friendService: FriendService;
   postService: PostService;
   nearbyService: NearbyService;
+  disruptionService: DisruptionService;
 }
 
 export function createApp(dependencies: AppDependencies): Express {
@@ -44,6 +47,7 @@ export function createApp(dependencies: AppDependencies): Express {
   app.use('/api/friends', createFriendRouter(dependencies.authService, dependencies.friendService));
   app.use('/api/posts', createPostRouter(dependencies.authService, dependencies.postService));
   app.use('/api/nearby', createNearbyRouter(dependencies.authService, dependencies.nearbyService));
+  app.use('/api/suggestions', createSuggestionRouter(dependencies.authService, dependencies.disruptionService));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

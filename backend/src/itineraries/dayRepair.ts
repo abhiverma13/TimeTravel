@@ -140,12 +140,15 @@ function setVisited(inputs: RepairInputs, activityId: string, visited: boolean):
   return { stops, returnTravelMinutes: inputs.day.returnTravelMinutes, summary: visited ? `visited ${name}` : `unmarked ${name} as visited` };
 }
 
-/** Removes the stop, keeps the others in order, and offers the freed time to other activities. */
-function removeStop(inputs: RepairInputs, activityId: string): RepairedDay {
+/**
+ * Takes the stop out, keeps the others in order, and offers the freed time to other activities that `allowed` accepts
+ * (any activity, unless a disruption narrows it, such as to indoor places in the rain).
+ */
+export function replaceStop(inputs: RepairInputs, activityId: string, allowed: (candidate: RankedCandidate) => boolean = () => true): RepairedDay {
   const index = stopIndex(inputs.day, activityId);
   const removed = inputs.day.stops.at(index);
   const kept = inputs.day.stops.filter((_, position) => position !== index);
-  const pool = freePool(inputs, new Set([activityId]));
+  const pool = freePool(inputs, new Set([activityId])).filter(allowed);
   const day = repairDay(kept.map((stop) => candidateFor(stop, inputs, stop.locked)), pool, inputs.context, { maxStops: inputs.maxStops, reorder: false });
   if (day === null) {
     throw new HttpError(422, 'The rest of the day no longer fits; re-plan the day instead');
@@ -295,7 +298,7 @@ export function applyAdjustment(change: ItineraryAdjustment, inputs: RepairInput
     case 'unvisit':
       return setVisited(inputs, change.activityId, change.action === 'visit');
     case 'remove':
-      return removeStop(inputs, change.activityId);
+      return replaceStop(inputs, change.activityId);
     case 'add':
       return addStop(inputs, change.activityId);
     case 'move':

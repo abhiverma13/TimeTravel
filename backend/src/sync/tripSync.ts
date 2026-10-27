@@ -5,6 +5,7 @@ import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
 
 import type { AuthService } from '../auth/authService';
+import type { DisruptionService, SuggestionDto } from '../disruptions/disruptionService';
 import { UserModel } from '../auth/userModel';
 import type { ItineraryChange, ItineraryService } from '../itineraries/itineraryService';
 import { HttpError } from '../middleware/errorHandler';
@@ -27,6 +28,7 @@ export interface ServerToClientEvents {
   itineraryUpdated: (change: ItineraryChange) => void;
   memberLocation: (location: MemberLocation) => void;
   memberLocationStopped: (member: { itineraryId: string; userId: string }) => void;
+  suggestionAdded: (suggestion: SuggestionDto) => void;
 }
 
 /** Messages the app sends. All take `{ itineraryId }`; `shareLocation` also takes `{ lat, lng }`. */
@@ -109,9 +111,15 @@ function stopSharing(socket: TripSocket, itineraryId: string): void {
  * Trip Sync & Disruption Service, live updates: a Socket.io hub on the API's own server. The app connects with its
  * session token, subscribes to the itineraries on screen, and receives `itineraryUpdated { itinerary, actorId, summary }`
  * after every saved adjustment, so every member's device shows the same plan without polling. Members can also share
- * where they are with the trip's other members while its map is open (`shareLocation`, `memberLocation`).
+ * where they are with the trip's other members while its map is open (`shareLocation`, `memberLocation`), and receive
+ * the disruption suggestions made for the trip (`suggestionAdded`).
  */
-export function attachTripSync(server: HttpServer | HttpsServer, authService: AuthService, itineraryService: ItineraryService): TripSyncServer {
+export function attachTripSync(
+  server: HttpServer | HttpsServer,
+  authService: AuthService,
+  itineraryService: ItineraryService,
+  disruptionService: DisruptionService,
+): TripSyncServer {
   const io: TripSyncServer = new Server(server);
   io.use((socket, next) => {
     const token: unknown = socket.handshake.auth.token;
@@ -156,6 +164,9 @@ export function attachTripSync(server: HttpServer | HttpsServer, authService: Au
   });
   itineraryService.onItineraryChanged((change) => {
     io.to(roomFor(change.itinerary.id)).emit('itineraryUpdated', change);
+  });
+  disruptionService.onSuggestion((suggestion) => {
+    io.to(roomFor(suggestion.itineraryId)).emit('suggestionAdded', suggestion);
   });
   return io;
 }

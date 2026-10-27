@@ -4,6 +4,7 @@ import type { PlacesPeriod } from './openingHours';
 import type { CostLevel } from './reviewTags';
 
 const PLACES_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
+const PLACE_DETAILS_URL = 'https://places.googleapis.com/v1/places/';
 const PLACES_FIELD_MASK = [
   'places.id',
   'places.displayName',
@@ -32,9 +33,15 @@ export interface PlaceResult {
   priceLevel?: CostLevel | undefined;
 }
 
+/** Whether a place is open for business, as Google reports it. */
+export const BUSINESS_STATUSES = ['OPERATIONAL', 'CLOSED_TEMPORARILY', 'CLOSED_PERMANENTLY'] as const;
+export type BusinessStatus = (typeof BUSINESS_STATUSES)[number];
+
 /** External module boundary for Google Places, so tests and the demo seed can substitute it. */
 export interface PlacesClient {
   searchText(query: string): Promise<PlaceResult[]>;
+  /** The place's business status, or null when Google does not say; optional so clients can leave it out. */
+  businessStatus?(placeId: string): Promise<BusinessStatus | null>;
 }
 
 export class PlacesApiError extends Error {
@@ -73,6 +80,8 @@ const placeSchema = z.object({
 });
 
 const searchResponseSchema = z.object({ places: z.array(placeSchema).optional() });
+
+const statusResponseSchema = z.object({ businessStatus: z.enum(BUSINESS_STATUSES).optional() });
 
 /** Calls Places API (New) Text Search: https://developers.google.com/maps/documentation/places/web-service/text-search */
 export class GooglePlacesClient implements PlacesClient {
@@ -114,5 +123,21 @@ export class GooglePlacesClient implements PlacesClient {
         },
       ];
     });
+  }
+
+  /** Place Details with only the business status: https://developers.google.com/maps/documentation/places/web-service/place-details */
+  async businessStatus(placeId: string): Promise<BusinessStatus | null> {
+    const response = await fetch(`${PLACE_DETAILS_URL}${encodeURIComponent(placeId)}`, {
+      headers: { 'X-Goog-Api-Key': this.apiKey, 'X-Goog-FieldMask': 'businessStatus' },
+      signal: AbortSignal.timeout(PLACES_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      throw new PlacesApiError(`Place details failed with HTTP ${String(response.status)}`);
+    }
+    const parsed = statusResponseSchema.safeParse(await response.json());
+    if (!parsed.success) {
+      throw new PlacesApiError('Place details returned an unexpected response');
+    }
+    return parsed.data.businessStatus ?? null;
   }
 }

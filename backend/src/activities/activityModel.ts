@@ -2,6 +2,7 @@ import { type HydratedDocument, Schema, model } from 'mongoose';
 
 import { INTEREST_TAGS, type InterestTag } from './interests';
 import type { OpeningPeriod } from './openingHours';
+import { BUSINESS_STATUSES, type BusinessStatus } from './placesClient';
 import { COST_LEVELS, type CostLevel, TAG_VALUES, type TagValue } from './reviewTags';
 
 export interface Activity {
@@ -29,6 +30,9 @@ export interface Activity {
   reportedDurationCount: number;
   /** How many reviews carry each structured tag value. */
   tagCounts: Record<TagValue, number>;
+  /** Google's business status, and when it was last asked, for spotting closed venues on trips under way. */
+  businessStatus?: BusinessStatus | undefined;
+  statusCheckedAt?: Date | undefined;
 }
 
 const openingPeriodSchema = new Schema<OpeningPeriod>(
@@ -63,6 +67,8 @@ const activitySchema = new Schema<Activity>(
     reportedDurationSum: { type: Number, default: 0 },
     reportedDurationCount: { type: Number, default: 0 },
     tagCounts: Object.fromEntries(TAG_VALUES.map((value) => [value, { type: Number, default: 0 }])),
+    businessStatus: { type: String, enum: BUSINESS_STATUSES },
+    statusCheckedAt: { type: Date },
   },
   { timestamps: true },
 );

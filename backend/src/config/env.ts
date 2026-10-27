@@ -19,6 +19,7 @@ export const env = {
   googleClientId: nonEmpty(process.env.GOOGLE_CLIENT_ID, ''),
   jwtSecret: nonEmpty(process.env.JWT_SECRET, ''),
   googlePlacesApiKey: nonEmpty(process.env.GOOGLE_PLACES_API_KEY, ''),
+  openWeatherApiKey: nonEmpty(process.env.OPENWEATHER_API_KEY, ''),
   tlsCertPath: nonEmpty(process.env.TLS_CERT_PATH, ''),
   tlsKeyPath: nonEmpty(process.env.TLS_KEY_PATH, ''),
 } as const;

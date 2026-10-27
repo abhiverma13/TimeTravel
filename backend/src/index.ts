@@ -9,6 +9,8 @@ import { AuthService } from './auth/authService';
 import { createGoogleTokenVerifier } from './auth/googleTokenVerifier';
 import { env } from './config/env';
 import { connectToDatabase, disconnectFromDatabase } from './db/connection';
+import { CHECK_INTERVAL_MS, DisruptionService } from './disruptions/disruptionService';
+import { OpenWeatherClient } from './disruptions/weatherClient';
 import { FriendService } from './friends/friendService';
 import { GroupService } from './groups/groupService';
 import { NearbyService } from './nearby/nearbyService';
@@ -37,13 +39,24 @@ async function main(): Promise<void> {
   const friendService = new FriendService();
   const postService = new PostService(itineraryService, friendService);
   const nearbyService = new NearbyService(groupService);
-  const app = createApp({ authService, activityService, groupService, itineraryService, friendService, postService, nearbyService });
+  if (!env.openWeatherApiKey) {
+    console.warn('OPENWEATHER_API_KEY is not set: trips under way are checked for closed venues only');
+  }
+  const weatherClient = env.openWeatherApiKey ? new OpenWeatherClient(env.openWeatherApiKey) : null;
+  const disruptionService = new DisruptionService(itineraryService, weatherClient, placesClient);
+  const app = createApp({ authService, activityService, groupService, itineraryService, friendService, postService, nearbyService, disruptionService });
   const hasTlsConfiguration = Boolean(env.tlsCertPath && env.tlsKeyPath);
   const server = hasTlsConfiguration
     ? createHttpsServer({ cert: readFileSync(env.tlsCertPath), key: readFileSync(env.tlsKeyPath) }, app)
     : createHttpServer(app);
   // Live itinerary updates share the API's port (and its TLS), so the app needs no second address.
-  attachTripSync(server, authService, itineraryService);
+  attachTripSync(server, authService, itineraryService, disruptionService);
+  // Checks trips under way for rain and closed venues; suggestions reach the members live.
+  const disruptionTimer = setInterval(() => {
+    disruptionService.checkActiveTrips().catch((error: unknown) => {
+      console.error('Disruption check failed', error);
+    });
+  }, CHECK_INTERVAL_MS);
 
   server.listen(env.port, () => {
     console.info(`Server listening on ${hasTlsConfiguration ? 'HTTPS' : 'HTTP'} port ${String(env.port)}`);
@@ -51,6 +64,7 @@ async function main(): Promise<void> {
 
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.on(signal, () => {
+      clearInterval(disruptionTimer);
       server.close(() => {
         disconnectFromDatabase().catch((error: unknown) => {
           console.error('Failed to close the database connection', error);

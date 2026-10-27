@@ -1,3 +1,6 @@
+import { Types } from 'mongoose';
+
+import { ActivityModel } from '../../src/activities/activityModel';
 import { UserModel } from '../../src/auth/userModel';
 import { ItineraryModel } from '../../src/itineraries/itineraryModel';
 import { storeTestvilleTrip, seedTestville } from '../helpers/testville';
@@ -65,5 +68,30 @@ describe('Mocked: Socket.io location sharing', () => {
     expect(consoleError).toHaveBeenCalledWith('Location sharing failed', expect.any(Error));
     socket.disconnect();
     await live.close();
+  });
+});
+
+// Interface Socket.io: suggestionAdded { suggestion }
+describe('Mocked: Socket.io suggestions', () => {
+  // Mocked behavior: pushing the suggestion to devices fails
+  // Input: a suggestion for Harbour Park in the rain
+  // Expected status code: none
+  // Expected behavior: the suggestion is still saved (members see it when they open the trip) and the failure is logged
+  // Expected output: suggest returns true; "Failed to push a suggestion" is logged
+  test('Pushing a suggestion fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const testApp = createTestApp({ now: () => new Date('2026-10-24T08:00:00Z') });
+    const { userId } = await signedInUser(testApp.authService);
+    await seedTestville(testApp.activityService);
+    const itineraryId = await storeTestvilleTrip(userId, ['Morning Bakery', 'Harbour Park']);
+    testApp.disruptionService.onSuggestion(() => {
+      throw new Error('Simulated socket failure');
+    });
+    const parkId = (await ActivityModel.findOne({ name: 'Harbour Park' }))?._id.toString() ?? '';
+
+    const made = await testApp.disruptionService.suggest(new Types.ObjectId(itineraryId), 0, parkId, 'rain');
+
+    expect(made).toBe(true);
+    expect(consoleError).toHaveBeenCalledWith('Failed to push a suggestion', expect.any(Error));
   });
 });

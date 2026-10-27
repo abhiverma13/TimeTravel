@@ -68,6 +68,22 @@ function memberOf(group: GroupDocument, userId: string): GroupMember | undefined
   return group.members.find((member) => member.userId.toString() === userId);
 }
 
+// Per interest, the share of members who picked it; and every member's vetoes.
+function combinedPreferences(group: GroupDocument): GroupTripPreferences {
+  const pickedBy = new Map<InterestTag, number>();
+  const vetoedActivityIds = new Set<string>();
+  for (const member of group.members) {
+    for (const tag of new Set(member.interests)) {
+      pickedBy.set(tag, (pickedBy.get(tag) ?? 0) + 1);
+    }
+    for (const activityId of member.vetoedActivityIds) {
+      vetoedActivityIds.add(activityId.toString());
+    }
+  }
+  const interestShares = new Map([...pickedBy].map(([tag, count]) => [tag, count / group.members.length]));
+  return { interestShares, vetoedActivityIds };
+}
+
 function knownInterests(tags: readonly string[]): InterestTag[] {
   return tags.filter((tag): tag is InterestTag => INTEREST_TAGS.some((known) => known === tag));
 }
@@ -194,19 +210,13 @@ export class GroupService {
 
   /** Every member's interests and vetoes, combined; the caller must be a member. */
   async tripPreferences(userId: string, groupId: string): Promise<GroupTripPreferences> {
-    const group = await this.requireMember(userId, groupId);
-    const pickedBy = new Map<InterestTag, number>();
-    const vetoedActivityIds = new Set<string>();
-    for (const member of group.members) {
-      for (const tag of new Set(member.interests)) {
-        pickedBy.set(tag, (pickedBy.get(tag) ?? 0) + 1);
-      }
-      for (const activityId of member.vetoedActivityIds) {
-        vetoedActivityIds.add(activityId.toString());
-      }
-    }
-    const interestShares = new Map([...pickedBy].map(([tag, count]) => [tag, count / group.members.length]));
-    return { interestShares, vetoedActivityIds };
+    return combinedPreferences(await this.requireMember(userId, groupId));
+  }
+
+  /** The same, for a caller that has already checked access (or acts for the system); none if the group is gone. */
+  async preferencesOf(groupId: Types.ObjectId): Promise<GroupTripPreferences> {
+    const group = await GroupModel.findById(groupId);
+    return group ? combinedPreferences(group) : { interestShares: new Map(), vetoedActivityIds: new Set() };
   }
 
   /** Ids of the groups the user belongs to. */

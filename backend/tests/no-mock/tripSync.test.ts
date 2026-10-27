@@ -1,6 +1,9 @@
+import { Types } from 'mongoose';
 import request from 'supertest';
 import { io } from 'socket.io-client';
 
+import { ActivityModel } from '../../src/activities/activityModel';
+import type { SuggestionDto } from '../../src/disruptions/disruptionService';
 import type { GroupDto } from '../../src/groups/groupService';
 import type { ItineraryDto } from '../../src/itineraries/itineraryService';
 import type { MemberLocation } from '../../src/sync/tripSync';
@@ -216,6 +219,33 @@ describe('Unmocked: Socket.io location sharing', () => {
     expect(notSubscribed).toEqual({ ok: false, error: 'Subscribe to the itinerary before sharing your location' });
     expect(offTheMap).toEqual({ ok: false, error: 'Send { itineraryId, lat, lng } to share your location' });
     expect(received).not.toHaveBeenCalled();
+    ownerSocket.disconnect();
+    memberSocket.disconnect();
+    await live.close();
+  });
+});
+
+// Interface Socket.io: suggestionAdded { suggestion }
+describe('Unmocked: Socket.io suggestions', () => {
+  // Input: the owner and a member subscribe to their group trip; the Trip Sync & Disruption Service suggests a change
+  //        for Harbour Park in the rain
+  // Expected status code: none (Socket.io)
+  // Expected behavior: every subscribed member receives the suggestion as soon as it is made
+  // Expected output: suggestionAdded with the trip's id, Harbour Park and reason "rain", on both devices
+  test('Members receive new suggestions', async () => {
+    const { owner, member, itineraryId, live, disruptionService } = await sharedTrip();
+    const ownerSocket = await connectClient(live.url, owner.authorization);
+    const memberSocket = await connectClient(live.url, member.authorization);
+    await subscribeTo(ownerSocket, itineraryId);
+    await subscribeTo(memberSocket, itineraryId);
+    const arriving = Promise.all([nextEvent<SuggestionDto>(ownerSocket, 'suggestionAdded'), nextEvent<SuggestionDto>(memberSocket, 'suggestionAdded')]);
+    const parkId = (await ActivityModel.findOne({ name: 'Harbour Park' }))?._id.toString() ?? '';
+
+    await disruptionService.suggest(new Types.ObjectId(itineraryId), 0, parkId, 'rain');
+    const [toOwner, toMember] = await arriving;
+
+    expect(toMember).toMatchObject({ itineraryId, activityName: 'Harbour Park', reason: 'rain' });
+    expect(toOwner).toEqual(toMember);
     ownerSocket.disconnect();
     memberSocket.disconnect();
     await live.close();

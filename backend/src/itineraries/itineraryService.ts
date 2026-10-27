@@ -6,8 +6,8 @@ import type { PlacesClient } from '../activities/placesClient';
 import { UserModel } from '../auth/userModel';
 import type { GroupService, GroupTripPreferences } from '../groups/groupService';
 import { HttpError } from '../middleware/errorHandler';
-import { type ItineraryAdjustment, type RepairInputs, STALE_ITINERARY, applyAdjustment, timedStops, toCandidate } from './dayRepair';
-import { pruneCandidates } from './engine/candidates';
+import { type ItineraryAdjustment, type RepairInputs, STALE_ITINERARY, applyAdjustment, replaceStop, timedStops, toCandidate } from './dayRepair';
+import { type RankedCandidate, pruneCandidates } from './engine/candidates';
 import { type SimulatedDay, simulateDay } from './engine/daySchedule';
 import { dayContext, paceSettings, planTrip } from './engine/planner';
 import type { Candidate, GeoPoint, Pace, PlanRequest, TransportMode, TripDay } from './engine/types';
@@ -19,6 +19,12 @@ import { type Budget, selectActivities } from './tripOptions';
 export const MAX_TRIP_DAYS = 7;
 const RECENT_ITINERARY_LIMIT = 20;
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** A day of an itinerary changed but not yet saved, and the itinerary version it was made from. */
+export interface ProposedDay {
+  version: number;
+  day: ItineraryDay;
+}
 
 /** A frozen copy of a trip, as a post keeps it: the plan and the choices it was made with. */
 export type TripSnapshot = Pick<
@@ -465,7 +471,7 @@ export class ItineraryService {
     if (day === undefined) {
       throw new HttpError(400, 'dayIndex is out of range');
     }
-    const repaired = applyAdjustment(change, await this.repairInputs(userId, itinerary, days, day, change.dayIndex));
+    const repaired = applyAdjustment(change, await this.repairInputs(itinerary, days, day, change.dayIndex));
     const newDays = days.map((other, index) =>
       index === change.dayIndex ? { ...other, stops: repaired.stops, returnTravelMinutes: repaired.returnTravelMinutes } : other,
     );
@@ -482,15 +488,60 @@ export class ItineraryService {
     return dto;
   }
 
+  /**
+   * For the Trip Sync & Disruption Service: the day with the stop replaced by another activity that `allowed` accepts,
+   * proposed but not saved. Null if the itinerary, day or stop is gone, or the rest of the day no longer fits.
+   */
+  async proposeReplacement(
+    itineraryId: Types.ObjectId,
+    dayIndex: number,
+    activityId: string,
+    allowed: (candidate: RankedCandidate, activity: ActivityDto | undefined) => boolean,
+  ): Promise<ProposedDay | null> {
+    const itinerary = await ItineraryModel.findById(itineraryId);
+    const days = itinerary?.days.map(plainDay) ?? [];
+    const day = days.at(dayIndex);
+    if (!itinerary || !day?.stops.some((stop) => stop.activityId.toString() === activityId)) {
+      return null;
+    }
+    const inputs = await this.repairInputs(itinerary, days, day, dayIndex);
+    try {
+      const repaired = replaceStop(inputs, activityId, (candidate) => allowed(candidate, inputs.catalogue.get(candidate.id)));
+      return { version: itinerary.version, day: { ...day, stops: repaired.stops, returnTravelMinutes: repaired.returnTravelMinutes } };
+    } catch {
+      return null;
+    }
+  }
+
+  /** Saves a proposed day the traveller accepted, if the itinerary has not changed since; then tells the members. */
+  async applyProposedDay(userId: string, itineraryId: string, proposal: ProposedDay, dayIndex: number, summary: string): Promise<ItineraryDto> {
+    const itinerary = await this.findVisible(userId, itineraryId);
+    if (itinerary.version !== proposal.version) {
+      throw new HttpError(409, STALE_ITINERARY);
+    }
+    const days = itinerary.days.map(plainDay).map((day, index) => (index === dayIndex ? proposal.day : day));
+    const updated = await ItineraryModel.findOneAndUpdate(
+      { _id: itinerary._id, version: proposal.version },
+      { $set: { days }, $inc: { version: 1 } },
+      { new: true, runValidators: true },
+    );
+    if (!updated) {
+      throw new HttpError(409, STALE_ITINERARY);
+    }
+    const dto = toItineraryDto(updated);
+    await this.notify(userId, dto, summary);
+    return dto;
+  }
+
   private async repairInputs(
-    userId: string,
     itinerary: ItineraryDocument,
     days: readonly ItineraryDay[],
     day: ItineraryDay,
     dayIndex: number,
   ): Promise<RepairInputs> {
     const catalogue = await this.activityService.listActivities(itinerary.city);
-    const group = itinerary.groupId ? await this.groupService.tripPreferences(userId, itinerary.groupId.toString()) : null;
+    // Access was checked by whoever asked; a group trip uses its members' combined preferences.
+    const group = itinerary.groupId ? await this.groupService.preferencesOf(itinerary.groupId) : null;
     const request: PlanRequest = {
       days: plannedDays(itinerary),
       dayStartMinute: minutesFromClock(itinerary.dayStart),

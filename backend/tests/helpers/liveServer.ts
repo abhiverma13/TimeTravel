@@ -15,7 +15,7 @@ export interface LiveServer {
 /** Serves the test app and its live-update hub on a free local port, as index.ts does in production. */
 export async function startLiveServer(testApp: TestApp): Promise<LiveServer> {
   const server = createServer(testApp.app);
-  const hub = attachTripSync(server, testApp.authService, testApp.itineraryService);
+  const hub = attachTripSync(server, testApp.authService, testApp.itineraryService, testApp.disruptionService);
   await new Promise<void>((resolve) => {
     server.listen(0, resolve);
   });

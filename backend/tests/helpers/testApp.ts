@@ -7,6 +7,8 @@ import { AuthService } from '../../src/auth/authService';
 import { createGoogleTokenVerifier, type GoogleTokenVerifier } from '../../src/auth/googleTokenVerifier';
 import { UserModel } from '../../src/auth/userModel';
 import { DEMO_VANCOUVER_PLACES } from '../../src/dev/demoVancouverPlaces';
+import { DisruptionService } from '../../src/disruptions/disruptionService';
+import type { WeatherClient } from '../../src/disruptions/weatherClient';
 import { FriendService } from '../../src/friends/friendService';
 import { GroupService } from '../../src/groups/groupService';
 import { ItineraryService } from '../../src/itineraries/itineraryService';
@@ -25,7 +27,9 @@ export interface TestAppOptions {
   placesClient?: PlacesClient;
   /** Google Routes client; defaults to none, so travel times are estimated. */
   routesClient?: RoutesClient;
-  /** Clock used for catalogue cache expiry. */
+  /** OpenWeather client; defaults to none, so only closures are checked. */
+  weatherClient?: WeatherClient;
+  /** Clock used for catalogue cache expiry, trip days and disruption checks. */
   now?: () => Date;
 }
 
@@ -38,6 +42,7 @@ export interface TestApp {
   friendService: FriendService;
   postService: PostService;
   nearbyService: NearbyService;
+  disruptionService: DisruptionService;
 }
 
 export function createTestApp(options: TestAppOptions = {}): TestApp {
@@ -52,8 +57,9 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   const friendService = new FriendService();
   const postService = new PostService(itineraryService, friendService);
   const nearbyService = new NearbyService(groupService, options.now);
+  const disruptionService = new DisruptionService(itineraryService, options.weatherClient ?? null, placesClient, options.now);
   return {
-    app: createApp({ authService, activityService, groupService, itineraryService, friendService, postService, nearbyService }),
+    app: createApp({ authService, activityService, groupService, itineraryService, friendService, postService, nearbyService, disruptionService }),
     authService,
     activityService,
     groupService,
@@ -61,6 +67,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     friendService,
     postService,
     nearbyService,
+    disruptionService,
   };
 }
 
