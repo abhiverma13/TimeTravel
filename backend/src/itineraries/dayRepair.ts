@@ -88,11 +88,15 @@ function unpinnedCandidateFor(stop: ItineraryStop, inputs: RepairInputs): Ranked
 }
 
 /** Timed stops for a simulated route, keeping each kept stop's details and lock. */
-function timedStops(simulation: SimulatedDay, inputs: RepairInputs, previous: readonly ItineraryStop[]): ItineraryStop[] {
+export function timedStops(
+  simulation: SimulatedDay,
+  catalogue: ReadonlyMap<string, ActivityDto>,
+  previous: readonly ItineraryStop[],
+): ItineraryStop[] {
   const previousById = new Map(previous.map((stop) => [stop.activityId.toString(), stop]));
   return simulation.stops.map((scheduled) => {
     const before = previousById.get(scheduled.candidateId);
-    const activity = inputs.catalogue.get(scheduled.candidateId);
+    const activity = catalogue.get(scheduled.candidateId);
     return {
       activityId: new Types.ObjectId(scheduled.candidateId),
       name: activity?.name ?? before?.name ?? '',
@@ -138,7 +142,7 @@ function removeStop(inputs: RepairInputs, activityId: string): RepairedDay {
     throw new HttpError(422, 'The rest of the day no longer fits; re-plan the day instead');
   }
   return {
-    stops: timedStops(day.simulation, inputs, kept),
+    stops: timedStops(day.simulation, inputs.catalogue, kept),
     returnTravelMinutes: day.simulation.returnTravelMinutes,
     summary: `removed ${removed?.name ?? ''}`,
   };
@@ -159,7 +163,7 @@ function moveStop(inputs: RepairInputs, activityId: string, toIndex: number): Re
     throw new HttpError(422, `${moved?.name ?? 'That stop'} cannot go there: a stop would miss its opening hours or the day would run late`);
   }
   return {
-    stops: timedStops(simulation, inputs, inputs.day.stops),
+    stops: timedStops(simulation, inputs.catalogue, inputs.day.stops),
     returnTravelMinutes: simulation.returnTravelMinutes,
     summary: `moved ${moved?.name ?? ''}`,
   };
@@ -231,7 +235,7 @@ function addStop(inputs: RepairInputs, activityId: string): RepairedDay {
     if (best !== null) {
       const dropped = best.dropped.map((stop) => stop.name);
       return {
-        stops: timedStops(best.simulation, inputs, inputs.day.stops),
+        stops: timedStops(best.simulation, inputs.catalogue, inputs.day.stops),
         returnTravelMinutes: best.simulation.returnTravelMinutes,
         summary: `added ${activity.name}` + (dropped.length > 0 ? `, dropping ${dropped.join(' and ')} to make room` : ''),
       };
@@ -266,7 +270,7 @@ function replanDay(inputs: RepairInputs, fromTime: string | undefined): Repaired
   const homeFromLast = last ? inputs.context.travelMinutes(last.location, inputs.context.origin) : 0;
   const weekday = WEEKDAY_NAMES.at(inputs.day.weekday) ?? 'the day';
   return {
-    stops: [...started, ...timedStops(rest.simulation, inputs, inputs.day.stops)],
+    stops: [...started, ...timedStops(rest.simulation, inputs.catalogue, inputs.day.stops)],
     returnTravelMinutes: rest.route.length > 0 ? rest.simulation.returnTravelMinutes : homeFromLast,
     summary: fromTime === undefined ? `re-planned ${weekday}` : `re-planned ${weekday} from ${fromTime}`,
   };

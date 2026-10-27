@@ -33,6 +33,14 @@ export interface FriendListsDto {
   outgoing: TravellerDto[];
 }
 
+/** Whose posts a traveller may see: their own and their friends' always, anyone else's only if not private. */
+export interface Audience {
+  /** The traveller and their friends. */
+  friendIds: Types.ObjectId[];
+  /** Private accounts outside that circle. */
+  hiddenIds: Types.ObjectId[];
+}
+
 export interface FriendRequestResult {
   traveller: TravellerDto;
   /** False if nothing new was saved: already asked, already friends, or it accepted their request. */
@@ -153,6 +161,26 @@ export class FriendService {
       throw new HttpError(404, 'User not found');
     }
     return { isPrivate: user.isPrivate };
+  }
+
+  async audience(viewerId: string): Promise<Audience> {
+    const viewer = new Types.ObjectId(viewerId);
+    const friendships = await FriendshipModel.find({ status: 'accepted', $or: [{ requesterId: viewer }, { recipientId: viewer }] });
+    const friendIds = [viewer, ...friendships.map((friendship) => (friendship.requesterId.equals(viewer) ? friendship.recipientId : friendship.requesterId))];
+    const hidden = await UserModel.find({ isPrivate: true, _id: { $nin: friendIds } }, { _id: 1 });
+    return { friendIds, hiddenIds: hidden.map((user) => user._id) };
+  }
+
+  /** Whether the viewer may see this traveller's posts: their own, a friend's, or a public account's. */
+  async canSee(viewerId: string, authorId: string): Promise<boolean> {
+    if (viewerId === authorId) {
+      return true;
+    }
+    const author = await UserModel.findById(authorId);
+    if (author?.isPrivate !== true) {
+      return author !== null;
+    }
+    return (await FriendshipModel.countDocuments({ pair: pairKey(viewerId, authorId), status: 'accepted' })) > 0;
   }
 
   private async requireUser(userId: string): Promise<UserDocument> {

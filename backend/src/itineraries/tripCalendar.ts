@@ -35,6 +35,11 @@ export function tripLengthDays(startDate: string, endDate: string): number {
   return Math.round((utcMidnight(endDate).getTime() - utcMidnight(startDate).getTime()) / MS_PER_DAY) + 1;
 }
 
+/** The date `days` days after `isoDate`, written YYYY-MM-DD. */
+export function addDays(isoDate: string, days: number): string {
+  return new Date(utcMidnight(isoDate).getTime() + days * MS_PER_DAY).toISOString().slice(0, 10);
+}
+
 /** Every date of the trip with its weekday (0 = Sunday). Dates are the destination's local dates. */
 export function tripDays(startDate: string, endDate: string): TripDay[] {
   const start = utcMidnight(startDate).getTime();

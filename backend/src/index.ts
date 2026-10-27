@@ -11,6 +11,7 @@ import { env } from './config/env';
 import { connectToDatabase, disconnectFromDatabase } from './db/connection';
 import { FriendService } from './friends/friendService';
 import { GroupService } from './groups/groupService';
+import { PostService } from './posts/postService';
 import { ItineraryService } from './itineraries/itineraryService';
 import { GoogleRoutesClient } from './itineraries/routesClient';
 import { TravelTimeService } from './itineraries/travelTimes';
@@ -32,7 +33,9 @@ async function main(): Promise<void> {
   // The same Google Cloud key serves Places and Routes (Routes API must be enabled for it).
   const routesClient = env.googlePlacesApiKey ? new GoogleRoutesClient(env.googlePlacesApiKey) : null;
   const itineraryService = new ItineraryService(activityService, placesClient, groupService, new TravelTimeService(routesClient));
-  const app = createApp({ authService, activityService, groupService, itineraryService, friendService: new FriendService() });
+  const friendService = new FriendService();
+  const postService = new PostService(itineraryService, friendService);
+  const app = createApp({ authService, activityService, groupService, itineraryService, friendService, postService });
   const hasTlsConfiguration = Boolean(env.tlsCertPath && env.tlsKeyPath);
   const server = hasTlsConfiguration
     ? createHttpsServer({ cert: readFileSync(env.tlsCertPath), key: readFileSync(env.tlsKeyPath) }, app)

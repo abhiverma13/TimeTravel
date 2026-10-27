@@ -6,17 +6,25 @@ import type { PlacesClient } from '../activities/placesClient';
 import { UserModel } from '../auth/userModel';
 import type { GroupService, GroupTripPreferences } from '../groups/groupService';
 import { HttpError } from '../middleware/errorHandler';
-import { type ItineraryAdjustment, type RepairInputs, STALE_ITINERARY, applyAdjustment, toCandidate } from './dayRepair';
+import { type ItineraryAdjustment, type RepairInputs, STALE_ITINERARY, applyAdjustment, timedStops, toCandidate } from './dayRepair';
 import { pruneCandidates } from './engine/candidates';
+import { type SimulatedDay, simulateDay } from './engine/daySchedule';
 import { dayContext, paceSettings, planTrip } from './engine/planner';
-import type { GeoPoint, Pace, PlanRequest, TransportMode, TripDay } from './engine/types';
-import { type ItineraryDay, type ItineraryDocument, ItineraryModel, type Lodging } from './itineraryModel';
+import type { Candidate, GeoPoint, Pace, PlanRequest, TransportMode, TripDay } from './engine/types';
+import { type Itinerary, type ItineraryDay, type ItineraryDocument, ItineraryModel, type Lodging } from './itineraryModel';
 import { ROUTED_CANDIDATES, type TravelTimeService } from './travelTimes';
-import { clockFromMinutes, minutesFromClock, tripDays } from './tripCalendar';
+import { addDays, clockFromMinutes, minutesFromClock, tripDays } from './tripCalendar';
 import { type Budget, selectActivities } from './tripOptions';
 
 export const MAX_TRIP_DAYS = 7;
 const RECENT_ITINERARY_LIMIT = 20;
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** A frozen copy of a trip, as a post keeps it: the plan and the choices it was made with. */
+export type TripSnapshot = Pick<
+  Itinerary,
+  'city' | 'startDate' | 'endDate' | 'dayStart' | 'dayEnd' | 'interests' | 'pace' | 'transportMode' | 'budget' | 'lodging' | 'days'
+>;
 
 export interface GenerateItineraryInput {
   city: string;
@@ -346,6 +354,87 @@ export class ItineraryService {
       stopCount: itinerary.days.reduce((count, day) => count + day.stops.length, 0),
       createdAt: itinerary.createdAt.toISOString(),
     }));
+  }
+
+  /** A frozen copy of an itinerary the traveller may see, for sharing it in a post. */
+  async snapshot(userId: string, itineraryId: string): Promise<TripSnapshot> {
+    const itinerary = await this.findVisible(userId, itineraryId);
+    return {
+      city: itinerary.city,
+      startDate: itinerary.startDate,
+      endDate: itinerary.endDate,
+      dayStart: itinerary.dayStart,
+      dayEnd: itinerary.dayEnd,
+      interests: [...itinerary.interests],
+      pace: itinerary.pace,
+      transportMode: itinerary.transportMode,
+      budget: itinerary.budget,
+      lodging: { label: itinerary.lodging.label, lat: itinerary.lodging.lat, lng: itinerary.lodging.lng, source: itinerary.lodging.source },
+      days: itinerary.days.map(plainDay),
+    };
+  }
+
+  /**
+   * Copies a shared trip into the traveller's own trips, starting on `startDate`. Each day keeps its stops in order,
+   * re-timed for its new weekday; a stop that no longer fits (closed that day, say) is left out with a warning.
+   */
+  async copyTrip(userId: string, trip: TripSnapshot, startDate: string, note: string): Promise<ItineraryDto> {
+    const startedAt = performance.now();
+    const endDate = addDays(startDate, trip.days.length - 1);
+    const catalogue = new Map((await this.activityService.listActivities(trip.city)).map((activity) => [activity.id, activity]));
+    const request: PlanRequest = {
+      days: plannedDays({ startDate, endDate, dayStart: trip.dayStart, dayEnd: trip.dayEnd }),
+      dayStartMinute: minutesFromClock(trip.dayStart),
+      dayEndMinute: minutesFromClock(trip.dayEnd),
+      origin: { lat: trip.lodging.lat, lng: trip.lodging.lng },
+      interests: trip.interests,
+      pace: trip.pace,
+    };
+    const sourceDays = trip.days.map(plainDay);
+    const sourceStops = sourceDays.flatMap((day) => day.stops.map((stop) => ({ ...stop, locked: false })));
+    const times = await this.travelTimes.forPoints([request.origin, ...sourceStops.map((stop) => stop.location)], trip.transportMode, true);
+    const warnings = [note];
+    const days = request.days.map((tripDay, index) => {
+      const context = dayContext(request, tripDay, times.travelMinutes);
+      const route: Candidate[] = [];
+      let simulation: SimulatedDay = { stops: [], returnTravelMinutes: 0, totalTravelMinutes: 0 };
+      for (const stop of sourceDays.at(index)?.stops ?? []) {
+        const activity = catalogue.get(stop.activityId.toString());
+        const next = activity ? simulateDay([...route, toCandidate(activity)], context) : null;
+        if (activity && next) {
+          route.push(toCandidate(activity));
+          simulation = next;
+        } else {
+          warnings.push(`${stop.name} does not fit ${WEEKDAY_NAMES.at(tripDay.weekday) ?? 'that day'} on your dates, so it was left out.`);
+        }
+      }
+      return {
+        date: tripDay.date,
+        weekday: tripDay.weekday,
+        stops: timedStops(simulation, catalogue, sourceStops),
+        returnTravelMinutes: simulation.returnTravelMinutes,
+      };
+    });
+    const itinerary = await ItineraryModel.create({
+      userId: new Types.ObjectId(userId),
+      city: trip.city,
+      startDate,
+      endDate,
+      dayStart: trip.dayStart,
+      dayEnd: trip.dayEnd,
+      interests: trip.interests,
+      pace: trip.pace,
+      transportMode: trip.transportMode,
+      budget: trip.budget,
+      travelTimeSource: times.usesRoutes ? 'google-routes' : 'estimate',
+      lodging: trip.lodging,
+      days,
+      candidateCount: sourceStops.length,
+      unscheduledCount: warnings.length - 1,
+      warnings,
+      generationMs: Math.round(performance.now() - startedAt),
+    });
+    return toItineraryDto(itinerary);
   }
 
   /** Called after every saved adjustment; the Trip Sync & Disruption Service pushes it to connected members. */

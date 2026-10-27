@@ -12,6 +12,8 @@ import type { GroupService } from './groups/groupService';
 import { createItineraryRouter } from './itineraries/itineraryRoutes';
 import type { ItineraryService } from './itineraries/itineraryService';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { createPostRouter } from './posts/postRoutes';
+import type { PostService } from './posts/postService';
 
 export interface AppDependencies {
   authService: AuthService;
@@ -19,6 +21,7 @@ export interface AppDependencies {
   groupService: GroupService;
   itineraryService: ItineraryService;
   friendService: FriendService;
+  postService: PostService;
 }
 
 export function createApp(dependencies: AppDependencies): Express {
@@ -36,6 +39,7 @@ export function createApp(dependencies: AppDependencies): Express {
   app.use('/api/itineraries', createItineraryRouter(dependencies.authService, dependencies.itineraryService));
   app.use('/api/travellers', createTravellerRouter(dependencies.authService, dependencies.friendService));
   app.use('/api/friends', createFriendRouter(dependencies.authService, dependencies.friendService));
+  app.use('/api/posts', createPostRouter(dependencies.authService, dependencies.postService));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -90,7 +90,7 @@ const stopSchema = new Schema<ItineraryStop>(
   { _id: false },
 );
 
-const daySchema = new Schema<ItineraryDay>(
+export const daySchema = new Schema<ItineraryDay>(
   {
     date: { type: String, required: true },
     weekday: { type: Number, required: true },
