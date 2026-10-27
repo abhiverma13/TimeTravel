@@ -1,5 +1,6 @@
 import request from 'supertest';
 
+import { ActivityModel } from '../../src/activities/activityModel';
 import type { GroupDto } from '../../src/groups/groupService';
 import type { ItineraryDto } from '../../src/itineraries/itineraryService';
 import { createTestApp, seedVancouver, signedInUser } from '../helpers/testApp';
@@ -241,6 +242,93 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
     expect(day).toContain('Harbour Park');
     expect(day.indexOf('Morning Bakery')).toBeLessThan(day.indexOf('Harbour Park'));
     expect(day).not.toContain('Town Museum');
+  });
+
+  // Input: add Lookout Tower to [Morning Bakery, Harbour Park]
+  // Expected status code: 200
+  // Expected behavior: the place goes where it adds the least travel; the stops already there stay in order
+  // Expected output: the day with Lookout Tower, Morning Bakery still before Harbour Park, version 1
+  test('Adds a chosen place to a day', async () => {
+    const { adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
+    const lookout = (await ActivityModel.findOne({ name: 'Lookout Tower' }))?._id.toString();
+
+    const response = await adjust({ action: 'add', version: 0, dayIndex: 0, activityId: lookout });
+
+    const day = names(response.body as ItineraryDto);
+    expect(response.status).toBe(200);
+    expect(day).toContain('Lookout Tower');
+    expect(day.indexOf('Morning Bakery')).toBeLessThan(day.indexOf('Harbour Park'));
+    expect((response.body as ItineraryDto).version).toBe(1);
+  });
+
+  // Input: add Lookout Tower to a day that is full, with Morning Bakery (and Town Museum) locked: a relaxed day that
+  //        already has its 3 stops, and a day ending at 13:00 with no time left after Harbour Park
+  // Expected status code: 200
+  // Expected behavior: the unlocked stop is dropped to make room; locked stops keep their times
+  // Expected output: the day with Lookout Tower and without Harbour Park; the members are told what was dropped
+  test.each([
+    [
+      'as many stops as the pace allows',
+      ['Morning Bakery', 'Harbour Park', 'Town Museum'],
+      { pace: 'relaxed' as const, locked: ['Morning Bakery', 'Town Museum'], startTimes: { 'Morning Bakery': '10:00', 'Town Museum': '13:00' } },
+    ],
+    ['no time left', ['Morning Bakery', 'Harbour Park'], { dayEnd: '13:00', locked: ['Morning Bakery'], startTimes: { 'Morning Bakery': '09:30' } }],
+  ])('Adds a chosen place to a full day by dropping an unlocked stop: %s', async (_scenario, stopNames, options) => {
+    const { itinerary, itineraryService, adjust } = await testvilleTrip(stopNames, options);
+    const summaries: string[] = [];
+    itineraryService.onItineraryChanged((change) => summaries.push(change.summary));
+    const lookout = (await ActivityModel.findOne({ name: 'Lookout Tower' }))?._id.toString();
+
+    const response = await adjust({ action: 'add', version: 0, dayIndex: 0, activityId: lookout });
+
+    const stops = stopsOf(response.body as ItineraryDto);
+    expect(response.status).toBe(200);
+    expect(stops.map((stop) => stop.name)).toContain('Lookout Tower');
+    expect(stops.map((stop) => stop.name)).not.toContain('Harbour Park');
+    for (const locked of stopsOf(itinerary).filter((stop) => stop.locked)) {
+      expect(stops.find((stop) => stop.name === locked.name)?.startTime).toBe(locked.startTime);
+    }
+    expect(summaries).toEqual(['Trip added Lookout Tower, dropping Harbour Park to make room']);
+  });
+
+  // Input: add a place already in the trip, a place from another city, Night Market (opens 17:00 for an hour's visit)
+  //        to a day that ends at 18:00, and Lookout Tower to a day ending at 14:00 whose only stops are locked and fill it
+  // Expected status code: 409, 404, 422 and 422
+  // Expected behavior: nothing changes
+  // Expected output: the matching error message
+  test.each([
+    ['already in the trip', 'Harbour Park', ['Harbour Park'], {}, 409, 'That place is already in this trip'],
+    ['from another city', 'Stanley Park Seawall', ['Harbour Park'], {}, 404, "That place is not in this city's activities"],
+    [
+      'never open in time',
+      'Night Market',
+      ['Harbour Park'],
+      {},
+      422,
+      'Night Market does not fit that day: it would miss its opening hours, clash with a locked stop or run late',
+    ],
+    [
+      'only locked stops',
+      'Lookout Tower',
+      ['Morning Bakery', 'Town Museum'],
+      {
+        pace: 'relaxed' as const,
+        dayEnd: '14:00',
+        locked: ['Morning Bakery', 'Town Museum'],
+        startTimes: { 'Morning Bakery': '10:00', 'Town Museum': '11:45' },
+      },
+      422,
+      'Lookout Tower does not fit that day: it would miss its opening hours, clash with a locked stop or run late',
+    ],
+  ])('Add refused: %s', async (_scenario, placeName, stopNames, options, status, error) => {
+    const { activityService, adjust } = await testvilleTrip(stopNames, options);
+    await seedVancouver(activityService);
+    const placeId = (await ActivityModel.findOne({ name: placeName }))?._id.toString();
+
+    const response = await adjust({ action: 'add', version: 0, dayIndex: 0, activityId: placeId });
+
+    expect(response.status).toBe(status);
+    expect(response.body).toEqual({ error });
   });
 
   // Input: a stop that is not in the day, a day index past the trip, and a target position past the day

@@ -1,7 +1,8 @@
 import { type HydratedDocument, Schema, type Types, model } from 'mongoose';
 
 import { INTEREST_TAGS, type InterestTag } from '../activities/interests';
-import { PACES, type Pace } from './engine/types';
+import { PACES, type Pace, TRANSPORT_MODES, type TransportMode } from './engine/types';
+import { BUDGETS, type Budget } from './tripOptions';
 
 export interface ItineraryStop {
   activityId: Types.ObjectId;
@@ -52,6 +53,13 @@ export interface Itinerary {
   departureTime?: string | undefined;
   interests: InterestTag[];
   pace: Pace;
+  transportMode: TransportMode;
+  budget: Budget;
+  /** Activities the traveller asked to include, and to leave out. */
+  mustSeeIds: Types.ObjectId[];
+  avoidIds: Types.ObjectId[];
+  /** Whether travel times came from Google Routes or from the offline estimate. */
+  travelTimeSource: 'google-routes' | 'estimate';
   lodging: Lodging;
   days: ItineraryDay[];
   candidateCount: number;
@@ -105,6 +113,11 @@ const itinerarySchema = new Schema<Itinerary>(
     departureTime: { type: String },
     interests: { type: [{ type: String, enum: INTEREST_TAGS }], default: [] },
     pace: { type: String, enum: PACES, required: true },
+    transportMode: { type: String, enum: TRANSPORT_MODES, default: 'transit' },
+    budget: { type: String, enum: BUDGETS, default: 'any' },
+    mustSeeIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Activity' }], default: [] },
+    avoidIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Activity' }], default: [] },
+    travelTimeSource: { type: String, enum: ['google-routes', 'estimate'], default: 'estimate' },
     lodging: {
       label: { type: String, required: true },
       ...pointSchema,

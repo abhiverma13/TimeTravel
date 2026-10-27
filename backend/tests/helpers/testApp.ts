@@ -9,6 +9,8 @@ import { UserModel } from '../../src/auth/userModel';
 import { DEMO_VANCOUVER_PLACES } from '../../src/dev/demoVancouverPlaces';
 import { GroupService } from '../../src/groups/groupService';
 import { ItineraryService } from '../../src/itineraries/itineraryService';
+import type { RoutesClient } from '../../src/itineraries/routesClient';
+import { TravelTimeService } from '../../src/itineraries/travelTimes';
 
 export const TEST_JWT_SECRET = 'test-jwt-secret';
 export const TEST_GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com';
@@ -18,6 +20,8 @@ export interface TestAppOptions {
   verifyGoogleToken?: GoogleTokenVerifier;
   /** Google Places client; defaults to none, as on a server without GOOGLE_PLACES_API_KEY. */
   placesClient?: PlacesClient;
+  /** Google Routes client; defaults to none, so travel times are estimated. */
+  routesClient?: RoutesClient;
   /** Clock used for catalogue cache expiry. */
   now?: () => Date;
 }
@@ -38,7 +42,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   const placesClient = options.placesClient ?? null;
   const activityService = new ActivityService(placesClient, options.now);
   const groupService = new GroupService();
-  const itineraryService = new ItineraryService(activityService, placesClient, groupService);
+  const itineraryService = new ItineraryService(activityService, placesClient, groupService, new TravelTimeService(options.routesClient ?? null));
   return {
     app: createApp({ authService, activityService, groupService, itineraryService }),
     authService,

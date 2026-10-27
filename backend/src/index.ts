@@ -11,6 +11,8 @@ import { env } from './config/env';
 import { connectToDatabase, disconnectFromDatabase } from './db/connection';
 import { GroupService } from './groups/groupService';
 import { ItineraryService } from './itineraries/itineraryService';
+import { GoogleRoutesClient } from './itineraries/routesClient';
+import { TravelTimeService } from './itineraries/travelTimes';
 import { attachTripSync } from './sync/tripSync';
 
 async function main(): Promise<void> {
@@ -26,7 +28,9 @@ async function main(): Promise<void> {
   const placesClient = env.googlePlacesApiKey ? new GooglePlacesClient(env.googlePlacesApiKey) : null;
   const activityService = new ActivityService(placesClient);
   const groupService = new GroupService();
-  const itineraryService = new ItineraryService(activityService, placesClient, groupService);
+  // The same Google Cloud key serves Places and Routes (Routes API must be enabled for it).
+  const routesClient = env.googlePlacesApiKey ? new GoogleRoutesClient(env.googlePlacesApiKey) : null;
+  const itineraryService = new ItineraryService(activityService, placesClient, groupService, new TravelTimeService(routesClient));
   const app = createApp({ authService, activityService, groupService, itineraryService });
   const hasTlsConfiguration = Boolean(env.tlsCertPath && env.tlsKeyPath);
   const server = hasTlsConfiguration

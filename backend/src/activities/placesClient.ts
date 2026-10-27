@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import type { PlacesPeriod } from './openingHours';
+import type { CostLevel } from './reviewTags';
 
 const PLACES_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
 const PLACES_FIELD_MASK = [
@@ -12,6 +13,7 @@ const PLACES_FIELD_MASK = [
   'places.rating',
   'places.userRatingCount',
   'places.regularOpeningHours.periods',
+  'places.priceLevel',
 ].join(',');
 const PLACES_PAGE_SIZE = 20;
 const PLACES_TIMEOUT_MS = 10_000;
@@ -26,6 +28,8 @@ export interface PlaceResult {
   rating: number | null;
   userRatingCount: number;
   openingPeriods: PlacesPeriod[] | undefined;
+  /** Google's price level, on the same scale as travellers' cost tags; absent when Google has none. */
+  priceLevel?: CostLevel | undefined;
 }
 
 /** External module boundary for Google Places, so tests and the demo seed can substitute it. */
@@ -46,6 +50,14 @@ const periodPointSchema = z.object({
   minute: z.number().int().min(0).max(59),
 });
 
+const PRICE_LEVELS: ReadonlyMap<string, CostLevel> = new Map<string, CostLevel>([
+  ['PRICE_LEVEL_FREE', 'free'],
+  ['PRICE_LEVEL_INEXPENSIVE', 'low'],
+  ['PRICE_LEVEL_MODERATE', 'medium'],
+  ['PRICE_LEVEL_EXPENSIVE', 'high'],
+  ['PRICE_LEVEL_VERY_EXPENSIVE', 'high'],
+]);
+
 const placeSchema = z.object({
   id: z.string(),
   displayName: z.object({ text: z.string() }).optional(),
@@ -54,6 +66,7 @@ const placeSchema = z.object({
   types: z.array(z.string()).optional(),
   rating: z.number().optional(),
   userRatingCount: z.number().optional(),
+  priceLevel: z.string().optional(),
   regularOpeningHours: z
     .object({ periods: z.array(z.object({ open: periodPointSchema, close: periodPointSchema.optional() })).optional() })
     .optional(),
@@ -97,6 +110,7 @@ export class GooglePlacesClient implements PlacesClient {
           rating: place.rating ?? null,
           userRatingCount: place.userRatingCount ?? 0,
           openingPeriods: place.regularOpeningHours?.periods,
+          priceLevel: place.priceLevel === undefined ? undefined : PRICE_LEVELS.get(place.priceLevel),
         },
       ];
     });

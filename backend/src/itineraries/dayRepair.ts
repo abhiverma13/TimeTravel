@@ -13,7 +13,7 @@ const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', '
 
 /** One change a traveller makes to a day of an itinerary. `version` is the itinerary version they last saw. */
 export type ItineraryAdjustment =
-  | { action: 'lock' | 'unlock' | 'remove'; version: number; dayIndex: number; activityId: string }
+  | { action: 'lock' | 'unlock' | 'remove' | 'add'; version: number; dayIndex: number; activityId: string }
   | { action: 'move'; version: number; dayIndex: number; activityId: string; toIndex: number }
   | { action: 'replan'; version: number; dayIndex: number; fromTime?: string | undefined };
 
@@ -165,6 +165,81 @@ function moveStop(inputs: RepairInputs, activityId: string, toIndex: number): Re
   };
 }
 
+/** Every way to choose `size` of `items`, each in the items' order. */
+function subsets<T>(items: readonly T[], size: number): T[][] {
+  if (size === 0) {
+    return [[]];
+  }
+  return items.flatMap((item, index) => subsets(items.slice(index + 1), size - 1).map((rest) => [item, ...rest]));
+}
+
+/** The day with `added` inserted where it costs the least extra travel, or null if no position works. */
+function cheapestInsertion(kept: readonly RankedCandidate[], added: RankedCandidate, context: DayContext): SimulatedDay | null {
+  let best: SimulatedDay | null = null;
+  for (let position = 0; position <= kept.length; position += 1) {
+    const simulation = simulateDay([...kept.slice(0, position), added, ...kept.slice(position)], context);
+    if (simulation !== null && (best === null || simulation.totalTravelMinutes < best.totalTravelMinutes)) {
+      best = simulation;
+    }
+  }
+  return best;
+}
+
+interface AddOption {
+  simulation: SimulatedDay;
+  dropped: ItineraryStop[];
+  droppedUtility: number;
+}
+
+function isBetterOption(option: AddOption, best: AddOption | null): boolean {
+  if (best === null || option.droppedUtility !== best.droppedUtility) {
+    return best === null || option.droppedUtility < best.droppedUtility;
+  }
+  return option.simulation.totalTravelMinutes < best.simulation.totalTravelMinutes;
+}
+
+/**
+ * Adds an activity the traveller chose (from Explore or a post) where it costs the least extra travel, keeping every
+ * locked time. If the day is full, it drops the fewest unlocked stops that make room, the lowest-ranked first; locked
+ * stops are never dropped. Refused if it is already in the trip or does not fit even then.
+ */
+function addStop(inputs: RepairInputs, activityId: string): RepairedDay {
+  if (inputs.usedElsewhere.has(activityId) || inputs.day.stops.some((stop) => stop.activityId.toString() === activityId)) {
+    throw new HttpError(409, 'That place is already in this trip');
+  }
+  const activity = inputs.catalogue.get(activityId);
+  if (!activity) {
+    throw new HttpError(404, "That place is not in this city's activities");
+  }
+  const added: RankedCandidate = { ...toCandidate(activity), utility: activity.communityScore };
+  const current = inputs.day.stops.map((stop) => ({ stop, candidate: candidateFor(stop, inputs, stop.locked) }));
+  const droppable = current.filter(({ stop }) => !stop.locked);
+  for (let dropCount = Math.max(current.length + 1 - inputs.maxStops, 0); dropCount <= droppable.length; dropCount += 1) {
+    let best: AddOption | null = null;
+    for (const drop of subsets(droppable, dropCount)) {
+      const kept = current.filter((entry) => !drop.includes(entry)).map((entry) => entry.candidate);
+      const simulation = cheapestInsertion(kept, added, inputs.context);
+      const option = simulation && {
+        simulation,
+        dropped: drop.map((entry) => entry.stop),
+        droppedUtility: drop.reduce((total, entry) => total + entry.candidate.utility, 0),
+      };
+      if (option && isBetterOption(option, best)) {
+        best = option;
+      }
+    }
+    if (best !== null) {
+      const dropped = best.dropped.map((stop) => stop.name);
+      return {
+        stops: timedStops(best.simulation, inputs, inputs.day.stops),
+        returnTravelMinutes: best.simulation.returnTravelMinutes,
+        summary: `added ${activity.name}` + (dropped.length > 0 ? `, dropping ${dropped.join(' and ')} to make room` : ''),
+      };
+    }
+  }
+  throw new HttpError(422, `${activity.name} does not fit that day: it would miss its opening hours, clash with a locked stop or run late`);
+}
+
 /**
  * Re-plans the day from `fromTime` (default: the start of the day). Stops already started stay as they are;
  * later locked stops stay in order; everything else is re-chosen, ending back at the lodging.
@@ -205,6 +280,8 @@ export function applyAdjustment(change: ItineraryAdjustment, inputs: RepairInput
       return setLock(inputs, change.activityId, change.action === 'lock');
     case 'remove':
       return removeStop(inputs, change.activityId);
+    case 'add':
+      return addStop(inputs, change.activityId);
     case 'move':
       return moveStop(inputs, change.activityId, change.toIndex);
     case 'replan':

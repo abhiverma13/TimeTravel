@@ -2,7 +2,7 @@ import { type HydratedDocument, Schema, model } from 'mongoose';
 
 import { INTEREST_TAGS, type InterestTag } from './interests';
 import type { OpeningPeriod } from './openingHours';
-import { TAG_VALUES, type TagValue } from './reviewTags';
+import { COST_LEVELS, type CostLevel, TAG_VALUES, type TagValue } from './reviewTags';
 
 export interface Activity {
   placeId: string;
@@ -15,6 +15,8 @@ export interface Activity {
   durationMinutes: number;
   googleRating: number | null;
   googleRatingCount: number;
+  /** Google's price level, when it has one. */
+  priceLevel?: CostLevel | undefined;
   /** null means Google has no hours for this place. */
   openingHours: OpeningPeriod[] | null;
   reviewCount: number;
@@ -49,6 +51,7 @@ const activitySchema = new Schema<Activity>(
     durationMinutes: { type: Number, required: true, min: 1 },
     googleRating: { type: Number, default: null },
     googleRatingCount: { type: Number, default: 0 },
+    priceLevel: { type: String, enum: COST_LEVELS },
     openingHours: { type: [openingPeriodSchema], default: null },
     reviewCount: { type: Number, default: 0 },
     reviewRatingSum: { type: Number, default: 0 },

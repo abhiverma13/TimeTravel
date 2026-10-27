@@ -7,7 +7,7 @@ import { INTEREST_TAGS, type InterestTag, SEARCH_PHRASE_BY_TAG, interestsForPlac
 import { type OpeningPeriod, toOpeningPeriods } from './openingHours';
 import type { PlaceResult, PlacesClient } from './placesClient';
 import { type ReviewDocument, type ReviewDto, ReviewModel, reviewTagsOf, toReviewDto } from './reviewModel';
-import { type CommunityTags, type ReviewTags, TAG_VALUES, communityTags, tagCounterChanges, visitMinutes } from './reviewTags';
+import { type CommunityTags, type CostLevel, type ReviewTags, TAG_VALUES, communityTags, tagCounterChanges, visitMinutes } from './reviewTags';
 
 /** Google Places results are reused for a week before the city is fetched again. */
 export const CATALOGUE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -29,6 +29,8 @@ export interface ActivityDto {
   communityTags: CommunityTags;
   googleRating: number | null;
   googleRatingCount: number;
+  /** What a visit costs: what travellers reported most, otherwise Google's price level; null when neither is known. */
+  cost: CostLevel | null;
   reviewCount: number;
   communityScore: number;
   /** null when opening hours are unknown. */
@@ -41,6 +43,7 @@ function tagCountsOf(activity: ActivityDocument): Map<string, number> {
 
 export function toActivityDto(activity: ActivityDocument, meanRating: number): ActivityDto {
   const [lng = 0, lat = 0] = activity.location.coordinates;
+  const tags = communityTags(tagCountsOf(activity));
   return {
     id: activity._id.toString(),
     name: activity.name,
@@ -48,9 +51,10 @@ export function toActivityDto(activity: ActivityDocument, meanRating: number): A
     location: { lat, lng },
     interests: [...activity.interests],
     durationMinutes: visitMinutes(activity.reportedDurationSum, activity.reportedDurationCount, activity.durationMinutes),
-    communityTags: communityTags(tagCountsOf(activity)),
+    communityTags: tags,
     googleRating: activity.googleRating,
     googleRatingCount: activity.googleRatingCount,
+    cost: tags.cost ?? activity.priceLevel ?? null,
     reviewCount: activity.reviewCount,
     communityScore: communityScore(
       {
@@ -170,6 +174,7 @@ export class ActivityService {
                   googleRating: place.rating,
                   googleRatingCount: place.userRatingCount,
                   openingHours: toOpeningPeriods(place.openingPeriods),
+                  priceLevel: place.priceLevel,
                 },
               },
               upsert: true,

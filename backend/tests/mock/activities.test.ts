@@ -218,6 +218,7 @@ describe('Mocked: GET /api/activities via GooglePlacesClient', () => {
               rating: 4.6,
               userRatingCount: 1200,
               regularOpeningHours: { periods: [{ open: { day: 1, hour: 8, minute: 30 }, close: { day: 1, hour: 20, minute: 0 } }] },
+              priceLevel: 'PRICE_LEVEL_INEXPENSIVE',
             },
             { id: 'place-without-location', displayName: { text: 'Somewhere' } },
           ],
@@ -236,6 +237,7 @@ describe('Mocked: GET /api/activities via GooglePlacesClient', () => {
     const activities = (response.body as ActivitiesBody).activities;
     expect(activities.map((activity) => activity.name)).toEqual(['Harbour Walk']);
     expect(activities[0]?.openingHours).toEqual([{ day: 1, openMinute: 510, closeMinute: 1200 }]);
+    expect(activities[0]?.cost).toBe('low');
   });
 
   // Mocked behavior: fetch returns an empty Places response ({} means no results)

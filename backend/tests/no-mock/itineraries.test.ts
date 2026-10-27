@@ -7,6 +7,7 @@ import type { ItineraryDto, ItinerarySummaryDto } from '../../src/itineraries/it
 import { ItineraryModel } from '../../src/itineraries/itineraryModel';
 import { createTestApp, seedVancouver, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
+import { seedTestville } from '../helpers/testville';
 
 // 2026-10-26 is a Monday, when the Museum of Anthropology (demo data) is closed.
 const MUSEUM_WEEKEND = {
@@ -19,8 +20,14 @@ const MUSEUM_WEEKEND = {
   pace: 'moderate',
 };
 
+const TESTVILLE_DAY = { city: 'Testville', startDate: '2026-10-24', endDate: '2026-10-24', dayStart: '09:00', dayEnd: '18:00' };
+
 function allStops(itinerary: ItineraryDto): ItineraryDto['days'][number]['stops'] {
   return itinerary.days.flatMap((day) => day.stops);
+}
+
+async function testvilleId(name: string): Promise<string> {
+  return (await ActivityModel.findOne({ name }))?._id.toString() ?? '';
 }
 
 beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
@@ -254,6 +261,108 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     const response = await request(app).post('/api/itineraries/generate').set(stranger.authorization).send({ ...MUSEUM_WEEKEND, groupId });
 
     expect(response.status).toBe(status);
+    expect(await ItineraryModel.countDocuments()).toBe(0);
+  });
+
+  // Input: a one-day Testville trip on foot with a low budget
+  // Expected status code: 201
+  // Expected behavior: Town Museum (expensive) is left out; the options are stored with the plan
+  // Expected output: transportMode "walk", budget "low", travelTimeSource "estimate", no Town Museum
+  test('Plans with a transport mode and a budget', async () => {
+    const { app, authService, activityService } = createTestApp();
+    const { authorization } = await signedInUser(authService);
+    await seedTestville(activityService);
+
+    const response = await request(app)
+      .post('/api/itineraries/generate')
+      .set(authorization)
+      .send({ ...TESTVILLE_DAY, transportMode: 'walk', budget: 'low' });
+
+    const itinerary = response.body as ItineraryDto;
+    expect(response.status).toBe(201);
+    expect(itinerary).toMatchObject({ transportMode: 'walk', budget: 'low', travelTimeSource: 'estimate' });
+    expect(allStops(itinerary).length).toBeGreaterThan(0);
+    expect(allStops(itinerary).map((stop) => stop.name)).not.toContain('Town Museum');
+  });
+
+  // Input: a Testville day until 21:00 that must include Night Market (opens 17:00) and must avoid Harbour Park
+  // Expected status code: 201
+  // Expected behavior: the must-see is scheduled even though it ranks no higher than the rest; the avoided place is not
+  // Expected output: Night Market in the plan, Harbour Park not; both lists echoed
+  test('Includes must-see places and leaves out avoided ones', async () => {
+    const { app, authService, activityService } = createTestApp();
+    const { authorization } = await signedInUser(authService);
+    await seedTestville(activityService);
+    const market = await testvilleId('Night Market');
+    const park = await testvilleId('Harbour Park');
+
+    const response = await request(app)
+      .post('/api/itineraries/generate')
+      .set(authorization)
+      .send({ ...TESTVILLE_DAY, dayEnd: '21:00', mustSeeIds: [market], avoidIds: [park] });
+
+    const itinerary = response.body as ItineraryDto;
+    const names = allStops(itinerary).map((stop) => stop.name);
+    expect(response.status).toBe(201);
+    expect(names).toContain('Night Market');
+    expect(names).not.toContain('Harbour Park');
+    expect(itinerary).toMatchObject({ mustSeeIds: [market], avoidIds: [park] });
+    expect(itinerary.warnings).toEqual([]);
+  });
+
+  // Input: must-sees that cannot be included: Night Market on a day ending at 16:00, a place from another city,
+  //        and (in a group trip) a place another member vetoed
+  // Expected status code: 201 for each
+  // Expected behavior: the rest of the plan is generated, and the traveller is told why each must-see is missing
+  // Expected output: one warning per missing must-see, with its reason
+  test('Explains must-see places it cannot include', async () => {
+    const { app, authService, activityService } = createTestApp();
+    const owner = await signedInUser(authService, 'Trip Owner');
+    const member = await signedInUser(authService, 'Group Member');
+    await seedTestville(activityService);
+    await seedVancouver(activityService);
+    const market = await testvilleId('Night Market');
+    const lookout = await testvilleId('Lookout Tower');
+    const elsewhere = (await ActivityModel.findOne({ name: 'Stanley Park Seawall' }))?._id.toString();
+    const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
+    await request(app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
+    await request(app).put(`/api/groups/${group.id}/members/me`).set(member.authorization).send({ vetoedActivityIds: [lookout] });
+
+    const solo = await request(app)
+      .post('/api/itineraries/generate')
+      .set(owner.authorization)
+      .send({ ...TESTVILLE_DAY, dayEnd: '16:00', mustSeeIds: [market, elsewhere] });
+    const grouped = await request(app)
+      .post('/api/itineraries/generate')
+      .set(owner.authorization)
+      .send({ ...TESTVILLE_DAY, mustSeeIds: [lookout], groupId: group.id });
+
+    expect(solo.status).toBe(201);
+    expect((solo.body as ItineraryDto).warnings).toEqual([
+      'Night Market did not fit your days: check its opening hours.',
+      "One of your must-see places is not in this city's activities.",
+    ]);
+    expect(grouped.status).toBe(201);
+    expect((grouped.body as ItineraryDto).warnings).toEqual(['Lookout Tower was vetoed by a member of the group, so it was left out.']);
+  });
+
+  // Input: an unknown transport mode, an unknown budget, a place both must-see and avoided, and 11 must-sees
+  // Expected status code: 400 for each
+  // Expected behavior: nothing is generated
+  // Expected output: { error: "Invalid request", details: [...] }
+  test.each([
+    { transportMode: 'teleport' },
+    { budget: 'luxury' },
+    { mustSeeIds: ['64b7f0c2a1b2c3d4e5f60718'], avoidIds: ['64b7f0c2a1b2c3d4e5f60718'] },
+    { mustSeeIds: Array.from({ length: 11 }, (_, index) => `64b7f0c2a1b2c3d4e5f607${String(10 + index)}`) },
+  ])('Invalid trip options %#', async (options) => {
+    const { app, authService, activityService } = createTestApp();
+    const { authorization } = await signedInUser(authService);
+    await seedTestville(activityService);
+
+    const response = await request(app).post('/api/itineraries/generate').set(authorization).send({ ...TESTVILLE_DAY, ...options });
+
+    expect(response.status).toBe(400);
     expect(await ItineraryModel.countDocuments()).toBe(0);
   });
 });
