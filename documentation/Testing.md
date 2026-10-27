@@ -10,6 +10,7 @@
 | 2026-10-26 | 2.1.1 | Added the trip options (way of getting around, budget, must-see and avoid places) to the `POST /api/itineraries/generate` tests, with Google Routes mocked and through the production Routes client, and the `add` action to the `POST /api/itineraries/:itineraryId/adjust` tests. |
 | 2026-10-26 | 2.1.1 | Added the Friend Service interfaces (search and view travellers, list friends, send and accept requests, remove a friendship, set privacy), tested with and without mocks. |
 | 2026-10-26 | 2.1.1 | Added the Feed Service interfaces (share, feeds, read, delete, like, unlike, comments, copy a shared trip), tested with and without mocks; the copy is also tested with Google Routes mocked. |
+| 2026-10-26 | 2.1.1 | Added the `visit` and `unvisit` adjustments to the `POST /api/itineraries/:itineraryId/adjust` tests, and the Socket.io location-sharing interface, tested with and without mocks. |
 
 ---
 
@@ -37,7 +38,8 @@
 | **GET /api/itineraries/:itineraryId** | [`backend/tests/no-mock/itineraries.test.ts#L371`](../backend/tests/no-mock/itineraries.test.ts#L371) | [`backend/tests/mock/itineraries.test.ts#L136`](../backend/tests/mock/itineraries.test.ts#L136) | Itinerary DB |
 | **GET /api/itineraries** | [`backend/tests/no-mock/itineraries.test.ts#L420`](../backend/tests/no-mock/itineraries.test.ts#L420) | [`backend/tests/mock/itineraries.test.ts#L157`](../backend/tests/mock/itineraries.test.ts#L157) | Itinerary DB |
 | **POST /api/itineraries/:itineraryId/adjust** | [`backend/tests/no-mock/adjust.test.ts#L40`](../backend/tests/no-mock/adjust.test.ts#L40) | [`backend/tests/mock/adjust.test.ts#L32`](../backend/tests/mock/adjust.test.ts#L32) | Itinerary DB (a concurrent change saved first, write failure), Activity DB, live-update push |
-| **Socket.io itinerary updates** | [`backend/tests/no-mock/tripSync.test.ts#L36`](../backend/tests/no-mock/tripSync.test.ts#L36) | [`backend/tests/mock/tripSync.test.ts#L14`](../backend/tests/mock/tripSync.test.ts#L14) | Itinerary DB (access check on subscribe) |
+| **Socket.io itinerary updates** | [`backend/tests/no-mock/tripSync.test.ts#L37`](../backend/tests/no-mock/tripSync.test.ts#L37) | [`backend/tests/mock/tripSync.test.ts#L16`](../backend/tests/mock/tripSync.test.ts#L16) | Itinerary DB (access check on subscribe) |
+| **Socket.io location sharing** | [`backend/tests/no-mock/tripSync.test.ts#L141`](../backend/tests/no-mock/tripSync.test.ts#L141) | [`backend/tests/mock/tripSync.test.ts#L43`](../backend/tests/mock/tripSync.test.ts#L43) | User DB (looking up the sharer) |
 | **GET /api/travellers** | [`backend/tests/no-mock/friends.test.ts#L37`](../backend/tests/no-mock/friends.test.ts#L37) | [`backend/tests/mock/friends.test.ts#L33`](../backend/tests/mock/friends.test.ts#L33) | User DB |
 | **GET /api/travellers/:userId** | [`backend/tests/no-mock/friends.test.ts#L133`](../backend/tests/no-mock/friends.test.ts#L133) | [`backend/tests/mock/friends.test.ts#L51`](../backend/tests/mock/friends.test.ts#L51) | Friendship DB |
 | **GET /api/friends** | [`backend/tests/no-mock/friends.test.ts#L186`](../backend/tests/no-mock/friends.test.ts#L186) | [`backend/tests/mock/friends.test.ts#L69`](../backend/tests/mock/friends.test.ts#L69) | Friendship DB |

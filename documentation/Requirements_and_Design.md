@@ -12,6 +12,7 @@
 | 2026-10-26 | 3.1, 3.4, 3.5, 4.1, 4.2, 4.3, 4.7 | Itinerary generation takes more of the traveller's wishes: how they get around (walk, transit or drive), a budget per activity, and places they must see or want to avoid. Travel times now come from Google Routes, cached for a week, with the offline estimate as the fallback. A traveller can also add a place they found in Explore to a day of a trip (new use case Add Place to Itinerary). Adding to a full day drops the lowest-ranked unlocked stops instead of refusing: the planner fills every day, so refusing would make the feature unusable. |
 | 2026-10-26 | 3.1, 3.4, 3.5, 4.1, 4.2 | Added F6 Friends and the trip feed, starting with friends and private accounts: travellers find each other by name or email, send and answer friend requests, and can make their account private so only friends see their details (and, later in F6, their posts). The privacy setting belongs to a new Friend Service rather than the Auth & Profile Service, because only the Friend Service decides who sees what. The app now has a bottom navigation bar (Trips, Explore, Profile), so Browse & Search Activities starts from the Explore tab and sign-out and the profile moved to the Profile tab. |
 | 2026-10-26 | 3.1, 3.4, 4.1, 4.2 | Completed F6 with the trip feed: a traveller shares a trip with a rating and caption, reads a Friends or Everyone feed (optionally for one city), likes and comments on posts, and copies a shared trip into their own trips on new dates. A post keeps a frozen copy of the plan, so later edits to the itinerary do not change what others read. Copying re-times every day for its new weekday and leaves out, with a warning, any stop that no longer fits, rather than re-planning from scratch, because the point of copying is getting the same places. A new Feed Service owns posts and comments; who may see a post is asked of the Friend Service. |
+| 2026-10-26 | 3.1, 3.4, 4.1, 4.3, 4.4 | Added F7 Trip map and live location: each trip has a map of the day's stops and route, with where you are and how far the next stop is. On the trip's current day a stop is ticked off as visited when you arrive within 100 m of it, and stops can also be marked visited by hand. On a group trip, members can choose to share their position with each other while the map is open. Positions are relayed live and never stored, and nothing is tracked in the background, because a traveller's location is the most sensitive thing the app handles. |
 
 ---
 
@@ -33,6 +34,7 @@ Planning a trip is a scheduling problem, but every tool treats it as a search pr
 4. **F4 Collaborative trips, live** (implemented for CP2): travellers form a group and invite friends with a 6-character code. Each member keeps their own interests and vetoes for the group, and the group's itineraries are planned from all of them: an interest more members share counts more, and anything a member vetoed is left out. Any member can lock, move or remove a stop or re-plan a day, and every member's open app shows the new plan within seconds.
 5. **F5 Disruption-aware re-planning** (planned for CP2-CP3): a back-end watcher tracks the forecast and venue status for active trips, re-solves the affected part of the day, then pushes it out.
 6. **F6 Friends and the trip feed** (implemented for CP2): travellers find each other by name or email and become friends once a request is accepted. A traveller shares a trip with a rating and a caption; friends see it in their Friends feed, and everyone sees it in the Everyone feed unless the account is private. Posts can be liked, commented on, and copied into your own trips on new dates.
+7. **F7 Trip map and live location** (implemented for CP2): each trip has a map of the day's stops and route with the traveller's position and the distance to the next stop. On the trip's current day, a stop is ticked off as visited when the traveller arrives within 100 m. Members of a group trip can share their position with each other while the map is open; positions are passed on live and never stored.
 
 How the features satisfy the project scope:
 
@@ -74,7 +76,7 @@ How the features satisfy the project scope:
   9. **Join Group**: a traveller types a friend's invite code and becomes a member, with their profile interests as their interests for the group.
   10. **Set Group Preferences**: a member sets their own interests for the group's trips and vetoes activities (from any group trip's stop), so the group's next plans leave them out.
   11. **Leave Group**: a member leaves, or the owner removes a member or deletes the group with its trips.
-  12. **View & Adjust Itinerary**: a traveller follows the plan and locks, removes or moves a stop; the change re-plans the affected part of the day.
+  12. **View & Adjust Itinerary**: a traveller follows the plan and locks, removes, moves or marks a stop visited; the change re-plans the affected part of the day.
   13. **Notify Trip Party**: every group member's device receives the updated plan as soon as it changes. Included by Add Place to Itinerary, View & Adjust Itinerary and Re-plan Itinerary.
 - Use cases for feature 5: **Disruption-aware re-planning**
   14. **Monitor Trip Conditions**: on a timer, the system checks the forecast and venue status for each active trip's stops.
@@ -87,6 +89,10 @@ How the features satisfy the project scope:
   20. **Browse Feed**: a traveller reads the Friends or Everyone feed, newest first and optionally for one city, or one traveller's posts on their page.
   21. **React to Post**: a traveller likes or unlikes a post, and adds or deletes comments; a post's author can delete the post or any comment on it.
   22. **Copy Shared Trip**: a traveller copies a shared trip into their own trips, starting on a day they choose.
+- Use cases for feature 7: **Trip map and live location**
+  23. **View Trip Map**: a traveller opens a trip's map and sees one day's stops in order, the route, where they are and how far the next stop is.
+  24. **Tick Off Stops on Arrival**: on the trip's current day, arriving within 100 m of a stop marks it visited for everyone in the trip.
+  25. **Share Location with Group**: a member of a group trip turns on sharing on the map, and the other members with the map open see where they are until they turn it off or leave.
 
 ### **3.5. Formal Use Case Specifications (5 Most Major Use Cases)**
 
@@ -301,7 +307,7 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
         4. `TripPlan planTrip(Candidate[] candidates, PlanRequest request, PlanOptions options)`
             - **Purpose**: The scheduling core: prunes candidates, builds each day by greedy insertion and improves it with time-budgeted local search.
         5. `POST /api/itineraries/{itineraryId}/adjust` body `{ action, version, dayIndex, activityId?, toIndex?, fromTime? }` returns `ItineraryDto`
-            - **Purpose**: View & Adjust Itinerary and Add Place to Itinerary. `action` is `lock`, `unlock`, `remove`, `add`, `move` (with `toIndex`) or `replan` (with an optional `fromTime`, HH:MM). Adding puts an activity of the trip's city where it adds the least travel; on a full day it drops the fewest unlocked stops that make room, lowest-ranked first (409 if the activity is already in the trip, 422 if it does not fit even then). Removing keeps the other stops in order and offers the freed time to other activities; moving re-times the day and is refused (422) if a stop would miss its hours; re-planning keeps stops already started and locked stops (at their times) and re-chooses the rest. `version` must be the itinerary's current version (409 otherwise); every saved change bumps it and is passed to the Trip Sync & Disruption Service.
+            - **Purpose**: View & Adjust Itinerary and Add Place to Itinerary. `action` is `lock`, `unlock`, `visit`, `unvisit`, `remove`, `add`, `move` (with `toIndex`) or `replan` (with an optional `fromTime`, HH:MM). Visiting only marks the stop; the plan does not change. Adding puts an activity of the trip's city where it adds the least travel; on a full day it drops the fewest unlocked stops that make room, lowest-ranked first (409 if the activity is already in the trip, 422 if it does not fit even then). Removing keeps the other stops in order and offers the freed time to other activities; moving re-times the day and is refused (422) if a stop would miss its hours; re-planning keeps stops already started and locked stops (at their times) and re-chooses the rest. `version` must be the itinerary's current version (409 otherwise); every saved change bumps it and is passed to the Trip Sync & Disruption Service.
         6. `RoutedDay repairDay(Candidate[] kept, Candidate[] pool, DayContext context, DayRepairOptions options)`
             - **Purpose**: The scheduling core for adjustments: keeps every kept stop, fills the free time from the pool by greedy insertion from three starts, optionally reorders when that ends the day sooner, and returns null when the kept stops no longer fit.
         7. `TravelTimes forPoints(GeoPoint[] points, TransportMode mode, boolean fetchMissing)`
@@ -332,9 +338,11 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
     - **Interfaces**:
         1. Socket.io handshake `auth: { token }`; client event `subscribe { itineraryId }` (acknowledged with `{ ok: true }` or `{ ok: false, error }`) and `unsubscribe { itineraryId }`; server event `itineraryUpdated { itinerary: ItineraryDto, actorId, summary }`
             - **Purpose**: A device subscribes to the itineraries on screen (only those its user may see) and receives every saved adjustment, with a short summary such as "Ava removed English Bay Beach". Adjustments themselves go through the REST API, so each one is validated and versioned in one place.
-        2. `void onItineraryChanged(ItineraryChange change)`
+        2. Socket.io client events `shareLocation { itineraryId, lat, lng }` (acknowledged) and `stopSharingLocation { itineraryId }`; server events `memberLocation { itineraryId, userId, name, lat, lng, at }` and `memberLocationStopped { itineraryId, userId }`
+            - **Purpose**: A device subscribed to a trip passes its position to the trip's other subscribed members. The server keeps nothing: it only relays the position, and tells the others when the device stops sharing, unsubscribes or disconnects.
+        3. `void onItineraryChanged(ItineraryChange change)`
             - **Purpose**: Called by the Itinerary Engine after every saved adjustment; broadcasts it to the itinerary's room.
-        3. `void checkActiveTrips()`
+        4. `void checkActiveTrips()`
             - **Purpose**: Runs every 30 minutes; checks the forecast and venue status for active trips and triggers a re-plan when needed.
 
 6. **Friend Service**
@@ -382,7 +390,7 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
 ### **4.2. Databases**
 
 1. **MongoDB** (one database, accessed through Mongoose)
-    - **Purpose**: Stores `users` (Google identity, home city, interests, whether the account is private), `friendships` (who asked whom, pending or accepted, with the two user ids in sorted order under a unique index, so two travellers never have two friendships), `activities` (the cached catalogue, with a 2dsphere index on location for "near my lodging" queries and the review counters), `citycatalogues` (when each city was last fetched from Places, for cache expiry), `reviews`, `groups` (name, unique invite code, and each member's role, interests and vetoes, indexed by member), `itineraries` (one document per trip with its days and stops, its options, and the group's id for a group trip), `traveltimes` (Google Routes travel times per way of getting around and pair of points, deleted by a time-to-live index a week after they were fetched), `posts` (the author, a frozen copy of the trip, the rating and caption, and who liked it, indexed for the feed by time, author and city), and `comments` (indexed by post).
+    - **Purpose**: Stores `users` (Google identity, home city, interests, whether the account is private), `friendships` (who asked whom, pending or accepted, with the two user ids in sorted order under a unique index, so two travellers never have two friendships), `activities` (the cached catalogue, with a 2dsphere index on location for "near my lodging" queries and the review counters), `citycatalogues` (when each city was last fetched from Places, for cache expiry), `reviews`, `groups` (name, unique invite code, and each member's role, interests and vetoes, indexed by member), `itineraries` (one document per trip with its days and stops (each stop marked locked or visited), its options, and the group's id for a group trip), `traveltimes` (Google Routes travel times per way of getting around and pair of points, deleted by a time-to-live index a week after they were fetched), `posts` (the author, a frozen copy of the trip, the rating and caption, and who liked it, indexed for the feed by time, author and city), and `comments` (indexed by post).
     - **Why MongoDB, not MySQL**: an itinerary is one nested, variable-shaped document per trip, and we need 2dsphere geo queries on activities. A relational schema would join five tables to read a single day.
 
 ### **4.3. External Modules**
@@ -393,9 +401,13 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
     - **Purpose**: Supplies each city's activities (name, address, coordinates, types, rating, opening hours) and finds the traveller's lodging.
 3. **Google Routes API, Compute Route Matrix**
     - **Purpose**: Travel times by walking, transit or driving among the lodging and the best candidates, requested in batches within Google's per-request limit (100 pairs for transit, 625 otherwise) and cached in MongoDB for a week. Whenever Routes fails or the quota runs out, the engine falls back to an offline estimate (straight-line distance times a detour factor, at walking, transit or driving speed), so the planner degrades instead of failing.
-4. **OpenWeather API** (planned for CP2-CP3)
+4. **Google Maps SDK for Android**
+    - **Purpose**: Draws the trip map (tiles, markers and the route) in the app, with a key restricted to the app's package and signing certificates.
+5. **Fused Location Provider** (Google Play services)
+    - **Purpose**: The traveller's position while the trip map is open, every 10 seconds or 10 metres, for the distance to the next stop, ticking off stops on arrival, and sharing with the group.
+6. **OpenWeather API** (planned for CP2-CP3)
     - **Purpose**: Hourly forecast per trip day, used to detect when an outdoor activity stops being viable.
-5. **Firebase Cloud Messaging** (planned for CP2-CP3; the permitted exception for push notifications)
+7. **Firebase Cloud Messaging** (planned for CP2-CP3; the permitted exception for push notifications)
     - **Purpose**: Wakes a backgrounded app when its trip's plan changes.
 
 ### **4.4. Frameworks and Libraries**
@@ -433,7 +445,10 @@ Front-end:
 3. **Retrofit with Gson, on OkHttp**
     - **Purpose**: Calls the REST API; OkHttp adds the session token to every request.
     - **Reason**: the most common type-safe HTTP client for Android, and the one named in the M2 design.
-4. **Credential Manager with the Google ID library**
+4. **Maps Compose and Play services location**
+    - **Purpose**: The trip map screen and the device's position.
+    - **Reason**: Maps Compose is Google's Compose wrapper for the Maps SDK, so the map is built like every other screen; the fused location provider gives accurate positions with less battery than reading GPS directly.
+5. **Credential Manager with the Google ID library**
     - **Purpose**: "Sign in with Google" on the device, including adding an account when none is signed in.
     - **Reason**: Android's current recommended sign-in API, replacing the deprecated Google Sign-In for Android.
 
