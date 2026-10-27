@@ -60,6 +60,7 @@ export interface ItineraryStopDto {
   travelMinutes: number;
   communityScore: number;
   locked: boolean;
+  visited: boolean;
 }
 
 export interface ItineraryDto {
@@ -151,6 +152,7 @@ function toItineraryDto(itinerary: ItineraryDocument): ItineraryDto {
         travelMinutes: stop.travelMinutes,
         communityScore: stop.communityScore,
         locked: stop.locked,
+        visited: stop.visited,
       })),
     })),
     candidateCount: itinerary.candidateCount,
@@ -222,6 +224,7 @@ function plainDay(day: ItineraryDay): ItineraryDay {
       travelMinutes: stop.travelMinutes,
       communityScore: stop.communityScore,
       locked: stop.locked,
+      visited: stop.visited,
     })),
   };
 }
@@ -293,6 +296,7 @@ export class ItineraryService {
             travelMinutes: stop.travelMinutes,
             communityScore: activity.communityScore,
             locked: false,
+            visited: false,
           },
         ];
       }),
@@ -391,7 +395,7 @@ export class ItineraryService {
       pace: trip.pace,
     };
     const sourceDays = trip.days.map(plainDay);
-    const sourceStops = sourceDays.flatMap((day) => day.stops.map((stop) => ({ ...stop, locked: false })));
+    const sourceStops = sourceDays.flatMap((day) => day.stops.map((stop) => ({ ...stop, locked: false, visited: false })));
     const times = await this.travelTimes.forPoints([request.origin, ...sourceStops.map((stop) => stop.location)], trip.transportMode, true);
     const warnings = [note];
     const days = request.days.map((tripDay, index) => {

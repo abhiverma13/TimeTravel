@@ -331,6 +331,37 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
     expect(response.body).toEqual({ error });
   });
 
+  // Input: mark Harbour Park visited, then not visited
+  // Expected status code: 200 for both
+  // Expected behavior: only the stop's visited mark changes; times stay as they were
+  // Expected output: Harbour Park visited (version 1), then not visited (version 2)
+  test('Marks a stop visited and not visited', async () => {
+    const { itinerary, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
+    const park = idOf(itinerary, 'Harbour Park');
+
+    const visited = await adjust({ action: 'visit', version: 0, dayIndex: 0, activityId: park });
+    const unvisited = await adjust({ action: 'unvisit', version: 1, dayIndex: 0, activityId: park });
+
+    expect(visited.status).toBe(200);
+    expect(stopsOf(visited.body as ItineraryDto).map((stop) => stop.visited)).toEqual([false, true]);
+    expect(stopsOf(visited.body as ItineraryDto).map((stop) => stop.startTime)).toEqual(stopsOf(itinerary).map((stop) => stop.startTime));
+    expect(unvisited.status).toBe(200);
+    expect(stopsOf(unvisited.body as ItineraryDto).every((stop) => !stop.visited)).toBe(true);
+  });
+
+  // Input: mark Morning Bakery visited, then remove Harbour Park
+  // Expected status code: 200 for both
+  // Expected behavior: a stop stays visited when the rest of the day is repaired
+  // Expected output: Morning Bakery still visited after the removal
+  test('A visited stop stays visited when the day changes', async () => {
+    const { itinerary, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
+
+    await adjust({ action: 'visit', version: 0, dayIndex: 0, activityId: idOf(itinerary, 'Morning Bakery') });
+    const response = await adjust({ action: 'remove', version: 1, dayIndex: 0, activityId: idOf(itinerary, 'Harbour Park') });
+
+    expect(stopsOf(response.body as ItineraryDto).find((stop) => stop.name === 'Morning Bakery')?.visited).toBe(true);
+  });
+
   // Input: a stop that is not in the day, a day index past the trip, and a target position past the day
   // Expected status code: 404, 400 and 400
   // Expected behavior: nothing changes

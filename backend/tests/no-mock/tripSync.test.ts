@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 
 import type { GroupDto } from '../../src/groups/groupService';
 import type { ItineraryDto } from '../../src/itineraries/itineraryService';
+import type { MemberLocation } from '../../src/sync/tripSync';
 import { connectClient, nextUpdate, startLiveServer, subscribeTo } from '../helpers/liveServer';
 import { createTestApp, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
@@ -125,6 +126,98 @@ describe('Unmocked: Socket.io itinerary updates', () => {
     expect(errors.map((error) => error.message)).toEqual(['Invalid or expired session token', 'Invalid or expired session token']);
     expect(stillWorks).toEqual({ ok: true });
     valid.disconnect();
+    await live.close();
+  });
+});
+
+async function nextEvent<T>(socket: ReturnType<typeof io>, event: string): Promise<T> {
+  return new Promise((resolve) => {
+    socket.once(event, resolve);
+  });
+}
+
+// Interface Socket.io: shareLocation { itineraryId, lat, lng }, stopSharingLocation { itineraryId }, and
+// memberLocation / memberLocationStopped
+describe('Unmocked: Socket.io location sharing', () => {
+  // Input: the owner and a member subscribe to their group trip; the owner shares { lat: 49.2827, lng: -123.1207 }
+  // Expected status code: none; the share is acknowledged with { ok: true }
+  // Expected behavior: the other members receive the position at once; the sharer does not get it back
+  // Expected output: memberLocation with the owner's id and name, the position and the time
+  test("Members see each other's shared location", async () => {
+    const { owner, member, itineraryId, live } = await sharedTrip();
+    const ownerSocket = await connectClient(live.url, owner.authorization);
+    const memberSocket = await connectClient(live.url, member.authorization);
+    await subscribeTo(ownerSocket, itineraryId);
+    await subscribeTo(memberSocket, itineraryId);
+    const echoed = jest.fn();
+    ownerSocket.on('memberLocation', echoed);
+
+    const arriving = nextEvent<MemberLocation>(memberSocket, 'memberLocation');
+    const reply = await ownerSocket.emitWithAck('shareLocation', { itineraryId, lat: 49.2827, lng: -123.1207 });
+    const location = await arriving;
+
+    expect(reply).toEqual({ ok: true });
+    expect(location).toMatchObject({ itineraryId, userId: owner.userId, name: 'Noah Owner', lat: 49.2827, lng: -123.1207 });
+    expect(Number.isNaN(Date.parse(location.at))).toBe(false);
+    expect(echoed).not.toHaveBeenCalled();
+    ownerSocket.disconnect();
+    memberSocket.disconnect();
+    await live.close();
+  });
+
+  // Input: the owner shares their location, then stops; shares again, then disconnects
+  // Expected status code: none
+  // Expected behavior: the other members are told each time the owner's position goes away
+  // Expected output: memberLocationStopped { itineraryId, userId } twice
+  test('Stopping or leaving tells the other members', async () => {
+    const { owner, member, itineraryId, live } = await sharedTrip();
+    const ownerSocket = await connectClient(live.url, owner.authorization);
+    const memberSocket = await connectClient(live.url, member.authorization);
+    await subscribeTo(ownerSocket, itineraryId);
+    await subscribeTo(memberSocket, itineraryId);
+
+    await ownerSocket.emitWithAck('shareLocation', { itineraryId, lat: 49.28, lng: -123.12 });
+    const stopped = nextEvent(memberSocket, 'memberLocationStopped');
+    ownerSocket.emit('stopSharingLocation', { itineraryId });
+    const first = await stopped;
+    await ownerSocket.emitWithAck('shareLocation', { itineraryId, lat: 49.28, lng: -123.12 });
+    const left = nextEvent(memberSocket, 'memberLocationStopped');
+    ownerSocket.disconnect();
+    const second = await left;
+
+    expect(first).toEqual({ itineraryId, userId: owner.userId });
+    expect(second).toEqual({ itineraryId, userId: owner.userId });
+    memberSocket.disconnect();
+    await live.close();
+  });
+
+  // Input: a share before subscribing, a latitude of 91, a share without an acknowledgement, and a stop for a trip the
+  //        device never shared with
+  // Expected status code: none; the refused shares are acknowledged with { ok: false }
+  // Expected behavior: nothing reaches the other members
+  // Expected output: the matching error for each refused share
+  test('Shares that are refused', async () => {
+    const { owner, member, itineraryId, live } = await sharedTrip();
+    const ownerSocket = await connectClient(live.url, owner.authorization);
+    const memberSocket = await connectClient(live.url, member.authorization);
+    await subscribeTo(memberSocket, itineraryId);
+    const received = jest.fn();
+    memberSocket.on('memberLocation', received);
+    memberSocket.on('memberLocationStopped', received);
+
+    const notSubscribed = await ownerSocket.emitWithAck('shareLocation', { itineraryId, lat: 49.28, lng: -123.12 });
+    await subscribeTo(ownerSocket, itineraryId);
+    const offTheMap = await ownerSocket.emitWithAck('shareLocation', { itineraryId, lat: 91, lng: -123.12 });
+    ownerSocket.emit('shareLocation', { itineraryId, lat: 'here' });
+    ownerSocket.emit('stopSharingLocation', { itineraryId });
+    ownerSocket.emit('stopSharingLocation', 'not an object');
+    await subscribeTo(ownerSocket, itineraryId);
+
+    expect(notSubscribed).toEqual({ ok: false, error: 'Subscribe to the itinerary before sharing your location' });
+    expect(offTheMap).toEqual({ ok: false, error: 'Send { itineraryId, lat, lng } to share your location' });
+    expect(received).not.toHaveBeenCalled();
+    ownerSocket.disconnect();
+    memberSocket.disconnect();
     await live.close();
   });
 });

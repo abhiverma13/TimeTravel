@@ -1,4 +1,6 @@
+import { UserModel } from '../../src/auth/userModel';
 import { ItineraryModel } from '../../src/itineraries/itineraryModel';
+import { storeTestvilleTrip, seedTestville } from '../helpers/testville';
 import { connectClient, startLiveServer, subscribeTo } from '../helpers/liveServer';
 import { createTestApp, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
@@ -31,6 +33,36 @@ describe('Mocked: Socket.io itinerary updates', () => {
 
     expect(reply).toEqual({ ok: false, error: 'Internal server error' });
     expect(consoleError).toHaveBeenCalledWith('Live update subscription failed', expect.any(Error));
+    socket.disconnect();
+    await live.close();
+  });
+});
+
+// Interface Socket.io: shareLocation { itineraryId, lat, lng }, stopSharingLocation { itineraryId }, and
+// memberLocation / memberLocationStopped
+describe('Mocked: Socket.io location sharing', () => {
+  // Mocked behavior: looking up the sharer's name fails
+  // Input: a subscribed traveller shares their location
+  // Expected status code: none; the share is acknowledged with { ok: false }
+  // Expected behavior: the error is logged and nothing is sent; the server keeps running
+  // Expected output: { ok: false, error: "Internal server error" }
+  test('User database read fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const testApp = createTestApp();
+    const { userId, authorization } = await signedInUser(testApp.authService);
+    await seedTestville(testApp.activityService);
+    const itineraryId = await storeTestvilleTrip(userId, ['Harbour Park']);
+    const live = await startLiveServer(testApp);
+    const socket = await connectClient(live.url, authorization);
+    await subscribeTo(socket, itineraryId);
+    jest.spyOn(UserModel, 'findById').mockImplementation(() => {
+      throw new Error('Simulated database outage');
+    });
+
+    const reply = await socket.emitWithAck('shareLocation', { itineraryId, lat: 49.28, lng: -123.12 });
+
+    expect(reply).toEqual({ ok: false, error: 'Internal server error' });
+    expect(consoleError).toHaveBeenCalledWith('Location sharing failed', expect.any(Error));
     socket.disconnect();
     await live.close();
   });

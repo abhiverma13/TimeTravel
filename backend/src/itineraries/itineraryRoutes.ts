@@ -56,7 +56,7 @@ const listQuery = z.object({ groupId: groupId.optional() });
 
 const adjustment = { version: z.number().int().min(0), dayIndex: z.number().int().min(0) };
 const adjustBody = z.union([
-  z.object({ action: z.enum(['lock', 'unlock', 'remove', 'add']), ...adjustment, activityId }),
+  z.object({ action: z.enum(['lock', 'unlock', 'remove', 'add', 'visit', 'unvisit']), ...adjustment, activityId }),
   z.object({ action: z.literal('move'), ...adjustment, activityId, toIndex: z.number().int().min(0) }),
   z.object({ action: z.literal('replan'), ...adjustment, fromTime: clockTime.optional() }),
 ]);

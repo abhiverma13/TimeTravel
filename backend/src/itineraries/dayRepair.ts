@@ -13,7 +13,7 @@ const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', '
 
 /** One change a traveller makes to a day of an itinerary. `version` is the itinerary version they last saw. */
 export type ItineraryAdjustment =
-  | { action: 'lock' | 'unlock' | 'remove' | 'add'; version: number; dayIndex: number; activityId: string }
+  | { action: 'lock' | 'unlock' | 'remove' | 'add' | 'visit' | 'unvisit'; version: number; dayIndex: number; activityId: string }
   | { action: 'move'; version: number; dayIndex: number; activityId: string; toIndex: number }
   | { action: 'replan'; version: number; dayIndex: number; fromTime?: string | undefined };
 
@@ -108,6 +108,7 @@ export function timedStops(
       travelMinutes: scheduled.travelMinutes,
       communityScore: activity?.communityScore ?? before?.communityScore ?? 0,
       locked: before?.locked ?? false,
+      visited: before?.visited ?? false,
     };
   });
 }
@@ -129,6 +130,14 @@ function setLock(inputs: RepairInputs, activityId: string, locked: boolean): Rep
   const stops = inputs.day.stops.map((stop, position) => (position === index ? { ...stop, locked } : stop));
   const name = stops.at(index)?.name ?? '';
   return { stops, returnTravelMinutes: inputs.day.returnTravelMinutes, summary: `${locked ? 'locked' : 'unlocked'} ${name}` };
+}
+
+/** Ticks a stop off as visited, or undoes that; the plan itself does not change. */
+function setVisited(inputs: RepairInputs, activityId: string, visited: boolean): RepairedDay {
+  const index = stopIndex(inputs.day, activityId);
+  const stops = inputs.day.stops.map((stop, position) => (position === index ? { ...stop, visited } : stop));
+  const name = stops.at(index)?.name ?? '';
+  return { stops, returnTravelMinutes: inputs.day.returnTravelMinutes, summary: visited ? `visited ${name}` : `unmarked ${name} as visited` };
 }
 
 /** Removes the stop, keeps the others in order, and offers the freed time to other activities. */
@@ -282,6 +291,9 @@ export function applyAdjustment(change: ItineraryAdjustment, inputs: RepairInput
     case 'lock':
     case 'unlock':
       return setLock(inputs, change.activityId, change.action === 'lock');
+    case 'visit':
+    case 'unvisit':
+      return setVisited(inputs, change.activityId, change.action === 'visit');
     case 'remove':
       return removeStop(inputs, change.activityId);
     case 'add':

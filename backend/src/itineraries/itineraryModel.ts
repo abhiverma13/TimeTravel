@@ -18,6 +18,8 @@ export interface ItineraryStop {
   communityScore: number;
   /** A locked stop stays in place when the day is re-planned. */
   locked: boolean;
+  /** Ticked off when a traveller was there, by hand or by the map when they arrive. */
+  visited: boolean;
 }
 
 export interface ItineraryDay {
@@ -86,6 +88,7 @@ const stopSchema = new Schema<ItineraryStop>(
     travelMinutes: { type: Number, required: true },
     communityScore: { type: Number, required: true },
     locked: { type: Boolean, default: false },
+    visited: { type: Boolean, default: false },
   },
   { _id: false },
 );
