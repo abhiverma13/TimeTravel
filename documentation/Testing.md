@@ -9,6 +9,7 @@
 | 2026-10-26 | 2.1.1, 3 | Added `POST /api/itineraries/:itineraryId/adjust` and the Socket.io live-update interface, tested with and without mocks, and the NFR 2 (live update latency) test with its log. |
 | 2026-10-26 | 2.1.1 | Added the trip options (way of getting around, budget, must-see and avoid places) to the `POST /api/itineraries/generate` tests, with Google Routes mocked and through the production Routes client, and the `add` action to the `POST /api/itineraries/:itineraryId/adjust` tests. |
 | 2026-10-26 | 2.1.1 | Added the Friend Service interfaces (search and view travellers, list friends, send and accept requests, remove a friendship, set privacy), tested with and without mocks. |
+| 2026-10-26 | 2.1.1 | Added the Feed Service interfaces (share, feeds, read, delete, like, unlike, comments, copy a shared trip), tested with and without mocks; the copy is also tested with Google Routes mocked. |
 
 ---
 
@@ -44,6 +45,16 @@
 | **POST /api/friends/requests/:userId/accept** | [`backend/tests/no-mock/friends.test.ts#L292`](../backend/tests/no-mock/friends.test.ts#L292) | [`backend/tests/mock/friends.test.ts#L126`](../backend/tests/mock/friends.test.ts#L126) | Friendship DB |
 | **DELETE /api/friends/:userId** | [`backend/tests/no-mock/friends.test.ts#L327`](../backend/tests/no-mock/friends.test.ts#L327) | [`backend/tests/mock/friends.test.ts#L145`](../backend/tests/mock/friends.test.ts#L145) | Friendship DB |
 | **PUT /api/friends/privacy** | [`backend/tests/no-mock/friends.test.ts#L361`](../backend/tests/no-mock/friends.test.ts#L361) | [`backend/tests/mock/friends.test.ts#L164`](../backend/tests/mock/friends.test.ts#L164) | User DB |
+| **POST /api/posts** | [`backend/tests/no-mock/posts.test.ts#L55`](../backend/tests/no-mock/posts.test.ts#L55) | [`backend/tests/mock/posts.test.ts#L54`](../backend/tests/mock/posts.test.ts#L54) | Post DB |
+| **GET /api/posts** | [`backend/tests/no-mock/posts.test.ts#L144`](../backend/tests/no-mock/posts.test.ts#L144) | [`backend/tests/mock/posts.test.ts#L72`](../backend/tests/mock/posts.test.ts#L72) | Comment DB |
+| **GET /api/posts/:postId** | [`backend/tests/no-mock/posts.test.ts#L238`](../backend/tests/no-mock/posts.test.ts#L238) | [`backend/tests/mock/posts.test.ts#L90`](../backend/tests/mock/posts.test.ts#L90) | Comment DB |
+| **DELETE /api/posts/:postId** | [`backend/tests/no-mock/posts.test.ts#L275`](../backend/tests/no-mock/posts.test.ts#L275) | [`backend/tests/mock/posts.test.ts#L107`](../backend/tests/mock/posts.test.ts#L107) | Comment DB |
+| **PUT /api/posts/:postId/like** | [`backend/tests/no-mock/posts.test.ts#L311`](../backend/tests/no-mock/posts.test.ts#L311) | [`backend/tests/mock/posts.test.ts#L125`](../backend/tests/mock/posts.test.ts#L125) | Post DB (post deleted while liking it) |
+| **DELETE /api/posts/:postId/like** | [`backend/tests/no-mock/posts.test.ts#L345`](../backend/tests/no-mock/posts.test.ts#L345) | [`backend/tests/mock/posts.test.ts#L143`](../backend/tests/mock/posts.test.ts#L143) | Post DB |
+| **GET /api/posts/:postId/comments** | [`backend/tests/no-mock/posts.test.ts#L365`](../backend/tests/no-mock/posts.test.ts#L365) | [`backend/tests/mock/posts.test.ts#L160`](../backend/tests/mock/posts.test.ts#L160) | Comment DB |
+| **POST /api/posts/:postId/comments** | [`backend/tests/no-mock/posts.test.ts#L403`](../backend/tests/no-mock/posts.test.ts#L403) | [`backend/tests/mock/posts.test.ts#L177`](../backend/tests/mock/posts.test.ts#L177) | Comment DB |
+| **DELETE /api/posts/:postId/comments/:commentId** | [`backend/tests/no-mock/posts.test.ts#L434`](../backend/tests/no-mock/posts.test.ts#L434) | [`backend/tests/mock/posts.test.ts#L194`](../backend/tests/mock/posts.test.ts#L194) | Comment DB |
+| **POST /api/posts/:postId/copy** | [`backend/tests/no-mock/posts.test.ts#L472`](../backend/tests/no-mock/posts.test.ts#L472) | [`backend/tests/mock/posts.test.ts#L213`](../backend/tests/mock/posts.test.ts#L213) | Google Routes API, Itinerary DB |
 | **GET /health** | [`backend/tests/no-mock/health.test.ts#L10`](../backend/tests/no-mock/health.test.ts#L10) | [`backend/tests/mock/health.test.ts#L11`](../backend/tests/mock/health.test.ts#L11) | MongoDB connection state |
 
 The tests without mocks run against a real MongoDB (an in-memory server started by the tests, see `backend/tests/helpers/testDatabase.ts`) and pre-populate the Vancouver catalogue in the database, so they need no Google Places key. The Itinerary Engine's scheduling core is also unit-tested in [`backend/tests/unit/`](../backend/tests/unit/), including a comparison against a brute-forced optimum.

@@ -11,6 +11,7 @@
 | 2026-10-26 | 3.1, 3.5, 4.1, 4.4, 4.7 | View & Adjust Itinerary is implemented: any member can lock, unlock, move or remove a stop, or re-plan a day, and every member's open app receives the new plan through a Socket.io hub (Socket.io replaces plain `ws` because it is on the course's approved-library list and reconnects by itself). A locked stop keeps its time; an itinerary version number refuses edits made from an out-of-date copy, so two members editing at once never overwrite each other. |
 | 2026-10-26 | 3.1, 3.4, 3.5, 4.1, 4.2, 4.3, 4.7 | Itinerary generation takes more of the traveller's wishes: how they get around (walk, transit or drive), a budget per activity, and places they must see or want to avoid. Travel times now come from Google Routes, cached for a week, with the offline estimate as the fallback. A traveller can also add a place they found in Explore to a day of a trip (new use case Add Place to Itinerary). Adding to a full day drops the lowest-ranked unlocked stops instead of refusing: the planner fills every day, so refusing would make the feature unusable. |
 | 2026-10-26 | 3.1, 3.4, 3.5, 4.1, 4.2 | Added F6 Friends and the trip feed, starting with friends and private accounts: travellers find each other by name or email, send and answer friend requests, and can make their account private so only friends see their details (and, later in F6, their posts). The privacy setting belongs to a new Friend Service rather than the Auth & Profile Service, because only the Friend Service decides who sees what. The app now has a bottom navigation bar (Trips, Explore, Profile), so Browse & Search Activities starts from the Explore tab and sign-out and the profile moved to the Profile tab. |
+| 2026-10-26 | 3.1, 3.4, 4.1, 4.2 | Completed F6 with the trip feed: a traveller shares a trip with a rating and caption, reads a Friends or Everyone feed (optionally for one city), likes and comments on posts, and copies a shared trip into their own trips on new dates. A post keeps a frozen copy of the plan, so later edits to the itinerary do not change what others read. Copying re-times every day for its new weekday and leaves out, with a warning, any stop that no longer fits, rather than re-planning from scratch, because the point of copying is getting the same places. A new Feed Service owns posts and comments; who may see a post is asked of the Friend Service. |
 
 ---
 
@@ -31,7 +32,7 @@ Planning a trip is a scheduling problem, but every tool treats it as a search pr
 3. **F3 Itinerary generation** (implemented for CP1, extended for CP2): dates, lodging, interests and pace in; a ranked, time-feasible, day-by-day plan out. This is our own algorithm, not a lookup. The traveller also chooses how they get around (walk, transit or drive), a budget per activity, and places they must see or want to avoid; travel times come from Google Routes. A place found in Explore can be added to a day of a trip.
 4. **F4 Collaborative trips, live** (implemented for CP2): travellers form a group and invite friends with a 6-character code. Each member keeps their own interests and vetoes for the group, and the group's itineraries are planned from all of them: an interest more members share counts more, and anything a member vetoed is left out. Any member can lock, move or remove a stop or re-plan a day, and every member's open app shows the new plan within seconds.
 5. **F5 Disruption-aware re-planning** (planned for CP2-CP3): a back-end watcher tracks the forecast and venue status for active trips, re-solves the affected part of the day, then pushes it out.
-6. **F6 Friends and the trip feed** (friends implemented for CP2): travellers find each other by name or email and become friends once a request is accepted. A private account shows its home city only to its friends.
+6. **F6 Friends and the trip feed** (implemented for CP2): travellers find each other by name or email and become friends once a request is accepted. A traveller shares a trip with a rating and a caption; friends see it in their Friends feed, and everyone sees it in the Everyone feed unless the account is private. Posts can be liked, commented on, and copied into your own trips on new dates.
 
 How the features satisfy the project scope:
 
@@ -81,7 +82,11 @@ How the features satisfy the project scope:
 - Use cases for feature 6: **Friends and the trip feed**
   16. **Find Travellers**: a traveller searches for others by part of their name or their exact email, and opens their profile.
   17. **Manage Friends**: a traveller sends a friend request, accepts or declines one they received, cancels one they sent, or removes a friend.
-  18. **Set Account Privacy**: a traveller makes their account private, so only friends see their details, or public again.
+  18. **Set Account Privacy**: a traveller makes their account private, so only friends see their details and posts, or public again.
+  19. **Share Trip**: a traveller posts one of their trips with a 1 to 5 star rating and an optional caption; the post keeps the plan as it was when shared.
+  20. **Browse Feed**: a traveller reads the Friends or Everyone feed, newest first and optionally for one city, or one traveller's posts on their page.
+  21. **React to Post**: a traveller likes or unlikes a post, and adds or deletes comments; a post's author can delete the post or any comment on it.
+  22. **Copy Shared Trip**: a traveller copies a shared trip into their own trips, starting on a day they choose.
 
 ### **3.5. Formal Use Case Specifications (5 Most Major Use Cases)**
 
@@ -301,6 +306,8 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
             - **Purpose**: The scheduling core for adjustments: keeps every kept stop, fills the free time from the pool by greedy insertion from three starts, optionally reorders when that ends the day sooner, and returns null when the kept stops no longer fit.
         7. `TravelTimes forPoints(GeoPoint[] points, TransportMode mode, boolean fetchMissing)`
             - **Purpose**: Travel times between the points for one way of getting around: Google Routes times cached in the last 7 days, plus, with `fetchMissing`, the missing pairs requested from Routes in batches within its per-request limit. Every other pair, and every pair if Routes fails, uses the offline estimate. Generation fetches; adjustments use cached times only, so they never wait on Google.
+        8. `TripSnapshot snapshot(String userId, String itineraryId)` and `ItineraryDto copyTrip(String userId, TripSnapshot trip, String startDate, String note)`
+            - **Purpose**: Called by the Feed Service: a frozen copy of an itinerary the traveller may see, for a post; and a shared trip copied into the traveller's trips on new dates, each day re-timed for its weekday.
 4. **Group Service**
     - **Purpose**: Travel groups: members, invite codes, and each member's interests and vetoes for the group's trips. It is its own component because both the Itinerary Engine (combined preferences) and the Trip Sync & Disruption Service (who receives a group trip's updates) need the same membership answer. A group's trips belong to whoever is in the group now, so leaving a group removes access to its trips.
     - **Interfaces**:
@@ -347,11 +354,35 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
             - **Purpose**: Removes the friendship or request between the caller and that traveller, whichever exists: unfriending, cancelling a sent request and declining a received one are the same call (404 if there is nothing to remove).
         7. `PUT /api/friends/privacy` body `{ isPrivate: boolean }` returns `{ isPrivate }`
             - **Purpose**: Makes the caller's account private or public.
+        8. `Audience audience(String viewerId)` and `boolean canSee(String viewerId, String authorId)`
+            - **Purpose**: Called by the Feed Service: whose posts the viewer may see (their own and their friends' always, anyone else's only if the account is public).
+
+7. **Feed Service**
+    - **Purpose**: Shared trips (posts), their likes and comments, and copying a shared trip. It is its own component because posts outlive the itineraries they were shared from and have their own access rule (the Friend Service's), so keeping them out of the Itinerary Engine keeps that component about planning.
+    - **Interfaces**:
+        1. `POST /api/posts` body `{ itineraryId, rating: 1-5, caption? }` returns `PostDetailDto`
+            - **Purpose**: Shares a frozen copy of an itinerary the caller may see (201), with a caption of up to 500 characters; a trip with no stops is refused (422). `PostDto` is `{ id, author: { id, name }, city, startDate, endDate, dayCount, stopCount, rating, caption, likeCount, likedByMe, commentCount, mine, createdAt }`; `PostDetailDto` adds `trip` (day hours, pace, way of getting around, budget, interests, lodging and the timed stops of each day).
+        2. `GET /api/posts?feed=friends|everyone&city=<city>&authorId=<id>&before=<ISO time>` returns `{ posts: PostDto[] }`
+            - **Purpose**: 20 posts at a time, newest first. `friends` is the caller's and their friends' posts; `everyone` (the default) is every post except those of private accounts the caller is not friends with. `city` filters by city ignoring case, `authorId` lists one traveller's posts (none if the caller may not see them), and `before` gives the next page.
+        3. `GET /api/posts/{postId}` returns `PostDetailDto`
+            - **Purpose**: One post in full, if the caller may see it (404 otherwise, so private accounts' posts are not revealed).
+        4. `DELETE /api/posts/{postId}` returns 204
+            - **Purpose**: The author deletes their post and its comments (403 for anyone else). The itinerary it came from is not affected.
+        5. `PUT /api/posts/{postId}/like` and `DELETE /api/posts/{postId}/like` return `{ likeCount, likedByMe }`
+            - **Purpose**: Likes or unlikes the post; doing either twice changes nothing.
+        6. `GET /api/posts/{postId}/comments` returns `{ comments: CommentDto[] }`
+            - **Purpose**: The post's comments, oldest first (up to 100). `CommentDto` is `{ id, author: { id, name }, text, mine, createdAt }`.
+        7. `POST /api/posts/{postId}/comments` body `{ text }` returns `CommentDto`
+            - **Purpose**: Adds a comment of 1 to 300 characters (201).
+        8. `DELETE /api/posts/{postId}/comments/{commentId}` returns 204
+            - **Purpose**: The comment's author or the post's author deletes a comment (403 for anyone else).
+        9. `POST /api/posts/{postId}/copy` body `{ startDate }` returns `ItineraryDto`
+            - **Purpose**: Copies the shared trip into the caller's own trips starting on `startDate` (201). Each day keeps its stops in order, re-timed for its new weekday with the Itinerary Engine's `copyTrip`; a stop that no longer fits is left out with a warning.
 
 ### **4.2. Databases**
 
 1. **MongoDB** (one database, accessed through Mongoose)
-    - **Purpose**: Stores `users` (Google identity, home city, interests, whether the account is private), `friendships` (who asked whom, pending or accepted, with the two user ids in sorted order under a unique index, so two travellers never have two friendships), `activities` (the cached catalogue, with a 2dsphere index on location for "near my lodging" queries and the review counters), `citycatalogues` (when each city was last fetched from Places, for cache expiry), `reviews`, `groups` (name, unique invite code, and each member's role, interests and vetoes, indexed by member), `itineraries` (one document per trip with its days and stops, its options, and the group's id for a group trip), and `traveltimes` (Google Routes travel times per way of getting around and pair of points, deleted by a time-to-live index a week after they were fetched).
+    - **Purpose**: Stores `users` (Google identity, home city, interests, whether the account is private), `friendships` (who asked whom, pending or accepted, with the two user ids in sorted order under a unique index, so two travellers never have two friendships), `activities` (the cached catalogue, with a 2dsphere index on location for "near my lodging" queries and the review counters), `citycatalogues` (when each city was last fetched from Places, for cache expiry), `reviews`, `groups` (name, unique invite code, and each member's role, interests and vetoes, indexed by member), `itineraries` (one document per trip with its days and stops, its options, and the group's id for a group trip), `traveltimes` (Google Routes travel times per way of getting around and pair of points, deleted by a time-to-live index a week after they were fetched), `posts` (the author, a frozen copy of the trip, the rating and caption, and who liked it, indexed for the feed by time, author and city), and `comments` (indexed by post).
     - **Why MongoDB, not MySQL**: an itinerary is one nested, variable-shaped document per trip, and we need 2dsphere geo queries on activities. A relational schema would join five tables to read a single day.
 
 ### **4.3. External Modules**
