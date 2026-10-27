@@ -80,7 +80,7 @@ The tests without mocks run against a real MongoDB (an in-memory server started 
 
 #### 2.1.2. Commit Hash Where Tests Run
 
-`5a8412acc71555a59b9d7d039262224ebf3dc309`
+`ceec5d99d70ad8d0d26c8d107e0d631a3d966fd9`
 
 #### 2.1.3. Explanation on How to Run the Tests
 
