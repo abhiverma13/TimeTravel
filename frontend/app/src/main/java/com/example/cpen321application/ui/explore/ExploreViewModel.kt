@@ -3,8 +3,10 @@ package com.example.cpen321application.ui.explore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.AdjustRequest
+import com.example.cpen321application.data.GeoPoint
 import com.example.cpen321application.data.Itinerary
 import com.example.cpen321application.data.ItinerarySummary
+import com.example.cpen321application.data.ReviewListItem
 import com.example.cpen321application.data.ReviewTags
 import com.example.cpen321application.data.TimeTravelRepository
 import com.example.cpen321application.data.TravelActivity
@@ -42,6 +44,9 @@ data class ExploreUiState(
     val confirmation: String? = null,
     /** The add-to-trip dialog, while it is open. */
     val adding: AddToTripState? = null,
+    /** The activity whose reviews are open, and its reviews (null while loading). */
+    val reviewsOf: TravelActivity? = null,
+    val reviews: List<ReviewListItem>? = null,
 )
 
 /** Explore & review: search a city's activities, filter by interest, and rate and tag them. */
@@ -87,18 +92,25 @@ class ExploreViewModel(private val repository: TimeTravelRepository, initialCity
         mutableState.update { it.copy(rating = null, reviewError = null) }
     }
 
-    fun submitReview(rating: Int, comment: String, tags: ReviewTags) {
+    /** Saves the review. `locate` finds where the traveller is (or null), so a visit to the place can be verified. */
+    fun submitReview(rating: Int, comment: String, tags: ReviewTags, locate: (onLocation: (GeoPoint?) -> Unit) -> Unit) {
         val activity = state.value.rating ?: return
         mutableState.update { it.copy(submittingReview = true, reviewError = null) }
+        locate { location -> save(activity, rating, comment, tags, location) }
+    }
+
+    private fun save(activity: TravelActivity, rating: Int, comment: String, tags: ReviewTags, location: GeoPoint?) {
         viewModelScope.launch {
-            repository.reviewActivity(activity.id, rating, comment.trim(), tags).fold(
-                onSuccess = { updated ->
+            repository.reviewActivity(activity.id, rating, comment.trim(), tags, location).fold(
+                onSuccess = { saved ->
+                    val updated = saved.activity
+                    val badge = if (saved.review.verified) " It has a Verified visit badge and counts double." else ""
                     mutableState.update { current ->
                         current.copy(
                             submittingReview = false,
                             rating = null,
                             activities = current.activities.map { if (it.id == updated.id) updated else it },
-                            confirmation = "Thanks! Your review of ${updated.name} was saved.",
+                            confirmation = "Thanks! Your review of ${updated.name} was saved.$badge",
                         )
                     }
                 },
@@ -108,6 +120,16 @@ class ExploreViewModel(private val repository: TimeTravelRepository, initialCity
             )
         }
     }
+
+    fun openReviews(activity: TravelActivity) {
+        mutableState.update { it.copy(reviewsOf = activity, reviews = null) }
+        viewModelScope.launch {
+            val reviews = repository.reviews(activity.id).getOrDefault(emptyList())
+            mutableState.update { if (it.reviewsOf?.id == activity.id) it.copy(reviews = reviews) else it }
+        }
+    }
+
+    fun closeReviews() = mutableState.update { it.copy(reviewsOf = null, reviews = null) }
 
     fun confirmationShown() {
         mutableState.update { it.copy(confirmation = null) }

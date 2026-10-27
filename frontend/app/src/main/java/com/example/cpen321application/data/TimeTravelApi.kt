@@ -24,6 +24,9 @@ interface TimeTravelApi {
     @POST("api/activities/{activityId}/reviews")
     suspend fun reviewActivity(@Path("activityId") activityId: String, @Body body: ReviewRequest): ReviewResponse
 
+    @GET("api/activities/{activityId}/reviews")
+    suspend fun reviews(@Path("activityId") activityId: String): ReviewsResponse
+
     @POST("api/itineraries/generate")
     suspend fun generateItinerary(@Body body: GenerateItineraryRequest): Itinerary
 

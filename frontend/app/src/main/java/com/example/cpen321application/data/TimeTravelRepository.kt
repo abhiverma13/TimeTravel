@@ -53,9 +53,15 @@ class TimeTravelRepository(
     suspend fun activities(city: String, interest: String?): Result<List<TravelActivity>> =
         apiCall { api.activities(city, interest) }.map { response -> response.activities }
 
-    /** Saves the traveller's rating and tags, returning the activity with its updated community score. */
-    suspend fun reviewActivity(activityId: String, rating: Int, comment: String, tags: ReviewTags): Result<TravelActivity> =
-        apiCall { api.reviewActivity(activityId, ReviewRequest(rating, comment, tags)) }.map { response -> response.activity }
+    /**
+     * Saves the traveller's rating and tags, with where they are (if known) so a visit can be verified. Returns the review
+     * and the activity with its updated community score.
+     */
+    suspend fun reviewActivity(activityId: String, rating: Int, comment: String, tags: ReviewTags, location: GeoPoint?): Result<ReviewResponse> =
+        apiCall { api.reviewActivity(activityId, ReviewRequest(rating, comment, tags, location)) }
+
+    /** An activity's reviews, verified ones first. */
+    suspend fun reviews(activityId: String): Result<List<ReviewListItem>> = apiCall { api.reviews(activityId) }.map { it.reviews }
 
     /** Asks the Itinerary Engine for a day-by-day plan; the plan is stored and returned. */
     suspend fun generateItinerary(request: GenerateItineraryRequest): Result<Itinerary> =

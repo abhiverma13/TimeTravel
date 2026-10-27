@@ -49,6 +49,8 @@ fun RateActivityDialog(
     error: String?,
     onSubmit: (rating: Int, comment: String, tags: ReviewTags) -> Unit,
     onDismiss: () -> Unit,
+    /** Asks for location permission; null when the app already has it. */
+    onAllowLocation: (() -> Unit)? = null,
 ) {
     var stars by rememberSaveable(activity.id) { mutableIntStateOf(0) }
     var comment by rememberSaveable(activity.id) { mutableStateOf("") }
@@ -66,6 +68,14 @@ fun RateActivityDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 StarPicker(stars = stars, onStars = { stars = it })
+                Text(
+                    "Rating it at the place, on a day it's in your trip? It gets a Verified visit badge and counts double.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (onAllowLocation != null) {
+                    TextButton(onClick = onAllowLocation) { Text("Use my location to verify") }
+                }
                 OutlinedTextField(
                     value = comment,
                     onValueChange = { comment = it.take(MAX_COMMENT_LENGTH) },

@@ -45,6 +45,8 @@ data class TravelActivity(
     val communityScore: Double,
     /** null when the opening hours are unknown. */
     val openingHours: List<OpeningPeriod>?,
+    /** Reviews written at the place on a day it was in the reviewer's trip. */
+    val verifiedReviewCount: Int = 0,
 )
 
 data class ActivitiesResponse(val city: String, val activities: List<TravelActivity>)
@@ -57,9 +59,30 @@ data class ReviewTags(
     val setting: String? = null,
 )
 
-data class ReviewRequest(val rating: Int, val comment: String, val tags: ReviewTags)
+/** `location` is where the traveller is while reviewing, sent so the visit can be verified; null leaves it out. */
+data class ReviewRequest(val rating: Int, val comment: String, val tags: ReviewTags, val location: GeoPoint? = null)
 
-data class Review(val id: String, val activityId: String, val rating: Int, val comment: String, val updatedAt: String)
+data class Review(
+    val id: String,
+    val activityId: String,
+    val rating: Int,
+    val comment: String,
+    val updatedAt: String,
+    /** Written at the place on a day it was in the traveller's trip; it counts double. */
+    val verified: Boolean = false,
+)
+
+/** A review as other travellers read it. */
+data class ReviewListItem(
+    val id: String,
+    val author: String,
+    val rating: Int,
+    val comment: String,
+    val verified: Boolean,
+    val updatedAt: String,
+)
+
+data class ReviewsResponse(val reviews: List<ReviewListItem>)
 
 data class ReviewResponse(val review: Review, val activity: TravelActivity)
 

@@ -1,10 +1,13 @@
 package com.example.cpen321application.ui.explore
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,9 +34,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -52,11 +58,19 @@ import com.example.cpen321application.ui.common.durationText
 import com.example.cpen321application.ui.common.interestLabel
 import com.example.cpen321application.ui.common.openingTodayText
 import com.example.cpen321application.ui.common.scoreText
+import com.example.cpen321application.ui.map.LOCATION_PERMISSIONS
+import com.example.cpen321application.ui.map.hasLocationPermission
+import com.example.cpen321application.ui.map.requestCurrentLocation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreScreen(viewModel: ExploreViewModel) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    var permitted by remember { mutableStateOf(hasLocationPermission(context)) }
+    val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+        permitted = results.values.any { it }
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(state.confirmation) {
         val confirmation = state.confirmation
@@ -79,7 +93,7 @@ fun ExploreScreen(viewModel: ExploreViewModel) {
         ) {
             item { CitySearch(state.city, state.loading, viewModel::onCityChange, viewModel::search) }
             item { InterestFilter(state.interest, viewModel::onInterestSelected) }
-            exploreResults(state, onRate = viewModel::startRating, onAdd = viewModel::startAddToTrip)
+            exploreResults(state, CardActions(onRate = viewModel::startRating, onAdd = viewModel::startAddToTrip, onReviews = viewModel::openReviews))
         }
     }
 
@@ -93,13 +107,22 @@ fun ExploreScreen(viewModel: ExploreViewModel) {
             activity = rating,
             submitting = state.submittingReview,
             error = state.reviewError,
-            onSubmit = viewModel::submitReview,
+            onSubmit = { stars, comment, tags ->
+                viewModel.submitReview(stars, comment, tags) { done ->
+                    if (hasLocationPermission(context)) requestCurrentLocation(context, done) else done(null)
+                }
+            },
             onDismiss = viewModel::dismissRating,
+            onAllowLocation = if (permitted) null else ({ askPermission.launch(LOCATION_PERMISSIONS) }),
         )
     }
+    state.reviewsOf?.let { activity -> ReviewsDialog(activity, state.reviews, onDismiss = viewModel::closeReviews) }
 }
 
-private fun LazyListScope.exploreResults(state: ExploreUiState, onRate: (TravelActivity) -> Unit, onAdd: (TravelActivity) -> Unit) {
+/** What an activity card can ask for. */
+private class CardActions(val onRate: (TravelActivity) -> Unit, val onAdd: (TravelActivity) -> Unit, val onReviews: (TravelActivity) -> Unit)
+
+private fun LazyListScope.exploreResults(state: ExploreUiState, actions: CardActions) {
     when {
         state.loading -> item {
             Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {
@@ -118,7 +141,7 @@ private fun LazyListScope.exploreResults(state: ExploreUiState, onRate: (TravelA
         else -> {
             item { SectionLabel("Best-rated in ${state.searchedCity}") }
             items(state.activities, key = { it.id }) { activity ->
-                ActivityCard(activity = activity, onRate = { onRate(activity) }, onAdd = { onAdd(activity) })
+                ActivityCard(activity = activity, actions = actions)
             }
         }
     }
@@ -160,7 +183,7 @@ private fun InterestFilter(selected: String?, onSelect: (String?) -> Unit) {
 }
 
 @Composable
-private fun ActivityCard(activity: TravelActivity, onRate: () -> Unit, onAdd: () -> Unit) {
+private fun ActivityCard(activity: TravelActivity, actions: CardActions) {
     BrandCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.ACTIVITY_CARD)) {
         Column(
             modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 4.dp, bottom = 4.dp),
@@ -173,15 +196,16 @@ private fun ActivityCard(activity: TravelActivity, onRate: () -> Unit, onAdd: ()
             if (tags.isNotEmpty()) {
                 Text(tags, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
             }
+            Text(
+                text = openingTodayText(activity.openingHours),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = openingTodayText(activity.openingHours),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = onAdd, modifier = Modifier.testTag(TestTags.ADD_TO_TRIP_BUTTON)) { Text("Add to trip") }
-                TextButton(onClick = onRate, modifier = Modifier.testTag(TestTags.RATE_BUTTON)) { Text("Rate") }
+                TextButton(onClick = { actions.onReviews(activity) }, modifier = Modifier.testTag(TestTags.REVIEWS_BUTTON)) { Text("Reviews") }
+                Spacer(modifier = Modifier.weight(1f))
+                TextButton(onClick = { actions.onAdd(activity) }, modifier = Modifier.testTag(TestTags.ADD_TO_TRIP_BUTTON)) { Text("Add to trip") }
+                TextButton(onClick = { actions.onRate(activity) }, modifier = Modifier.testTag(TestTags.RATE_BUTTON)) { Text("Rate") }
             }
         }
     }
@@ -200,6 +224,9 @@ private fun RatingLine(activity: TravelActivity) {
             withStyle(SpanStyle(color = muted)) {
                 append("  ${countText(activity.googleRatingCount, "rating")}")
                 append(" · ${countText(activity.reviewCount, "review")}")
+                if (activity.verifiedReviewCount > 0) {
+                    append(" (${activity.verifiedReviewCount} verified)")
+                }
                 append(" · ${durationText(activity.durationMinutes)}")
             }
         },
