@@ -43,6 +43,11 @@ export interface PlanRequest {
   /** Where each day starts and ends (the traveller's lodging). */
   origin: GeoPoint;
   interests: readonly string[];
+  /**
+   * For a group: per interest, the share of members (0 to 1) who picked it. When set it replaces
+   * `interests` for scoring, so an interest everyone shares counts more than one person's.
+   */
+  interestShares?: ReadonlyMap<string, number> | undefined;
   pace: Pace;
 }
 

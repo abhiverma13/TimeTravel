@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { isValidObjectId } from 'mongoose';
 import { z } from 'zod';
 
 import { INTEREST_TAGS } from '../activities/interests';
@@ -13,6 +14,7 @@ const MIN_DAY_MINUTES = 120;
 
 const isoDate = z.string().refine(isIsoDate, 'must be a date written YYYY-MM-DD');
 const clockTime = z.string().refine(isClockTime, 'must be a time written HH:MM');
+const groupId = z.string().refine((id) => isValidObjectId(id), 'must be a group id');
 
 const generateItineraryBody = z
   .object({
@@ -26,6 +28,7 @@ const generateItineraryBody = z
     interests: z.array(z.enum(INTEREST_TAGS)).max(INTEREST_TAGS.length).default([]),
     pace: z.enum(PACES).default('moderate'),
     lodging: z.string().trim().max(120).optional(),
+    groupId: groupId.optional(),
   })
   .superRefine((body, context) => {
     if (body.endDate < body.startDate) {
@@ -38,9 +41,11 @@ const generateItineraryBody = z
     }
   });
 
+const listQuery = z.object({ groupId: groupId.optional() });
+
 /**
  * POST /api/itineraries/generate
- * GET  /api/itineraries
+ * GET  /api/itineraries?groupId=
  * GET  /api/itineraries/:itineraryId
  */
 export function createItineraryRouter(authService: AuthService, itineraryService: ItineraryService): Router {
@@ -52,8 +57,9 @@ export function createItineraryRouter(authService: AuthService, itineraryService
     response.status(201).json(await itineraryService.generateItinerary(authenticatedUserId(response), input));
   });
 
-  router.get('/', async (_request, response) => {
-    response.json({ itineraries: await itineraryService.listItineraries(authenticatedUserId(response)) });
+  router.get('/', async (request, response) => {
+    const query = listQuery.parse(request.query);
+    response.json({ itineraries: await itineraryService.listItineraries(authenticatedUserId(response), query.groupId) });
   });
 
   router.get('/:itineraryId', async (request, response) => {

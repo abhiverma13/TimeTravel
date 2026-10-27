@@ -9,6 +9,7 @@ import { AuthService } from './auth/authService';
 import { createGoogleTokenVerifier } from './auth/googleTokenVerifier';
 import { env } from './config/env';
 import { connectToDatabase, disconnectFromDatabase } from './db/connection';
+import { GroupService } from './groups/groupService';
 import { ItineraryService } from './itineraries/itineraryService';
 
 async function main(): Promise<void> {
@@ -23,8 +24,9 @@ async function main(): Promise<void> {
   }
   const placesClient = env.googlePlacesApiKey ? new GooglePlacesClient(env.googlePlacesApiKey) : null;
   const activityService = new ActivityService(placesClient);
-  const itineraryService = new ItineraryService(activityService, placesClient);
-  const app = createApp({ authService, activityService, itineraryService });
+  const groupService = new GroupService();
+  const itineraryService = new ItineraryService(activityService, placesClient, groupService);
+  const app = createApp({ authService, activityService, groupService, itineraryService });
   const hasTlsConfiguration = Boolean(env.tlsCertPath && env.tlsKeyPath);
   const server = hasTlsConfiguration
     ? createHttpsServer({ cert: readFileSync(env.tlsCertPath), key: readFileSync(env.tlsKeyPath) }, app)

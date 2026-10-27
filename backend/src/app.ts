@@ -5,6 +5,8 @@ import type { ActivityService } from './activities/activityService';
 import { createAuthRouter, createUserRouter } from './auth/authRoutes';
 import type { AuthService } from './auth/authService';
 import { isDatabaseConnected } from './db/connection';
+import { createGroupRouter } from './groups/groupRoutes';
+import type { GroupService } from './groups/groupService';
 import { createItineraryRouter } from './itineraries/itineraryRoutes';
 import type { ItineraryService } from './itineraries/itineraryService';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -12,6 +14,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 export interface AppDependencies {
   authService: AuthService;
   activityService: ActivityService;
+  groupService: GroupService;
   itineraryService: ItineraryService;
 }
 
@@ -26,6 +29,7 @@ export function createApp(dependencies: AppDependencies): Express {
   app.use('/api/auth', createAuthRouter(dependencies.authService));
   app.use('/api/users', createUserRouter(dependencies.authService));
   app.use('/api/activities', createActivityRouter(dependencies.authService, dependencies.activityService));
+  app.use('/api/groups', createGroupRouter(dependencies.authService, dependencies.groupService));
   app.use('/api/itineraries', createItineraryRouter(dependencies.authService, dependencies.itineraryService));
 
   app.use(notFoundHandler);

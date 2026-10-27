@@ -35,7 +35,10 @@ export interface Lodging {
 
 /** A generated trip plan. The trip details are embedded so one document holds the whole itinerary. */
 export interface Itinerary {
+  /** Who generated it. */
   userId: Types.ObjectId;
+  /** Set for a group trip: every member of the group can see it. Personal trips have none. */
+  groupId?: Types.ObjectId | undefined;
   city: string;
   startDate: string;
   endDate: string;
@@ -87,6 +90,7 @@ const daySchema = new Schema<ItineraryDay>(
 const itinerarySchema = new Schema<Itinerary>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    groupId: { type: Schema.Types.ObjectId, ref: 'Group', index: true },
     city: { type: String, required: true },
     startDate: { type: String, required: true },
     endDate: { type: String, required: true },

@@ -1,6 +1,8 @@
 import request from 'supertest';
 
+import { ActivityModel } from '../../src/activities/activityModel';
 import { DEMO_VANCOUVER_PLACES } from '../../src/dev/demoVancouverPlaces';
+import type { GroupDto } from '../../src/groups/groupService';
 import type { ItineraryDto, ItinerarySummaryDto } from '../../src/itineraries/itineraryService';
 import { ItineraryModel } from '../../src/itineraries/itineraryModel';
 import { createTestApp, seedVancouver, signedInUser } from '../helpers/testApp';
@@ -198,6 +200,62 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
 
     expect(response.status).toBe(401);
   });
+
+  // Input: a group trip; the owner's group interests are museums, the member's are outdoors and food,
+  //        and the member vetoed Stanley Park Seawall (the best-rated outdoor activity)
+  // Expected status code: 201
+  // Expected behavior: the plan uses every member's interests and leaves out vetoed activities;
+  //                    it is stored as the group's, so the other member can open it
+  // Expected output: groupId set, interests [museums, outdoors, food], no Stanley Park Seawall; the member's GET returns 200
+  test("Plans a group trip from every member's interests and vetoes", async () => {
+    const { app, authService, activityService } = createTestApp();
+    const owner = await signedInUser(authService, 'Trip Owner');
+    const member = await signedInUser(authService, 'Group Member');
+    await seedVancouver(activityService);
+    const seawall = await ActivityModel.findOne({ name: 'Stanley Park Seawall' });
+    const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
+    await request(app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
+    await request(app).put(`/api/groups/${group.id}/members/me`).set(owner.authorization).send({ interests: ['museums'] });
+    await request(app)
+      .put(`/api/groups/${group.id}/members/me`)
+      .set(member.authorization)
+      .send({ interests: ['outdoors', 'food'], vetoedActivityIds: [seawall?._id.toString()] });
+
+    const response = await request(app)
+      .post('/api/itineraries/generate')
+      .set(owner.authorization)
+      .send({ ...MUSEUM_WEEKEND, interests: ['nightlife'], groupId: group.id });
+
+    const itinerary = response.body as ItineraryDto;
+    expect(response.status).toBe(201);
+    expect(itinerary.groupId).toBe(group.id);
+    expect(itinerary.interests).toEqual(['museums', 'outdoors', 'food']);
+    expect(allStops(itinerary).length).toBeGreaterThan(0);
+    expect(allStops(itinerary).map((stop) => stop.name)).not.toContain('Stanley Park Seawall');
+    const memberView = await request(app).get(`/api/itineraries/${itinerary.id}`).set(member.authorization);
+    expect(memberView.status).toBe(200);
+  });
+
+  // Input: a trip for a group the traveller does not belong to, and a groupId that is not an id
+  // Expected status code: 404 and 400
+  // Expected behavior: nothing is generated or stored
+  // Expected output: { error: "Group not found" }, then { error: "Invalid request", ... }
+  test.each([
+    ['not a member', 404],
+    ['not-an-id', 400],
+  ])('Invalid group: %s', async (scenario, status) => {
+    const { app, authService, activityService } = createTestApp();
+    const owner = await signedInUser(authService, 'Trip Owner');
+    const stranger = await signedInUser(authService, 'Someone Else');
+    await seedVancouver(activityService);
+    const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
+    const groupId = scenario === 'not a member' ? group.id : scenario;
+
+    const response = await request(app).post('/api/itineraries/generate').set(stranger.authorization).send({ ...MUSEUM_WEEKEND, groupId });
+
+    expect(response.status).toBe(status);
+    expect(await ItineraryModel.countDocuments()).toBe(0);
+  });
 });
 
 // Interface GET /api/itineraries/:itineraryId
@@ -285,5 +343,48 @@ describe('Unmocked: GET /api/itineraries', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ itineraries: [] });
+  });
+
+  // Input: the owner has a personal trip and a group trip; a member of the group lists theirs, then filters by the group
+  // Expected status code: 200 for both
+  // Expected behavior: the member sees the group's trip but not the owner's personal one
+  // Expected output: one summary with groupId set, both times
+  test("Lists the traveller's group trips", async () => {
+    const { app, authService, activityService } = createTestApp();
+    const owner = await signedInUser(authService, 'Trip Owner');
+    const member = await signedInUser(authService, 'Group Member');
+    await seedVancouver(activityService);
+    const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
+    await request(app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
+    await request(app).post('/api/itineraries/generate').set(owner.authorization).send(MUSEUM_WEEKEND);
+    await request(app).post('/api/itineraries/generate').set(owner.authorization).send({ ...MUSEUM_WEEKEND, groupId: group.id });
+
+    const all = await request(app).get('/api/itineraries').set(member.authorization);
+    const filtered = await request(app).get('/api/itineraries').query({ groupId: group.id }).set(member.authorization);
+
+    for (const response of [all, filtered]) {
+      const summaries = (response.body as { itineraries: ItinerarySummaryDto[] }).itineraries;
+      expect(response.status).toBe(200);
+      expect(summaries.map((summary) => summary.groupId)).toEqual([group.id]);
+    }
+  });
+
+  // Input: a filter by a group the traveller is not in, and a filter that is not an id
+  // Expected status code: 404 and 400
+  // Expected behavior: the group's trips are not revealed
+  // Expected output: { error: "Group not found" }, then { error: "Invalid request", ... }
+  test.each([
+    ['not a member', 404],
+    ['not-an-id', 400],
+  ])('Invalid group filter: %s', async (scenario, status) => {
+    const { app, authService } = createTestApp();
+    const owner = await signedInUser(authService, 'Trip Owner');
+    const stranger = await signedInUser(authService, 'Someone Else');
+    const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
+    const groupId = scenario === 'not a member' ? group.id : scenario;
+
+    const response = await request(app).get('/api/itineraries').query({ groupId }).set(stranger.authorization);
+
+    expect(response.status).toBe(status);
   });
 });

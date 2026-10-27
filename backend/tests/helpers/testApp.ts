@@ -7,6 +7,7 @@ import { AuthService } from '../../src/auth/authService';
 import { createGoogleTokenVerifier, type GoogleTokenVerifier } from '../../src/auth/googleTokenVerifier';
 import { UserModel } from '../../src/auth/userModel';
 import { DEMO_VANCOUVER_PLACES } from '../../src/dev/demoVancouverPlaces';
+import { GroupService } from '../../src/groups/groupService';
 import { ItineraryService } from '../../src/itineraries/itineraryService';
 
 export const TEST_JWT_SECRET = 'test-jwt-secret';
@@ -25,6 +26,7 @@ export interface TestApp {
   app: Express;
   authService: AuthService;
   activityService: ActivityService;
+  groupService: GroupService;
   itineraryService: ItineraryService;
 }
 
@@ -35,11 +37,13 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   );
   const placesClient = options.placesClient ?? null;
   const activityService = new ActivityService(placesClient, options.now);
-  const itineraryService = new ItineraryService(activityService, placesClient);
+  const groupService = new GroupService();
+  const itineraryService = new ItineraryService(activityService, placesClient, groupService);
   return {
-    app: createApp({ authService, activityService, itineraryService }),
+    app: createApp({ authService, activityService, groupService, itineraryService }),
     authService,
     activityService,
+    groupService,
     itineraryService,
   };
 }

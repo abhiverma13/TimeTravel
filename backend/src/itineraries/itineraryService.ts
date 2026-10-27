@@ -3,6 +3,7 @@ import { Types, isValidObjectId } from 'mongoose';
 import type { ActivityDto, ActivityService } from '../activities/activityService';
 import type { InterestTag } from '../activities/interests';
 import type { PlacesClient } from '../activities/placesClient';
+import type { GroupService, GroupTripPreferences } from '../groups/groupService';
 import { HttpError } from '../middleware/errorHandler';
 import { planTrip } from './engine/planner';
 import type { Candidate, GeoPoint, Pace, TripDay } from './engine/types';
@@ -26,6 +27,8 @@ export interface GenerateItineraryInput {
   pace: Pace;
   /** Hotel name or address; days start and end there. */
   lodging?: string | undefined;
+  /** Plans a trip for this group: its members' interests and vetoes replace `interests`. */
+  groupId?: string | undefined;
 }
 
 export interface ItineraryStopDto {
@@ -42,6 +45,8 @@ export interface ItineraryStopDto {
 
 export interface ItineraryDto {
   id: string;
+  /** The group the trip belongs to, or null for a personal trip. */
+  groupId: string | null;
   city: string;
   startDate: string;
   endDate: string;
@@ -62,6 +67,7 @@ export interface ItineraryDto {
 
 export interface ItinerarySummaryDto {
   id: string;
+  groupId: string | null;
   city: string;
   startDate: string;
   endDate: string;
@@ -78,6 +84,7 @@ export interface ItineraryServiceOptions {
 function toItineraryDto(itinerary: ItineraryDocument): ItineraryDto {
   return {
     id: itinerary._id.toString(),
+    groupId: itinerary.groupId?.toString() ?? null,
     city: itinerary.city,
     startDate: itinerary.startDate,
     endDate: itinerary.endDate,
@@ -149,18 +156,23 @@ export class ItineraryService {
   constructor(
     private readonly activityService: ActivityService,
     private readonly placesClient: PlacesClient | null,
+    private readonly groupService: GroupService,
     private readonly options: ItineraryServiceOptions = {},
   ) {}
 
   async generateItinerary(userId: string, input: GenerateItineraryInput): Promise<ItineraryDto> {
     const startedAt = performance.now();
-    const activities = await this.activityService.listActivities(input.city);
-    if (activities.length === 0) {
+    const group: GroupTripPreferences | null =
+      input.groupId === undefined ? null : await this.groupService.tripPreferences(userId, input.groupId);
+    const catalogue = await this.activityService.listActivities(input.city);
+    if (catalogue.length === 0) {
       throw new HttpError(404, `No activities found for ${input.city}`);
     }
+    const activities = catalogue.filter((activity) => !group?.vetoedActivityIds.has(activity.id));
+    const interests = group ? [...group.interestShares.keys()] : input.interests;
 
     const warnings: string[] = [];
-    const lodging = await this.resolveLodging(input, activities, warnings);
+    const lodging = await this.resolveLodging(input, catalogue, warnings);
     const plan = planTrip(
       activities.map(toCandidate),
       {
@@ -168,7 +180,8 @@ export class ItineraryService {
         dayStartMinute: minutesFromClock(input.dayStart),
         dayEndMinute: minutesFromClock(input.dayEnd),
         origin: { lat: lodging.lat, lng: lodging.lng },
-        interests: input.interests,
+        interests,
+        interestShares: group?.interestShares,
         pace: input.pace,
       },
       this.options.searchBudgetMsPerDay === undefined ? {} : { searchBudgetMsPerDay: this.options.searchBudgetMsPerDay },
@@ -205,6 +218,7 @@ export class ItineraryService {
 
     const itinerary = await ItineraryModel.create({
       userId: new Types.ObjectId(userId),
+      groupId: input.groupId === undefined ? undefined : new Types.ObjectId(input.groupId),
       city: input.city,
       startDate: input.startDate,
       endDate: input.endDate,
@@ -212,7 +226,7 @@ export class ItineraryService {
       dayEnd: input.dayEnd,
       arrivalTime: input.arrivalTime,
       departureTime: input.departureTime,
-      interests: input.interests,
+      interests,
       pace: input.pace,
       lodging,
       days,
@@ -224,28 +238,24 @@ export class ItineraryService {
     return toItineraryDto(itinerary);
   }
 
-  /** One of the traveller's own itineraries; someone else's is reported as not found. */
+  /**
+   * An itinerary the traveller may see: their own personal trip, or a trip of a group they belong to.
+   * Anything else is reported as not found.
+   */
   async getItinerary(userId: string, itineraryId: string): Promise<ItineraryDto> {
-    if (!isValidObjectId(itineraryId)) {
-      throw new HttpError(404, 'Itinerary not found');
-    }
-    const itinerary = await ItineraryModel.findOne({
-      _id: new Types.ObjectId(itineraryId),
-      userId: new Types.ObjectId(userId),
-    });
-    if (!itinerary) {
-      throw new HttpError(404, 'Itinerary not found');
-    }
-    return toItineraryDto(itinerary);
+    return toItineraryDto(await this.findVisible(userId, itineraryId));
   }
 
-  /** The traveller's most recent itineraries, newest first. */
-  async listItineraries(userId: string): Promise<ItinerarySummaryDto[]> {
-    const itineraries = await ItineraryModel.find({ userId: new Types.ObjectId(userId) })
-      .sort({ createdAt: -1 })
-      .limit(RECENT_ITINERARY_LIMIT);
+  /** The traveller's most recent personal and group itineraries, newest first; or one group's, with `groupId`. */
+  async listItineraries(userId: string, groupId?: string): Promise<ItinerarySummaryDto[]> {
+    const filter =
+      groupId === undefined
+        ? await this.visibleFilter(userId)
+        : { groupId: (await this.groupService.requireMember(userId, groupId))._id };
+    const itineraries = await ItineraryModel.find(filter).sort({ createdAt: -1 }).limit(RECENT_ITINERARY_LIMIT);
     return itineraries.map((itinerary) => ({
       id: itinerary._id.toString(),
+      groupId: itinerary.groupId?.toString() ?? null,
       city: itinerary.city,
       startDate: itinerary.startDate,
       endDate: itinerary.endDate,
@@ -253,6 +263,24 @@ export class ItineraryService {
       stopCount: itinerary.days.reduce((count, day) => count + day.stops.length, 0),
       createdAt: itinerary.createdAt.toISOString(),
     }));
+  }
+
+  /** The itinerary, if the traveller may see it; 404 otherwise. */
+  private async findVisible(userId: string, itineraryId: string): Promise<ItineraryDocument> {
+    if (!isValidObjectId(itineraryId)) {
+      throw new HttpError(404, 'Itinerary not found');
+    }
+    const itinerary = await ItineraryModel.findOne({ _id: new Types.ObjectId(itineraryId), ...(await this.visibleFilter(userId)) });
+    if (!itinerary) {
+      throw new HttpError(404, 'Itinerary not found');
+    }
+    return itinerary;
+  }
+
+  // Personal trips are the generating traveller's; group trips belong to whoever is in the group now.
+  private async visibleFilter(userId: string): Promise<{ $or: object[] }> {
+    const groupIds = await this.groupService.memberGroupIds(userId);
+    return { $or: [{ userId: new Types.ObjectId(userId), groupId: null }, { groupId: { $in: groupIds } }] };
   }
 
   /** Finds the lodging with Google Places, falling back to the centre of the city's activities. */
