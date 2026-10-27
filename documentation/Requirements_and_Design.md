@@ -7,6 +7,7 @@
 | 2026-10-17 | All | First version for CP1, written from the M2 presentation (features F1-F5, use case diagram, high-level design and technical challenge). |
 | 2026-10-17 | 3.4, 3.5, 4.1 | In the app, Create Trip and Generate Itinerary happen on one Trip Builder screen: the trip details are saved with the itinerary they produce. A separate trip record with party members comes with Join Trip & Set Preferences (F4), so CP1 does not store trips nobody can join yet. |
 | 2026-10-17 | 3.7, 4.7 | Added a third non-functional requirement, bounded Google Places usage, because the M2 design's "cache every metered call" decision needs a testable target. |
+| 2026-10-26 | 3.1, 3.3, 3.4, 4.1, 4.2 | Collaborative trips are built around travel groups instead of single trips: a group holds several trips, friends join it with an invite code, and every member's interests and vetoes shape its itineraries. Join Trip & Set Preferences became Create Group, Join Group, Set Group Preferences and Leave Group, owned by a new Group Service. Groups let the same friends plan more than one trip without inviting each other again. |
 
 ---
 
@@ -25,7 +26,7 @@ Planning a trip is a scheduling problem, but every tool treats it as a search pr
 1. **F1 Sign in with Google** (implemented for CP1): Google account sign-in. The back-end verifies the Google ID token and issues its own session token. The traveller's profile keeps their home city and interest tags, which prefill searches and trips.
 2. **F2 Explore & review activities** (implemented for CP1): browse or search a city's activities, post a 1-5 rating, a written review and structured tags (visit length, best time of day, indoor or outdoor, cost).
 3. **F3 Itinerary generation** (implemented for CP1): dates, lodging, interests and pace in; a ranked, time-feasible, day-by-day plan out. This is our own algorithm, not a lookup.
-4. **F4 Collaborative trips, live** (planned for CP2): several travellers join one trip, each with their own preferences and vetoes. Every edit appears on every device as it happens.
+4. **F4 Collaborative trips, live** (groups implemented for CP2): travellers form a group and invite friends with a 6-character code. Each member keeps their own interests and vetoes for the group, and the group's itineraries are planned from all of them: an interest more members share counts more, and anything a member vetoed is left out. Every edit appears on every device as it happens.
 5. **F5 Disruption-aware re-planning** (planned for CP2-CP3): a back-end watcher tracks the forecast and venue status for active trips, re-solves the affected part of the day, then pushes it out.
 
 How the features satisfy the project scope:
@@ -44,7 +45,7 @@ How the features satisfy the project scope:
 ### **3.3. Actors Description**
 
 1. **Traveller**: any app user. Browses a city's activities, rates and tags the ones they have done, joins a trip, states their interests, and follows or adjusts the itinerary while travelling.
-2. **Trip Organizer**: a Traveller who also creates the trip (dates, lodging, pace), invites the party and triggers itinerary generation. Anything a Traveller can do, an Organizer can do.
+2. **Trip Organizer**: a Traveller who also creates a group, invites friends with its code, describes a trip (dates, lodging, pace) and triggers itinerary generation. A group's owner can remove members and delete the group. Anything a Traveller can do, an Organizer can do.
 3. **Google Identity Services**: authenticates the user and returns a signed ID token that our back-end verifies.
 4. **Google Places API**: supplies the activity catalogue, coordinates and opening hours, and finds the traveller's lodging.
 5. **Google Routes API**: supplies travel times between stops.
@@ -63,12 +64,15 @@ How the features satisfy the project scope:
   5. **Generate Itinerary**: the organizer asks for a plan and receives a day-by-day itinerary for the trip.
   6. **Rank & Schedule Day Plan**: the Itinerary Engine ranks candidate activities and schedules them into one day under opening hours, travel time, the day's hours and the pace. Included by Generate Itinerary and Re-plan Itinerary.
 - Use cases for feature 4: **Collaborative trips, live**
-  7. **Join Trip & Set Preferences**: a traveller joins a trip they were invited to and states their own interests and vetoes.
-  8. **View & Adjust Itinerary**: a traveller follows the plan and locks, removes or moves a stop; the change re-plans the affected part of the day.
-  9. **Notify Trip Party**: every party member's device receives the updated plan as soon as it changes. Included by Re-plan Itinerary.
+  7. **Create Group**: the organizer names a group and gets an invite code to share with friends.
+  8. **Join Group**: a traveller types a friend's invite code and becomes a member, with their profile interests as their interests for the group.
+  9. **Set Group Preferences**: a member sets their own interests for the group's trips and vetoes activities (from any group trip's stop), so the group's next plans leave them out.
+  10. **Leave Group**: a member leaves, or the owner removes a member or deletes the group with its trips.
+  11. **View & Adjust Itinerary**: a traveller follows the plan and locks, removes or moves a stop; the change re-plans the affected part of the day.
+  12. **Notify Trip Party**: every group member's device receives the updated plan as soon as it changes. Included by Re-plan Itinerary.
 - Use cases for feature 5: **Disruption-aware re-planning**
-  10. **Monitor Trip Conditions**: on a timer, the system checks the forecast and venue status for each active trip's stops.
-  11. **Re-plan Itinerary**: when a disruption or an adjustment invalidates part of a day, the system re-solves only the affected window, keeping locked and completed stops, and notifies the party.
+  13. **Monitor Trip Conditions**: on a timer, the system checks the forecast and venue status for each active trip's stops.
+  14. **Re-plan Itinerary**: when a disruption or an adjustment invalidates part of a day, the system re-solves only the affected window, keeping locked and completed stops, and notifies the party.
 
 ### **3.5. Formal Use Case Specifications (5 Most Major Use Cases)**
 
@@ -265,32 +269,47 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
 3. **Itinerary Engine**
     - **Purpose**: Our own logic: candidate pruning, scoring, and constrained day scheduling. It is its own component because it is the part we tune and test hardest, so it stays independent of transport and storage (the scheduling core is a pure module with no I/O).
     - **Interfaces**:
-        1. `POST /api/itineraries/generate` body `{ city, startDate, endDate, dayStart?, dayEnd?, arrivalTime?, departureTime?, interests?, pace?, lodging? }` returns `ItineraryDto`
-            - **Purpose**: Creates a trip and generates its itinerary. Dates are `YYYY-MM-DD` (at most 7 days), times `HH:MM`, pace one of relaxed, moderate or packed. `ItineraryDto` holds the trip details, the resolved lodging, the days (each with timed stops and travel minutes) and any warnings.
-        2. `GET /api/itineraries` returns `{ itineraries: ItinerarySummary[] }`
-            - **Purpose**: The traveller's 20 most recent itineraries, newest first.
+        1. `POST /api/itineraries/generate` body `{ city, startDate, endDate, dayStart?, dayEnd?, arrivalTime?, departureTime?, interests?, pace?, lodging?, groupId? }` returns `ItineraryDto`
+            - **Purpose**: Creates a trip and generates its itinerary. Dates are `YYYY-MM-DD` (at most 7 days), times `HH:MM`, pace one of relaxed, moderate or packed. With `groupId` (the caller must be a member) the trip is the group's: the Group Service's combined interests replace `interests`, each weighted by the share of members who picked it, and every member's vetoes are left out. `ItineraryDto` holds the trip details, its `groupId` (null for a personal trip), the resolved lodging, the days (each with timed stops and travel minutes) and any warnings.
+        2. `GET /api/itineraries?groupId=<id>` returns `{ itineraries: ItinerarySummary[] }`
+            - **Purpose**: The traveller's 20 most recent personal and group itineraries, newest first; with `groupId`, only that group's.
         3. `GET /api/itineraries/{itineraryId}` returns `ItineraryDto`
-            - **Purpose**: One of the traveller's own itineraries (404 for anyone else's).
+            - **Purpose**: One of the traveller's personal itineraries, or a trip of a group they belong to (404 for anything else).
         4. `TripPlan planTrip(Candidate[] candidates, PlanRequest request, PlanOptions options)`
             - **Purpose**: The scheduling core: prunes candidates, builds each day by greedy insertion and improves it with time-budgeted local search.
         5. `ItineraryDto replanItinerary(String itineraryId, TimeWindow affectedWindow, String[] frozenActivityIds)` (planned for CP2)
             - **Purpose**: Called by the Trip Sync & Disruption Service to re-solve only the affected part of a day, keeping locked and completed stops.
-4. **Trip Sync & Disruption Service** (planned for CP2-CP3)
+4. **Group Service**
+    - **Purpose**: Travel groups: members, invite codes, and each member's interests and vetoes for the group's trips. It is its own component because both the Itinerary Engine (combined preferences) and the Trip Sync & Disruption Service (who receives a group trip's updates) need the same membership answer. A group's trips belong to whoever is in the group now, so leaving a group removes access to its trips.
+    - **Interfaces**:
+        1. `POST /api/groups` body `{ name: string }` returns `GroupDto`
+            - **Purpose**: Creates a group owned by the caller with a fresh, unique 6-character invite code. `GroupDto` is `{ id, name, inviteCode, myRole, members: [{ userId, name, role, interests, vetoedActivityIds }], createdAt }`.
+        2. `GET /api/groups` returns `{ groups: GroupSummary[] }`
+            - **Purpose**: The caller's groups, newest first, with each one's member count and the caller's role.
+        3. `POST /api/groups/join` body `{ inviteCode: string }` returns `GroupDto`
+            - **Purpose**: Adds the caller to the group with that code (any case). Joining twice changes nothing; a group holds at most 12 members (409 when full).
+        4. `GET /api/groups/{groupId}` returns `GroupDto`
+            - **Purpose**: A group the caller belongs to (404 for anyone else, so groups are not revealed).
+        5. `PUT /api/groups/{groupId}/members/me` body `{ interests?: string[], vetoedActivityIds?: string[] }` returns `GroupDto`
+            - **Purpose**: Sets the caller's own interests and vetoes for this group's trips; fields left out are unchanged.
+        6. `DELETE /api/groups/{groupId}/members/{userId}` returns 204
+            - **Purpose**: A member leaves (their own id), or the owner removes a member. The owner cannot leave (409); they delete the group instead.
+        7. `DELETE /api/groups/{groupId}` returns 204
+            - **Purpose**: The owner deletes the group and all its trips (403 for other members).
+        8. `GroupTripPreferences tripPreferences(String userId, String groupId)`
+            - **Purpose**: Called by the Itinerary Engine: per interest, the share of members who picked it, and every member's vetoes combined.
+5. **Trip Sync & Disruption Service** (planned for CP2-CP3)
     - **Purpose**: A WebSocket hub per trip party, and a timer-driven watcher that detects disruption and asks the Itinerary Engine for a re-plan. We chose WebSocket over polling because a re-plan has to land on every device in seconds (NFR 2); Firebase Cloud Messaging is used only to wake a backgrounded app, never as the state channel.
     - **Interfaces**:
-        1. `POST /api/trips/{tripId}/members` body `{ inviteCode: string }` returns `Trip`
-            - **Purpose**: Joins a trip the traveller was invited to.
-        2. `PUT /api/trips/{tripId}/members/me` body `{ interests: string[], vetoes: string[] }` returns `Trip`
-            - **Purpose**: Sets the traveller's own preferences and vetoes for the trip.
-        3. WebSocket `/ws/trips/{tripId}`: client message `adjustStop { itineraryId, activityId, action }`; server message `itineraryUpdated { itinerary, reason }`
+        1. WebSocket `/ws/trips/{tripId}`: client message `adjustStop { itineraryId, activityId, action }`; server message `itineraryUpdated { itinerary, reason }`
             - **Purpose**: Carries adjustments from one device and pushes the updated plan to every connected party member.
-        4. `void checkActiveTrips()`
+        2. `void checkActiveTrips()`
             - **Purpose**: Runs every 30 minutes; checks the forecast and venue status for active trips and triggers a re-plan when needed.
 
 ### **4.2. Databases**
 
 1. **MongoDB** (one database, accessed through Mongoose)
-    - **Purpose**: Stores `users` (Google identity, home city, interests), `activities` (the cached catalogue, with a 2dsphere index on location for "near my lodging" queries and the review counters), `citycatalogues` (when each city was last fetched from Places, for cache expiry), `reviews`, and `itineraries` (one document per trip with its days and stops). Planned for CP2: `trips` (party members and preferences) and `travelmatrices` (cached Google Routes matrices with a time-to-live).
+    - **Purpose**: Stores `users` (Google identity, home city, interests), `activities` (the cached catalogue, with a 2dsphere index on location for "near my lodging" queries and the review counters), `citycatalogues` (when each city was last fetched from Places, for cache expiry), `reviews`, `groups` (name, unique invite code, and each member's role, interests and vetoes, indexed by member), and `itineraries` (one document per trip with its days and stops, and the group's id for a group trip). Planned for CP2: `travelmatrices` (cached Google Routes matrices with a time-to-live).
     - **Why MongoDB, not MySQL**: an itinerary is one nested, variable-shaped document per trip, and we need 2dsphere geo queries on activities. A relational schema would join five tables to read a single day.
 
 ### **4.3. External Modules**
