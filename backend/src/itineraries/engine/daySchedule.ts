@@ -10,6 +10,8 @@ export interface DayContext {
   /** Slack added before every stop after the first, from the traveller's pace. */
   bufferMinutes: number;
   travelMinutes: TravelTimeEstimator;
+  /** Where the day ends, when that is not where it starts (re-planning the rest of a day from the last stop). */
+  returnTo?: GeoPoint | undefined;
 }
 
 export interface SimulatedDay {
@@ -54,7 +56,7 @@ export function simulateDay(route: readonly Candidate[], context: DayContext): S
     totalTravelMinutes += travel;
   }
 
-  const returnTravelMinutes = route.length === 0 ? 0 : context.travelMinutes(position, context.origin);
+  const returnTravelMinutes = route.length === 0 ? 0 : context.travelMinutes(position, context.returnTo ?? context.origin);
   if (clock + returnTravelMinutes > context.dayEndMinute) {
     return null;
   }

@@ -11,6 +11,7 @@ import { env } from './config/env';
 import { connectToDatabase, disconnectFromDatabase } from './db/connection';
 import { GroupService } from './groups/groupService';
 import { ItineraryService } from './itineraries/itineraryService';
+import { attachTripSync } from './sync/tripSync';
 
 async function main(): Promise<void> {
   if (!env.jwtSecret) {
@@ -31,6 +32,8 @@ async function main(): Promise<void> {
   const server = hasTlsConfiguration
     ? createHttpsServer({ cert: readFileSync(env.tlsCertPath), key: readFileSync(env.tlsKeyPath) }, app)
     : createHttpServer(app);
+  // Live itinerary updates share the API's port (and its TLS), so the app needs no second address.
+  attachTripSync(server, authService, itineraryService);
 
   server.listen(env.port, () => {
     console.info(`Server listening on ${hasTlsConfiguration ? 'HTTPS' : 'HTTP'} port ${String(env.port)}`);

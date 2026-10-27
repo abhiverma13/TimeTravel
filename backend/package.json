@@ -24,6 +24,7 @@
     "google-auth-library": "^10.5.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.24.5",
+    "socket.io": "^4.8.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -40,6 +41,7 @@
     "eslint-plugin-security-node": "^1.1.4",
     "jest": "^30.4.2",
     "mongodb-memory-server": "^11.3.0",
+    "socket.io-client": "^4.8.1",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.12",
     "tsx": "^4.23.5",

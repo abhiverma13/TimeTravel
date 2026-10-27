@@ -15,6 +15,8 @@ export interface ItineraryStop {
   /** Travel from the previous stop, or from the lodging for the first stop. */
   travelMinutes: number;
   communityScore: number;
+  /** A locked stop stays in place when the day is re-planned. */
+  locked: boolean;
 }
 
 export interface ItineraryDay {
@@ -56,6 +58,8 @@ export interface Itinerary {
   unscheduledCount: number;
   warnings: string[];
   generationMs: number;
+  /** Bumped on every adjustment, so two people editing at once cannot overwrite each other. */
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,6 +77,7 @@ const stopSchema = new Schema<ItineraryStop>(
     endTime: { type: String, required: true },
     travelMinutes: { type: Number, required: true },
     communityScore: { type: Number, required: true },
+    locked: { type: Boolean, default: false },
   },
   { _id: false },
 );
@@ -110,6 +115,7 @@ const itinerarySchema = new Schema<Itinerary>(
     unscheduledCount: { type: Number, required: true },
     warnings: { type: [String], default: [] },
     generationMs: { type: Number, required: true },
+    version: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

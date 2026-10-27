@@ -43,10 +43,19 @@ const generateItineraryBody = z
 
 const listQuery = z.object({ groupId: groupId.optional() });
 
+const activityId = z.string().refine((id) => isValidObjectId(id), 'must be an activity id');
+const adjustment = { version: z.number().int().min(0), dayIndex: z.number().int().min(0) };
+const adjustBody = z.union([
+  z.object({ action: z.enum(['lock', 'unlock', 'remove']), ...adjustment, activityId }),
+  z.object({ action: z.literal('move'), ...adjustment, activityId, toIndex: z.number().int().min(0) }),
+  z.object({ action: z.literal('replan'), ...adjustment, fromTime: clockTime.optional() }),
+]);
+
 /**
  * POST /api/itineraries/generate
  * GET  /api/itineraries?groupId=
  * GET  /api/itineraries/:itineraryId
+ * POST /api/itineraries/:itineraryId/adjust
  */
 export function createItineraryRouter(authService: AuthService, itineraryService: ItineraryService): Router {
   const router = Router();
@@ -64,6 +73,11 @@ export function createItineraryRouter(authService: AuthService, itineraryService
 
   router.get('/:itineraryId', async (request, response) => {
     response.json(await itineraryService.getItinerary(authenticatedUserId(response), request.params.itineraryId));
+  });
+
+  router.post('/:itineraryId/adjust', async (request, response) => {
+    const change = adjustBody.parse(request.body);
+    response.json(await itineraryService.adjustItinerary(authenticatedUserId(response), request.params.itineraryId, change));
   });
 
   return router;

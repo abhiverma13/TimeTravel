@@ -110,9 +110,10 @@ export const LOCAL_SEARCH_BUDGET_MS_PER_DAY = 200;
  * Each day is built from three greedy starts, from value-per-minute (1) to raw value (0), and the best
  * improved result is kept. One start alone can get stuck in a poor local optimum.
  */
-const DENSITY_EXPONENTS = [1, 0.5, 0];
+export const DENSITY_EXPONENTS = [1, 0.5, 0];
 
-function isBetterDay(candidate: RoutedDay, incumbent: RoutedDay | null): boolean {
+/** True if `candidate` collects more utility, or as much with less travel. */
+export function isBetterDay(candidate: RoutedDay, incumbent: RoutedDay | null): boolean {
   if (incumbent === null) {
     return true;
   }
