@@ -8,6 +8,7 @@
 | 2026-10-26 | 2.1.1 | Added the Group Service interfaces (create, list, join, read, set preferences, remove a member, delete), tested with and without mocks, and group trips in the Itinerary Engine interfaces (`groupId` on generate and on the itinerary list). |
 | 2026-10-26 | 2.1.1, 3 | Added `POST /api/itineraries/:itineraryId/adjust` and the Socket.io live-update interface, tested with and without mocks, and the NFR 2 (live update latency) test with its log. |
 | 2026-10-26 | 2.1.1 | Added the trip options (way of getting around, budget, must-see and avoid places) to the `POST /api/itineraries/generate` tests, with Google Routes mocked and through the production Routes client, and the `add` action to the `POST /api/itineraries/:itineraryId/adjust` tests. |
+| 2026-10-26 | 2.1.1 | Added the Friend Service interfaces (search and view travellers, list friends, send and accept requests, remove a friendship, set privacy), tested with and without mocks. |
 
 ---
 
@@ -36,6 +37,13 @@
 | **GET /api/itineraries** | [`backend/tests/no-mock/itineraries.test.ts#L420`](../backend/tests/no-mock/itineraries.test.ts#L420) | [`backend/tests/mock/itineraries.test.ts#L157`](../backend/tests/mock/itineraries.test.ts#L157) | Itinerary DB |
 | **POST /api/itineraries/:itineraryId/adjust** | [`backend/tests/no-mock/adjust.test.ts#L40`](../backend/tests/no-mock/adjust.test.ts#L40) | [`backend/tests/mock/adjust.test.ts#L32`](../backend/tests/mock/adjust.test.ts#L32) | Itinerary DB (a concurrent change saved first, write failure), Activity DB, live-update push |
 | **Socket.io itinerary updates** | [`backend/tests/no-mock/tripSync.test.ts#L36`](../backend/tests/no-mock/tripSync.test.ts#L36) | [`backend/tests/mock/tripSync.test.ts#L14`](../backend/tests/mock/tripSync.test.ts#L14) | Itinerary DB (access check on subscribe) |
+| **GET /api/travellers** | [`backend/tests/no-mock/friends.test.ts#L37`](../backend/tests/no-mock/friends.test.ts#L37) | [`backend/tests/mock/friends.test.ts#L33`](../backend/tests/mock/friends.test.ts#L33) | User DB |
+| **GET /api/travellers/:userId** | [`backend/tests/no-mock/friends.test.ts#L133`](../backend/tests/no-mock/friends.test.ts#L133) | [`backend/tests/mock/friends.test.ts#L51`](../backend/tests/mock/friends.test.ts#L51) | Friendship DB |
+| **GET /api/friends** | [`backend/tests/no-mock/friends.test.ts#L186`](../backend/tests/no-mock/friends.test.ts#L186) | [`backend/tests/mock/friends.test.ts#L69`](../backend/tests/mock/friends.test.ts#L69) | Friendship DB |
+| **POST /api/friends/requests** | [`backend/tests/no-mock/friends.test.ts#L236`](../backend/tests/no-mock/friends.test.ts#L236) | [`backend/tests/mock/friends.test.ts#L87`](../backend/tests/mock/friends.test.ts#L87) | Friendship DB (both travellers asking at the same moment, write failure) |
+| **POST /api/friends/requests/:userId/accept** | [`backend/tests/no-mock/friends.test.ts#L292`](../backend/tests/no-mock/friends.test.ts#L292) | [`backend/tests/mock/friends.test.ts#L126`](../backend/tests/mock/friends.test.ts#L126) | Friendship DB |
+| **DELETE /api/friends/:userId** | [`backend/tests/no-mock/friends.test.ts#L327`](../backend/tests/no-mock/friends.test.ts#L327) | [`backend/tests/mock/friends.test.ts#L145`](../backend/tests/mock/friends.test.ts#L145) | Friendship DB |
+| **PUT /api/friends/privacy** | [`backend/tests/no-mock/friends.test.ts#L361`](../backend/tests/no-mock/friends.test.ts#L361) | [`backend/tests/mock/friends.test.ts#L164`](../backend/tests/mock/friends.test.ts#L164) | User DB |
 | **GET /health** | [`backend/tests/no-mock/health.test.ts#L10`](../backend/tests/no-mock/health.test.ts#L10) | [`backend/tests/mock/health.test.ts#L11`](../backend/tests/mock/health.test.ts#L11) | MongoDB connection state |
 
 The tests without mocks run against a real MongoDB (an in-memory server started by the tests, see `backend/tests/helpers/testDatabase.ts`) and pre-populate the Vancouver catalogue in the database, so they need no Google Places key. The Itinerary Engine's scheduling core is also unit-tested in [`backend/tests/unit/`](../backend/tests/unit/), including a comparison against a brute-forced optimum.

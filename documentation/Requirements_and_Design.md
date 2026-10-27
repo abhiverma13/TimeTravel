@@ -10,6 +10,7 @@
 | 2026-10-26 | 3.1, 3.3, 3.4, 4.1, 4.2 | Collaborative trips are built around travel groups instead of single trips: a group holds several trips, friends join it with an invite code, and every member's interests and vetoes shape its itineraries. Join Trip & Set Preferences became Create Group, Join Group, Set Group Preferences and Leave Group, owned by a new Group Service. Groups let the same friends plan more than one trip without inviting each other again. |
 | 2026-10-26 | 3.1, 3.5, 4.1, 4.4, 4.7 | View & Adjust Itinerary is implemented: any member can lock, unlock, move or remove a stop, or re-plan a day, and every member's open app receives the new plan through a Socket.io hub (Socket.io replaces plain `ws` because it is on the course's approved-library list and reconnects by itself). A locked stop keeps its time; an itinerary version number refuses edits made from an out-of-date copy, so two members editing at once never overwrite each other. |
 | 2026-10-26 | 3.1, 3.4, 3.5, 4.1, 4.2, 4.3, 4.7 | Itinerary generation takes more of the traveller's wishes: how they get around (walk, transit or drive), a budget per activity, and places they must see or want to avoid. Travel times now come from Google Routes, cached for a week, with the offline estimate as the fallback. A traveller can also add a place they found in Explore to a day of a trip (new use case Add Place to Itinerary). Adding to a full day drops the lowest-ranked unlocked stops instead of refusing: the planner fills every day, so refusing would make the feature unusable. |
+| 2026-10-26 | 3.1, 3.4, 3.5, 4.1, 4.2 | Added F6 Friends and the trip feed, starting with friends and private accounts: travellers find each other by name or email, send and answer friend requests, and can make their account private so only friends see their details (and, later in F6, their posts). The privacy setting belongs to a new Friend Service rather than the Auth & Profile Service, because only the Friend Service decides who sees what. The app now has a bottom navigation bar (Trips, Explore, Profile), so Browse & Search Activities starts from the Explore tab and sign-out and the profile moved to the Profile tab. |
 
 ---
 
@@ -30,6 +31,7 @@ Planning a trip is a scheduling problem, but every tool treats it as a search pr
 3. **F3 Itinerary generation** (implemented for CP1, extended for CP2): dates, lodging, interests and pace in; a ranked, time-feasible, day-by-day plan out. This is our own algorithm, not a lookup. The traveller also chooses how they get around (walk, transit or drive), a budget per activity, and places they must see or want to avoid; travel times come from Google Routes. A place found in Explore can be added to a day of a trip.
 4. **F4 Collaborative trips, live** (implemented for CP2): travellers form a group and invite friends with a 6-character code. Each member keeps their own interests and vetoes for the group, and the group's itineraries are planned from all of them: an interest more members share counts more, and anything a member vetoed is left out. Any member can lock, move or remove a stop or re-plan a day, and every member's open app shows the new plan within seconds.
 5. **F5 Disruption-aware re-planning** (planned for CP2-CP3): a back-end watcher tracks the forecast and venue status for active trips, re-solves the affected part of the day, then pushes it out.
+6. **F6 Friends and the trip feed** (friends implemented for CP2): travellers find each other by name or email and become friends once a request is accepted. A private account shows its home city only to its friends.
 
 How the features satisfy the project scope:
 
@@ -76,6 +78,10 @@ How the features satisfy the project scope:
 - Use cases for feature 5: **Disruption-aware re-planning**
   14. **Monitor Trip Conditions**: on a timer, the system checks the forecast and venue status for each active trip's stops.
   15. **Re-plan Itinerary**: when a disruption or an adjustment invalidates part of a day, the system re-solves only the affected window, keeping locked and completed stops, and notifies the party.
+- Use cases for feature 6: **Friends and the trip feed**
+  16. **Find Travellers**: a traveller searches for others by part of their name or their exact email, and opens their profile.
+  17. **Manage Friends**: a traveller sends a friend request, accepts or declines one they received, cancels one they sent, or removes a friend.
+  18. **Set Account Privacy**: a traveller makes their account private, so only friends see their details, or public again.
 
 ### **3.5. Formal Use Case Specifications (5 Most Major Use Cases)**
 
@@ -88,7 +94,7 @@ How the features satisfy the project scope:
 **Primary actor(s)**: Traveller (secondary: Google Places API)
 
 **Main success scenario**:
-1. The traveller taps "Explore & review" on the home screen.
+1. The traveller taps Explore in the bottom navigation bar.
 2. The app shows a city field prefilled with the traveller's home city, a Search button and interest filters (All, Museums, Outdoors, Food, Shopping, Landmarks, Nightlife, Family).
 3. The traveller enters a city, optionally selects an interest filter, and taps Search.
 4. The system loads the city's activities: from its cache, or from Google Places if the city has not been fetched in the last 7 days.
@@ -324,10 +330,28 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
         3. `void checkActiveTrips()`
             - **Purpose**: Runs every 30 minutes; checks the forecast and venue status for active trips and triggers a re-plan when needed.
 
+6. **Friend Service**
+    - **Purpose**: Finding other travellers, friend requests and friendships, and each account's privacy. It is its own component because who may see a traveller's details and posts depends on both friendships and privacy, and keeping that rule in one place stops other components from each deciding it differently.
+    - **Interfaces**:
+        1. `GET /api/travellers?search=<text>` returns `{ travellers: TravellerDto[] }`
+            - **Purpose**: Up to 20 other travellers whose name contains the text (2 to 60 characters, matched literally and ignoring case) or whose email is exactly it, by name. `TravellerDto` is `{ id, name, homeCity, isPrivate, friendship }`, where `friendship` is `self`, `none`, `requested` (the caller asked), `incoming` (they asked the caller) or `friends`, and `homeCity` is empty for a private account the caller is not friends with.
+        2. `GET /api/travellers/{userId}` returns `TravellerDto` with `friendCount`
+            - **Purpose**: One traveller's profile as the caller may see it (404 if there is no such traveller).
+        3. `GET /api/friends` returns `{ isPrivate, friends: TravellerDto[], incoming: TravellerDto[], outgoing: TravellerDto[] }`
+            - **Purpose**: The caller's friends, the requests they received and sent, by name, and their own privacy setting.
+        4. `POST /api/friends/requests` body `{ userId }` returns `TravellerDto`
+            - **Purpose**: Sends a friend request (201). If that traveller already asked the caller, this accepts their request instead; asking again or asking a friend changes nothing (both 200). Asking yourself is refused (400).
+        5. `POST /api/friends/requests/{userId}/accept` returns `TravellerDto`
+            - **Purpose**: Accepts the request that traveller sent the caller (404 if there is none).
+        6. `DELETE /api/friends/{userId}` returns 204
+            - **Purpose**: Removes the friendship or request between the caller and that traveller, whichever exists: unfriending, cancelling a sent request and declining a received one are the same call (404 if there is nothing to remove).
+        7. `PUT /api/friends/privacy` body `{ isPrivate: boolean }` returns `{ isPrivate }`
+            - **Purpose**: Makes the caller's account private or public.
+
 ### **4.2. Databases**
 
 1. **MongoDB** (one database, accessed through Mongoose)
-    - **Purpose**: Stores `users` (Google identity, home city, interests), `activities` (the cached catalogue, with a 2dsphere index on location for "near my lodging" queries and the review counters), `citycatalogues` (when each city was last fetched from Places, for cache expiry), `reviews`, `groups` (name, unique invite code, and each member's role, interests and vetoes, indexed by member), `itineraries` (one document per trip with its days and stops, its options, and the group's id for a group trip), and `traveltimes` (Google Routes travel times per way of getting around and pair of points, deleted by a time-to-live index a week after they were fetched).
+    - **Purpose**: Stores `users` (Google identity, home city, interests, whether the account is private), `friendships` (who asked whom, pending or accepted, with the two user ids in sorted order under a unique index, so two travellers never have two friendships), `activities` (the cached catalogue, with a 2dsphere index on location for "near my lodging" queries and the review counters), `citycatalogues` (when each city was last fetched from Places, for cache expiry), `reviews`, `groups` (name, unique invite code, and each member's role, interests and vetoes, indexed by member), `itineraries` (one document per trip with its days and stops, its options, and the group's id for a group trip), and `traveltimes` (Google Routes travel times per way of getting around and pair of points, deleted by a time-to-live index a week after they were fetched).
     - **Why MongoDB, not MySQL**: an itinerary is one nested, variable-shaped document per trip, and we need 2dsphere geo queries on activities. A relational schema would join five tables to read a single day.
 
 ### **4.3. External Modules**
