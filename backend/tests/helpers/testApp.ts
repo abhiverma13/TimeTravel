@@ -12,6 +12,7 @@ import { GroupService } from '../../src/groups/groupService';
 import { ItineraryService } from '../../src/itineraries/itineraryService';
 import type { RoutesClient } from '../../src/itineraries/routesClient';
 import { TravelTimeService } from '../../src/itineraries/travelTimes';
+import { NearbyService } from '../../src/nearby/nearbyService';
 import { PostService } from '../../src/posts/postService';
 
 export const TEST_JWT_SECRET = 'test-jwt-secret';
@@ -36,6 +37,7 @@ export interface TestApp {
   itineraryService: ItineraryService;
   friendService: FriendService;
   postService: PostService;
+  nearbyService: NearbyService;
 }
 
 export function createTestApp(options: TestAppOptions = {}): TestApp {
@@ -49,14 +51,16 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   const itineraryService = new ItineraryService(activityService, placesClient, groupService, new TravelTimeService(options.routesClient ?? null));
   const friendService = new FriendService();
   const postService = new PostService(itineraryService, friendService);
+  const nearbyService = new NearbyService(groupService, options.now);
   return {
-    app: createApp({ authService, activityService, groupService, itineraryService, friendService, postService }),
+    app: createApp({ authService, activityService, groupService, itineraryService, friendService, postService, nearbyService }),
     authService,
     activityService,
     groupService,
     itineraryService,
     friendService,
     postService,
+    nearbyService,
   };
 }
 

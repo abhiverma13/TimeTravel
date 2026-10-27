@@ -70,6 +70,8 @@ export interface Itinerary {
   generationMs: number;
   /** Bumped on every adjustment, so two people editing at once cannot overwrite each other. */
   version: number;
+  /** A group trip its owner opened to travellers nearby, who may ask to join the group. */
+  openToJoin: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -132,9 +134,11 @@ const itinerarySchema = new Schema<Itinerary>(
     warnings: { type: [String], default: [] },
     generationMs: { type: Number, required: true },
     version: { type: Number, default: 0 },
+    openToJoin: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
+itinerarySchema.index({ openToJoin: 1, endDate: 1 });
 
 export type ItineraryDocument = HydratedDocument<Itinerary>;
 export const ItineraryModel = model<Itinerary>('Itinerary', itinerarySchema);

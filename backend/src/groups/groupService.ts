@@ -121,6 +121,11 @@ export class GroupService {
     if (memberOf(group, userId)) {
       return this.toGroupDto(group, userId);
     }
+    return this.toGroupDto(await this.addMember(group._id, userId), userId);
+  }
+
+  /** Adds the traveller as a member, with their profile interests; 409 if the group is full. */
+  async addMember(groupId: Types.ObjectId, userId: string): Promise<GroupDocument> {
     const member: GroupMember = {
       userId: new Types.ObjectId(userId),
       role: 'member',
@@ -130,14 +135,14 @@ export class GroupService {
     };
     // One atomic update, so two people joining at once cannot overfill the group.
     const joined = await GroupModel.findOneAndUpdate(
-      { _id: group._id, 'members.userId': { $ne: member.userId }, $expr: { $lt: [{ $size: '$members' }, MAX_GROUP_MEMBERS] } },
+      { _id: groupId, 'members.userId': { $ne: member.userId }, $expr: { $lt: [{ $size: '$members' }, MAX_GROUP_MEMBERS] } },
       { $push: { members: member } },
       { new: true },
     );
     if (!joined) {
       throw new HttpError(409, 'This group is full');
     }
-    return this.toGroupDto(joined, userId);
+    return joined;
   }
 
   /** Sets the caller's own interests and/or vetoes for this group's trips; fields left out are unchanged. */

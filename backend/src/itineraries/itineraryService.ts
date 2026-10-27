@@ -89,6 +89,8 @@ export interface ItineraryDto {
   generationMs: number;
   /** Send it back with an adjustment; it changes with every adjustment. */
   version: number;
+  /** True when the group's owner opened the trip to travellers nearby. */
+  openToJoin: boolean;
   createdAt: string;
 }
 
@@ -100,6 +102,7 @@ export interface ItinerarySummaryDto {
   endDate: string;
   pace: Pace;
   stopCount: number;
+  openToJoin: boolean;
   createdAt: string;
 }
 
@@ -160,6 +163,7 @@ function toItineraryDto(itinerary: ItineraryDocument): ItineraryDto {
     warnings: [...itinerary.warnings],
     generationMs: itinerary.generationMs,
     version: itinerary.version,
+    openToJoin: itinerary.openToJoin,
     createdAt: itinerary.createdAt.toISOString(),
   };
 }
@@ -356,6 +360,7 @@ export class ItineraryService {
       endDate: itinerary.endDate,
       pace: itinerary.pace,
       stopCount: itinerary.days.reduce((count, day) => count + day.stops.length, 0),
+      openToJoin: itinerary.openToJoin,
       createdAt: itinerary.createdAt.toISOString(),
     }));
   }

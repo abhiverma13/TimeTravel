@@ -11,6 +11,7 @@ import { env } from './config/env';
 import { connectToDatabase, disconnectFromDatabase } from './db/connection';
 import { FriendService } from './friends/friendService';
 import { GroupService } from './groups/groupService';
+import { NearbyService } from './nearby/nearbyService';
 import { PostService } from './posts/postService';
 import { ItineraryService } from './itineraries/itineraryService';
 import { GoogleRoutesClient } from './itineraries/routesClient';
@@ -35,7 +36,8 @@ async function main(): Promise<void> {
   const itineraryService = new ItineraryService(activityService, placesClient, groupService, new TravelTimeService(routesClient));
   const friendService = new FriendService();
   const postService = new PostService(itineraryService, friendService);
-  const app = createApp({ authService, activityService, groupService, itineraryService, friendService, postService });
+  const nearbyService = new NearbyService(groupService);
+  const app = createApp({ authService, activityService, groupService, itineraryService, friendService, postService, nearbyService });
   const hasTlsConfiguration = Boolean(env.tlsCertPath && env.tlsKeyPath);
   const server = hasTlsConfiguration
     ? createHttpsServer({ cert: readFileSync(env.tlsCertPath), key: readFileSync(env.tlsKeyPath) }, app)
