@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -59,6 +60,8 @@ import com.example.cpen321application.ui.itinerary.ItineraryScreen
 import com.example.cpen321application.ui.itinerary.ItineraryViewModel
 import com.example.cpen321application.ui.map.MapScreen
 import com.example.cpen321application.ui.map.MapViewModel
+import com.example.cpen321application.ui.nearby.NearbyScreen
+import com.example.cpen321application.ui.nearby.NearbyViewModel
 import com.example.cpen321application.ui.profile.ProfileActions
 import com.example.cpen321application.ui.profile.ProfileScreen
 import com.example.cpen321application.ui.profile.ProfileViewModel
@@ -72,6 +75,7 @@ private object Routes {
     const val EXPLORE = "explore"
     const val PROFILE = "profile"
     const val FEED = "feed"
+    const val NEARBY = "nearby"
     const val POST_ID = "postId"
     const val POST = "post/{$POST_ID}"
     const val FIND_FRIENDS = "findFriends"
@@ -109,6 +113,7 @@ private class Tab(val route: String, val label: String, val icon: ImageVector, v
 private val TABS = listOf(
     Tab(Routes.HOME, "Trips", Icons.Filled.Home, TestTags.TAB_TRIPS),
     Tab(Routes.EXPLORE, "Explore", Icons.Filled.Search, TestTags.TAB_EXPLORE),
+    Tab(Routes.NEARBY, "Nearby", Icons.Filled.LocationOn, TestTags.TAB_NEARBY),
     Tab(Routes.FEED, "Feed", Icons.AutoMirrored.Filled.List, TestTags.TAB_FEED),
     Tab(Routes.PROFILE, "Profile", Icons.Filled.Person, TestTags.TAB_PROFILE),
 )
@@ -208,6 +213,9 @@ private fun NavGraphBuilder.tabScreens(navController: NavHostController, session
     composable(Routes.EXPLORE) {
         val startCity = session.user.homeCity.ifBlank { DEFAULT_CITY }
         ExploreScreen(viewModel = appViewModel { ExploreViewModel(it.repository, startCity) })
+    }
+    composable(Routes.NEARBY) {
+        NearbyScreen(viewModel = appViewModel { NearbyViewModel(it.nearby) })
     }
     composable(Routes.PROFILE) {
         ProfileScreen(
@@ -314,7 +322,7 @@ private fun NavGraphBuilder.groupScreens(navController: NavHostController, sessi
     composable(Routes.GROUP) { entry ->
         val groupId = entry.arguments?.getString(Routes.GROUP_ID).orEmpty()
         GroupDetailScreen(
-            viewModel = appViewModel(key = "group-$groupId") { GroupDetailViewModel(it.groups, it.repository, groupId, session.user.id) },
+            viewModel = appViewModel(key = "group-$groupId") { GroupDetailViewModel(it.groups, it.repository, it.nearby, groupId, session.user.id) },
             actions = GroupDetailActions(
                 onBack = navController::popBackStack,
                 onPlanTrip = { id, name -> navController.navigate(Routes.tripBuilder(TripGroup(id, name))) },

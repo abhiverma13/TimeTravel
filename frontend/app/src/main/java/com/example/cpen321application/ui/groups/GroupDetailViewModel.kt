@@ -6,6 +6,8 @@ import com.example.cpen321application.data.Group
 import com.example.cpen321application.data.GroupMember
 import com.example.cpen321application.data.GroupRepository
 import com.example.cpen321application.data.ItinerarySummary
+import com.example.cpen321application.data.JoinRequest
+import com.example.cpen321application.data.NearbyRepository
 import com.example.cpen321application.data.TimeTravelRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +28,8 @@ data class GroupDetailUiState(
     val loading: Boolean = true,
     val group: Group? = null,
     val trips: List<ItinerarySummary> = emptyList(),
+    /** Travellers nearby asking to join; only the owner sees them. */
+    val requests: List<JoinRequest> = emptyList(),
     val error: String? = null,
     /** The traveller's interests for this group, as edited on screen. */
     val myInterests: Set<String> = emptySet(),
@@ -38,10 +42,11 @@ data class GroupDetailUiState(
     val closed: Boolean = false,
 )
 
-/** Set Group Preferences, Leave Group and Remove Member, on one group's page. */
+/** Set Group Preferences, Leave Group and Remove Member on one group's page; for its owner, also join requests. */
 class GroupDetailViewModel(
     private val groups: GroupRepository,
     private val repository: TimeTravelRepository,
+    private val nearby: NearbyRepository,
     private val groupId: String,
     private val myUserId: String,
 ) : ViewModel() {
@@ -52,9 +57,10 @@ class GroupDetailViewModel(
         viewModelScope.launch {
             val group = groups.group(groupId)
             val trips = repository.recentItineraries(groupId).getOrDefault(emptyList())
+            val requests = if (group.getOrNull()?.isOwner == true) nearby.requests(groupId).getOrDefault(emptyList()) else emptyList()
             mutableState.update { current ->
                 group.fold(
-                    onSuccess = { loaded -> showGroup(current.copy(loading = false, trips = trips, error = null), loaded) },
+                    onSuccess = { loaded -> showGroup(current.copy(loading = false, trips = trips, requests = requests, error = null), loaded) },
                     onFailure = { error -> current.copy(loading = false, error = error.message) },
                 )
             }
@@ -68,6 +74,29 @@ class GroupDetailViewModel(
     fun saveInterests() = save("Interests saved for this group.") { groups.setInterests(groupId, state.value.myInterests.toList()) }
 
     fun clearVetoes() = save("Vetoes cleared.") { groups.setVetoes(groupId, emptyList()) }
+
+    /** Opens a group trip to travellers nearby, or closes it again. */
+    fun setOpen(trip: ItinerarySummary, open: Boolean) {
+        viewModelScope.launch {
+            nearby.setOpen(trip.id, open).fold(
+                onSuccess = { saved -> mutableState.update { it.copy(trips = it.trips.map { old -> if (old.id == trip.id) old.copy(openToJoin = saved) else old }) } },
+                onFailure = { error -> mutableState.update { it.copy(message = error.message) } },
+            )
+        }
+    }
+
+    /** Accepts (adding them to the group) or declines a traveller's request to join. */
+    fun answer(request: JoinRequest, accept: Boolean) {
+        viewModelScope.launch {
+            nearby.answer(request.id, accept).fold(
+                onSuccess = {
+                    mutableState.update { it.copy(message = "${request.requester.name} ${if (accept) "joined the group" else "was declined"}.") }
+                    load()
+                },
+                onFailure = { error -> mutableState.update { it.copy(message = error.message) } },
+            )
+        }
+    }
 
     fun ask(confirm: GroupConfirm) = mutableState.update { it.copy(confirming = confirm) }
 

@@ -22,6 +22,15 @@ object TestTags {
     const val TAB_EXPLORE = "tabExplore"
     const val TAB_PROFILE = "tabProfile"
     const val TAB_FEED = "tabFeed"
+    const val TAB_NEARBY = "tabNearby"
+
+    const val NEARBY_TRIP = "nearbyTrip"
+    const val NEARBY_ASK_BUTTON = "nearbyAskButton"
+    const val NEARBY_NOTE_FIELD = "nearbyNoteField"
+    const val NEARBY_SEND_BUTTON = "nearbySendButton"
+    const val GROUP_OPEN_SWITCH = "groupOpenSwitch"
+    const val JOIN_REQUESTS = "joinRequests"
+    const val JOIN_ACCEPT_BUTTON = "joinAcceptButton"
 
     const val POST_CARD = "postCard"
     const val POST_LIKE_BUTTON = "postLikeButton"

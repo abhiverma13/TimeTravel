@@ -135,6 +135,7 @@ data class Itinerary(
     /** Sent back with every adjustment, so an out-of-date copy cannot overwrite someone else's change. */
     val version: Int,
     val createdAt: String,
+    val openToJoin: Boolean = false,
 )
 
 /**
@@ -162,6 +163,8 @@ data class ItinerarySummary(
     val pace: String,
     val stopCount: Int,
     val createdAt: String,
+    /** True when the group's owner opened the trip to travellers nearby. */
+    val openToJoin: Boolean = false,
 )
 
 data class ItinerariesResponse(val itineraries: List<ItinerarySummary>)

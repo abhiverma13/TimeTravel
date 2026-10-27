@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -29,6 +30,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -44,6 +46,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.cpen321application.data.Group
 import com.example.cpen321application.data.GroupMember
+import com.example.cpen321application.data.JoinRequest
 import com.example.cpen321application.data.ROLE_OWNER
 import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.INTEREST_LABELS
@@ -111,10 +114,16 @@ private fun GroupContent(
     ) {
         InviteCard(group)
         PlanGroupTripCard(onClick = { actions.onPlanTrip(group.id, group.name) })
+        if (group.isOwner && state.requests.isNotEmpty()) {
+            JoinRequestsCard(state.requests, onAnswer = viewModel::answer)
+        }
         if (state.trips.isNotEmpty()) {
             SectionLabel("Group trips")
             state.trips.forEach { trip ->
                 TripCard(trip, onClick = { actions.onOpenItinerary(trip.id) }, modifier = Modifier.testTag(TestTags.GROUP_TRIP))
+                if (group.isOwner) {
+                    OpenToJoinRow(trip.openToJoin, onChange = { open -> viewModel.setOpen(trip, open) })
+                }
             }
         }
         MembersCard(group, onRemove = { member -> viewModel.ask(GroupConfirm.Remove(member)) })
@@ -235,5 +244,35 @@ private fun GroupConfirmDialog(confirming: GroupConfirm?, onConfirm: () -> Unit,
         is GroupConfirm.Remove -> ConfirmDialog(
             "Remove ${confirming.member.name}?", "They lose access to the group's trips.", "Remove", onConfirm, onDismiss,
         )
+    }
+}
+
+// The owner lets travellers nearby find this trip and ask to join the group.
+@Composable
+private fun OpenToJoinRow(open: Boolean, onChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
+        Text("Open to travellers nearby", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Switch(checked = open, onCheckedChange = onChange, modifier = Modifier.testTag(TestTags.GROUP_OPEN_SWITCH))
+    }
+}
+
+@Composable
+private fun JoinRequestsCard(requests: List<JoinRequest>, onAnswer: (JoinRequest, Boolean) -> Unit) {
+    BrandCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.JOIN_REQUESTS)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel("Asking to join")
+            requests.forEach { request ->
+                Text(request.requester.name, style = MaterialTheme.typography.titleMedium)
+                if (request.note.isNotBlank()) {
+                    Text("\u201c${request.note}\u201d", style = MaterialTheme.typography.bodyMedium)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { onAnswer(request, true) }, shape = MaterialTheme.shapes.small, modifier = Modifier.testTag(TestTags.JOIN_ACCEPT_BUTTON)) {
+                        Text("Accept")
+                    }
+                    TextButton(onClick = { onAnswer(request, false) }) { Text("Decline") }
+                }
+            }
+        }
     }
 }

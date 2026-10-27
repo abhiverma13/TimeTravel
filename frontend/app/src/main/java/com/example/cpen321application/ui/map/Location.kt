@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.example.cpen321application.data.GeoPoint
+import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -28,6 +29,8 @@ private const val EARTH_RADIUS_M = 6_371_000.0
 private const val METRES_PER_KM = 1000.0
 private const val UPDATE_INTERVAL_MS = 10_000L
 private const val MIN_UPDATE_DISTANCE_M = 10f
+private const val MAX_LOCATION_AGE_MS = 120_000L
+private const val LOCATION_TIMEOUT_MS = 15_000L
 
 val LOCATION_PERMISSIONS = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
 
@@ -70,4 +73,21 @@ fun LocationUpdates(enabled: Boolean, onLocation: (GeoPoint) -> Unit) {
         }
         onDispose { client.removeLocationUpdates(callback) }
     }
+}
+
+/**
+ * Asks once for the device's position, accepting one up to 2 minutes old; `onLocation` gets null if none arrives within
+ * 15 seconds.
+ */
+@SuppressLint("MissingPermission")
+fun requestCurrentLocation(context: Context, onLocation: (GeoPoint?) -> Unit) {
+    val request = CurrentLocationRequest.Builder()
+        .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+        .setMaxUpdateAgeMillis(MAX_LOCATION_AGE_MS)
+        .setDurationMillis(LOCATION_TIMEOUT_MS)
+        .build()
+    LocationServices.getFusedLocationProviderClient(context)
+        .getCurrentLocation(request, null)
+        .addOnSuccessListener { location -> onLocation(location?.let { GeoPoint(it.latitude, it.longitude) }) }
+        .addOnFailureListener { onLocation(null) }
 }
