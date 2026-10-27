@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1330" viewBox="0 0 2000 1330">
+<defs>
+<marker id="head" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M 0 1 L 11 6 L 0 11 Z" fill="#3C6850"/></marker>
+<marker id="tail" viewBox="0 0 12 12" refX="1" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M 12 1 L 1 6 L 12 11 Z" fill="#3C6850"/></marker>
+</defs>
+<rect width="2000" height="1330" fill="#F8F4E8"/>
+<rect x="20" y="110" width="400" height="860" fill="#F1EEE0" stroke="#2F5D46" stroke-width="2.6"/>
+<text x="50" y="160" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">Android App</text>
+<text x="50" y="190" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">Kotlin · Jetpack Compose</text>
+<rect x="50" y="220" width="340" height="66" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="220.0" y="260" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Sign-in &amp; Profile</text>
+<rect x="50" y="302" width="340" height="66" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="220.0" y="342" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Trips &amp; Trip Builder</text>
+<rect x="50" y="384" width="340" height="66" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="220.0" y="424" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Itinerary, Map &amp; Suggestions</text>
+<rect x="50" y="466" width="340" height="66" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="220.0" y="506" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Explore &amp; Review</text>
+<rect x="50" y="548" width="340" height="66" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="220.0" y="588" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Groups</text>
+<rect x="50" y="630" width="340" height="66" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="220.0" y="670" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Feed &amp; Friends</text>
+<rect x="50" y="712" width="340" height="66" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="220.0" y="752" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Nearby</text>
+<text x="50" y="828" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Retrofit for REST, Socket.io client</text>
+<text x="50" y="850" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">for live trips, Maps Compose,</text>
+<text x="50" y="872" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Play services location</text>
+<rect x="560" y="110" width="900" height="940" fill="#F1EEE0" stroke="#2F5D46" stroke-width="2.6"/>
+<text x="590" y="156" font-family="Georgia, 'Times New Roman', serif" font-size="26" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">Back-end: Node.js + TypeScript (Express, Socket.io)</text>
+<text x="590" y="184" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">one Docker service on a cloud VM, with MongoDB beside it</text>
+<rect x="1045" y="220" width="390" height="112" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="1065" y="254" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">Auth &amp; Profile Service</text>
+<text x="1065" y="280" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Google sign-in, session tokens, profiles.</text>
+<text x="1065" y="300" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Every component checks each request's</text>
+<text x="1065" y="320" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">session here (verifySessionToken).</text>
+<rect x="585" y="220" width="390" height="112" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="605" y="254" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">Friend Service</text>
+<text x="605" y="280" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Finding travellers, friend requests,</text>
+<text x="605" y="300" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">friendships, private accounts.</text>
+<rect x="1045" y="400" width="390" height="112" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="1065" y="434" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">Activity &amp; Review Service</text>
+<text x="1065" y="460" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">City catalogues cached from Google Places;</text>
+<text x="1065" y="480" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">reviews, verified visits, community scores.</text>
+<rect x="585" y="400" width="390" height="112" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="605" y="434" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">Feed Service</text>
+<text x="605" y="460" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Shared trips, likes, comments,</text>
+<text x="605" y="480" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">copying a shared trip.</text>
+<rect x="1045" y="590" width="390" height="132" fill="#3F6E55" stroke="#3F6E55" stroke-width="2"/>
+<text x="1065" y="624" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" font-style="normal" fill="#FFFFFF" text-anchor="start">Itinerary Engine</text>
+<text x="1065" y="650" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#E4ECE0" text-anchor="start">Our own logic: candidate pruning, scoring,</text>
+<text x="1065" y="670" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#E4ECE0" text-anchor="start">constrained day scheduling, adjustments</text>
+<text x="1065" y="690" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#E4ECE0" text-anchor="start">and re-planning.</text>
+<rect x="585" y="600" width="390" height="112" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="605" y="634" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">Group Service</text>
+<text x="605" y="660" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Groups, invite codes, members'</text>
+<text x="605" y="680" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">interests and vetoes.</text>
+<rect x="1045" y="790" width="390" height="132" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="1065" y="824" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">Trip Sync &amp; Disruption Service</text>
+<text x="1065" y="850" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Socket.io room per trip: live changes and</text>
+<text x="1065" y="870" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">locations. Timer: forecast and venue</text>
+<text x="1065" y="890" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">checks, suggestions to accept or dismiss.</text>
+<rect x="585" y="810" width="390" height="112" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
+<text x="605" y="844" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">Nearby Service</text>
+<text x="605" y="870" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Trips open to travellers nearby,</text>
+<text x="605" y="890" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">requests to join their groups.</text>
+<path d="M 785 400 L 785 334" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="795" y="372" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="start">who may see what</text>
+<path d="M 975 470 L 1045 630" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="967" y="560" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="end">snapshot, copy a trip</text>
+<path d="M 1165 590 L 1165 514" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="1155" y="558" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="end">candidate activities</text>
+<path d="M 1345 512 L 1345 588" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="1335" y="558" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="end">in their trip today?</text>
+<path d="M 1045 670 L 975 670" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="1010.0" y="658" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="middle">preferences</text>
+<path d="M 1165 722 L 1165 788" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="1155" y="762" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="end">notify members</text>
+<path d="M 1345 790 L 1345 724" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="1335" y="762" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="end">access, proposed days</text>
+<path d="M 785 810 L 785 714" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="795" y="766" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="start">add an accepted member</text>
+<path d="M 420 410 L 560 410" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="490.0" y="400" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="middle">REST over HTTPS</text>
+<text x="490.0" y="432" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="middle">to every service</text>
+<path d="M 420 960 L 1245 960 L 1245 924" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)" marker-start="url(#tail)"/>
+<text x="595" y="950" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="start">Socket.io: live changes, locations, suggestions</text>
+<rect x="1570" y="165" width="380" height="90" fill="none" stroke="#7E8C80" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="1760.0" y="216.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Google Identity Services</text>
+<rect x="1570" y="375" width="380" height="90" fill="none" stroke="#7E8C80" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="1760.0" y="418.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Google Places API</text>
+<text x="1760.0" y="440.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="middle">Text Search, Place Details</text>
+<rect x="1570" y="560" width="380" height="90" fill="none" stroke="#7E8C80" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="1760.0" y="603.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Google Routes API</text>
+<text x="1760.0" y="625.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="middle">Compute Route Matrix</text>
+<rect x="1570" y="790" width="380" height="90" fill="none" stroke="#7E8C80" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="1760.0" y="833.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">OpenWeather API</text>
+<text x="1760.0" y="855.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="middle">5-day forecast</text>
+<path d="M 1435 260 L 1570 210" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<path d="M 1435 456 L 1570 410" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<path d="M 1435 630 L 1570 440" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<path d="M 1435 700 L 1570 605" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<path d="M 1435 830 L 1570 455" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<path d="M 1435 890 L 1570 835" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<path d="M 140 110 L 140 50 L 1760.0 50 L 1760.0 165" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="160" y="42" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="start">sign-in on the device (Credential Manager)</text>
+<rect x="20" y="1090" width="195" height="96" fill="none" stroke="#7E8C80" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="117.5" y="1134.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Google Maps</text>
+<text x="117.5" y="1154.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">SDK for Android</text>
+<rect x="245" y="1090" width="195" height="96" fill="none" stroke="#7E8C80" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="342.5" y="1134.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Fused Location</text>
+<text x="342.5" y="1154.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Provider</text>
+<path d="M 117 970 L 117 1088" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<path d="M 342 970 L 342 1088" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<rect x="560" y="1110" width="900" height="120" fill="#1C382C"/>
+<text x="1010.0" y="1180" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="bold" font-style="normal" fill="#FFFFFF" text-anchor="middle">MongoDB</text>
+<path d="M 1010.0 1050 L 1010.0 1108" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="1490" y="1140" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">users · friendships · activities · citycatalogues</text>
+<text x="1490" y="1164" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">reviews · groups · itineraries · traveltimes</text>
+<text x="1490" y="1188" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">posts · comments · joinrequests · suggestions</text>
+<text x="1490" y="1222" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">2dsphere index on activities</text>
+<path d="M 20 1250 L 80 1250" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="92" y="1256" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">calls</text>
+<path d="M 20 1282 L 80 1282" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)" marker-start="url(#tail)"/>
+<text x="92" y="1288" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Socket.io, both ways</text>
+<rect x="30" y="1302" width="40" height="18" fill="none" stroke="#7E8C80" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="92" y="1317" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">external service</text>
+</svg>

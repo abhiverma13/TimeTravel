@@ -6,6 +6,7 @@ actor "Trip Organizer" as Organizer
 participant "Android App" as App
 participant "Auth & Profile\nService" as Auth
 participant "Itinerary\nEngine" as Engine
+participant "Group\nService" as Groups
 participant "Activity & Review\nService" as Activities
 database MongoDB
 participant "Google Places API" as Places
@@ -15,9 +16,16 @@ Organizer -> App : fills in the Trip Builder, taps Generate itinerary
 alt no city, no dates, longer than 7 days, or a day shorter than 2 hours
   App --> Organizer : explains what to fix; nothing is sent
 end
-App -> Engine : POST /api/itineraries/generate { city, startDate, endDate, dayStart, dayEnd,\n arrivalTime, departureTime, interests, pace, lodging }
+App -> Engine : POST /api/itineraries/generate { city, startDate, endDate, dayStart, dayEnd,\n arrivalTime, departureTime, interests, pace, lodging, transportMode, budget,\n mustSeeIds, avoidIds, groupId? }
 Engine -> Auth : verifySessionToken(token): userId
-Engine -> Activities : listActivities(city, null): ActivityDto[]
+opt a group trip
+  Engine -> Groups : tripPreferences(userId, groupId): interest shares, vetoes
+  alt not a member of the group
+    Groups --> Engine : 404
+    Engine --> App : 404 { error }
+  end
+end
+Engine -> Activities : listActivities(city): ActivityDto[]
 note right of Activities : may refresh the city from Google Places,\nas in Browse & Search Activities
 alt the city has no activities
   Engine --> App : 404 { error: "No activities found for <city>" }
@@ -26,24 +34,25 @@ end
 opt lodging was entered
   Engine -> Places : POST places:searchText(textQuery "<lodging>, <city>"): Place[]
   alt lodging not found or Places fails
-    Engine -> Engine : uses the centre of the city's activities and adds a warning
+    Engine -> Engine : starts days at the centre of the city's activities and adds a warning
   end
 end
-Engine -> Engine : pruneCandidates(candidates, request): RankedCandidate[] (within 25 km, open, top 40)
-Engine -> MongoDB : findTravelMatrix(candidateIds): TravelMatrix | null
-alt no cached matrix
-  Engine -> Routes : POST computeRouteMatrix(origins, destinations): RouteMatrixElement[]
-  alt Routes fails or quota is exhausted
-    Engine -> Engine : estimateTravelMinutes(from, to) (distance / modal speed)
+Engine -> Engine : selectActivities(budget, avoided and vetoed places left out)
+Engine -> Engine : pruneCandidates(candidates, request): RankedCandidate[]\n(within 25 km, open on the trip's days, best 40, must-sees kept)
+Engine -> MongoDB : findTravelTimes(lodging and best candidates, transportMode)
+opt pairs missing and a Google key is set
+  Engine -> Routes : POST computeRouteMatrix(origins, destinations, travelMode), in batches
+  alt Routes fails
+    Engine -> Engine : estimateTravelMinutes(from, to, transportMode) for the missing pairs
   else
-    Engine -> MongoDB : saveTravelMatrix(candidateIds, matrix, ttl)
+    Engine -> MongoDB : saveTravelTimes(pairs, minutes, fetchedAt) (kept 7 days)
   end
 end
-note right of Engine : CP1: the matrix steps are planned;\ntravel times use estimateTravelMinutes
 loop for each trip day
   Engine -> Engine : planDay: greedy insertion by score density (3 starts),\nthen reorder and swap moves within 200 ms
 end
-Engine -> MongoDB : saveItinerary(userId, trip, days, warnings): Itinerary
+Engine -> Engine : adds a warning for each must-see that could not be included
+Engine -> MongoDB : saveItinerary(userId, groupId, trip, days, warnings): Itinerary
 Engine --> App : 201 ItineraryDto
-App --> Organizer : day-by-day timeline with transit times and warnings
+App --> Organizer : day-by-day timeline with travel times and warnings
 @enduml

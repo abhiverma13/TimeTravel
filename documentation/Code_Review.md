@@ -5,28 +5,32 @@
 | **Change Date** | **Modified Sections** | **Rationale** |
 | --------------- | --------------------- | ------------- |
 | 2026-10-18 | 2, 3 | CP1: recorded the status of the automated and manual code reviews. Neither has run yet; both are scheduled for later checkpoints (see below). |
+| 2026-10-26 | 2 | CP2: checked the code with the course's ESLint and detekt configurations (2 ESLint findings, justified in 2.4; none from detekt); Codacy's own run on the group repository fills in 2.1-2.3. |
 
 ---
 
 ## 2. Automated Code Review Results
 
-**Status at CP1:** Codacy has not been set up on `abhiverma13/TimeTravel` yet. Setting it up, fixing the issues it reports and completing this section is planned for **November 2** (CP1 Progress, carried-forward task 6). Sections 2.1-2.4 will be filled in from that run.
+**Status at CP2:** only the owner of `abhiverma13/TimeTravel` can connect it to Codacy. Sections 2.1-2.3 are filled in from Codacy's run on the final CP2 commit.
+
+Before that run, the CP2 code was checked locally with the course's linter configurations: ESLint with the course's [`.eslintrc.json`](../.eslintrc.json) over `backend/src` and `backend/tests`, and detekt 1.23.8 with the course's [`detekt.yml`](../detekt.yml) over `frontend/app/src`. ESLint reports 2 findings (both explained in 2.4) and detekt reports none.
 
 ### 2.1. Commit Hash Where Codacy Ran
 
-_Not run yet (planned for November 2)._
+_To be filled in from Codacy's run on the final CP2 commit._
 
 ### 2.2. Unfixed Issues per Codacy Category
 
-_Not run yet. Screenshots of Codacy's Category Breakdown table will be added after the first run._
+_Screenshots of Codacy's Category Breakdown table, from the run on the final CP2 commit._
 
 ### 2.3. Unfixed Issues per Codacy Code Pattern
 
-_Not run yet. Screenshots of Codacy's Issues page will be added after the first run._
+_Screenshots of Codacy's Issues page, from the run on the final CP2 commit._
 
 ### 2.4. Justifications for Unfixed Issues
 
-_Not run yet. Each issue left unfixed after the first run will be listed here by code pattern, with its location in Git and a justification._
+- **Security: `security/detect-non-literal-fs-filename`** (ESLint), 2 findings at [`backend/src/index.ts#L50`](../backend/src/index.ts#L50)
+    - **Justification:** the server reads its TLS certificate and key with `readFileSync(env.tlsCertPath)` and `readFileSync(env.tlsKeyPath)`. The rule flags any file path that is not a literal, because a path built from user input could read any file. These paths come only from the server's own `.env` (`TLS_CERT_PATH`, `TLS_KEY_PATH`), set by whoever deploys it; no request can reach them, and they are read once at start-up. A literal path would tie the code to one server's layout (the deployment mounts the certificates at `/certs/...`), so the rule does not apply here.
 
 ---
 

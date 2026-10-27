@@ -39,4 +39,10 @@ alt no activities in the city
 else
   App --> Traveller : activity cards: score, ratings, visit length, today's hours, community tags
 end
+opt the traveller taps Reviews on a card
+  App -> Activities : GET /api/activities/{activityId}/reviews
+  Activities -> MongoDB : findReviews(activityId): verified first, then newest, up to 50, with authors' names
+  Activities --> App : 200 { reviews: ReviewListItemDto[] }
+  App --> Traveller : the reviews, with a Verified visit badge where it applies
+end
 @enduml

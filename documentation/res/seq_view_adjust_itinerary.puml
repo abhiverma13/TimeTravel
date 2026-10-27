@@ -1,31 +1,48 @@
 @startuml seq_view_adjust_itinerary
 !include style.iuml
-title View & Adjust Itinerary (planned for CP2)
+title View & Adjust Itinerary
 
 actor Traveller
 participant "Android App" as App
-participant "Trip Sync &\nDisruption Service" as Sync
 participant "Itinerary\nEngine" as Engine
+participant "Trip Sync &\nDisruption Service" as Sync
 database MongoDB
-participant "Other party members'\nAndroid Apps" as Party
+participant "Other members'\nAndroid Apps" as Party
 
-Traveller -> App : opens a trip
+Traveller -> App : opens a trip from the recent trips or a group's page
 App -> Engine : GET /api/itineraries/{itineraryId}
-alt itinerary not found or not the traveller's
+alt itinerary missing, or the traveller is not in its group
   Engine --> App : 404 { error: "Itinerary not found" }
-  App --> Traveller : shows the error with Try again
+  App --> Traveller : "Itinerary not found" with Try again
 end
 Engine --> App : 200 ItineraryDto
-App -> Sync : WebSocket connect /ws/trips/{tripId} (session token)
-Traveller -> App : locks, removes or moves a stop
-App -> Sync : ws message adjustStop { itineraryId, activityId, action }
-Sync -> Engine : replanItinerary(itineraryId, affectedWindow, frozenStops): Itinerary
-Engine -> MongoDB : saveItinerary(itinerary)
-Sync -> App : ws message itineraryUpdated { itinerary }
-Sync -> Party : ws message itineraryUpdated { itinerary }
-App --> Traveller : timeline re-renders with the change
-alt connection lost
-  App --> Traveller : "Offline: your change will sync when you reconnect"
-  App -> Engine : GET /api/itineraries/{itineraryId} after reconnecting
+App -> Sync : Socket.io connect (auth: session token), then subscribe { itineraryId }
+Sync -> Engine : getItinerary(userId, itineraryId) (may this traveller listen?)
+Sync --> App : acknowledgement { ok: true }
+App --> Traveller : the timeline, marked "Live"
+Traveller -> App : locks, unlocks, moves, removes or marks a stop visited, or taps Re-plan on a day
+App -> Engine : POST /api/itineraries/{itineraryId}/adjust\n{ action, version, dayIndex, activityId, toIndex?, fromTime? }
+Engine -> MongoDB : findItinerary(itineraryId), listActivities(city), cached travel times
+alt the version is not the latest
+  Engine --> App : 409 { error }
+  App -> Engine : GET /api/itineraries/{itineraryId}
+  App --> Traveller : "Someone changed this plan first. Here is the latest version."
+else no feasible day keeps the change
+  Engine --> App : 422 { error: "<stop> cannot go there: a stop would miss its opening hours or the day would run late" }
+  App --> Traveller : explains why; the plan stays as it was
+else
+  Engine -> Engine : repairs the day: locked stops keep their times,\na removed stop's time goes to another activity
+  Engine -> MongoDB : saveDay(if version unchanged), version + 1
+  Engine -> Sync : itinerary changed (itinerary, actorId, summary)
+  Sync -> App : itineraryUpdated { itinerary, actorId, summary }
+  Sync -> Party : itineraryUpdated { itinerary, actorId, summary }
+  Engine --> App : 200 ItineraryDto
+  App --> Traveller : the timeline shows the change
+  Party --> Party : shows the change with "Ava removed English Bay Beach"
+end
+opt the live connection is lost
+  App --> Traveller : "Offline: live updates will resume when you reconnect"
+  App -> Sync : reconnects and subscribes again
+  App -> Engine : GET /api/itineraries/{itineraryId} (the latest version)
 end
 @enduml

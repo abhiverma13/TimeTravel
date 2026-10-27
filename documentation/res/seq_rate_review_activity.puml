@@ -6,14 +6,18 @@ actor Traveller
 participant "Android App" as App
 participant "Auth & Profile\nService" as Auth
 participant "Activity & Review\nService" as Activities
+participant "Itinerary\nEngine" as Engine
 database MongoDB
 
 Traveller -> App : taps Rate on an activity
 App --> Traveller : rating dialog (Submit disabled until a star is chosen)
 Traveller -> App : chooses 1-5 stars, optional review and tags, taps Submit
-App -> Activities : POST /api/activities/{activityId}/reviews { rating, comment, tags }
+opt location is allowed
+  App -> App : reads the device's current position (Fused Location Provider)
+end
+App -> Activities : POST /api/activities/{activityId}/reviews { rating, comment, tags, location? }
 Activities -> Auth : verifySessionToken(token): userId
-alt rating, comment or tags invalid
+alt rating, comment, tags or location invalid
   Activities --> App : 400 { error, details }
   App --> Traveller : shows the problem in the dialog
 end
@@ -23,14 +27,19 @@ alt activity does not exist
   App --> Traveller : shows the error in the dialog
 end
 Activities -> MongoDB : findReview(activityId, userId): Review | null
-alt traveller already reviewed this activity
-  Activities -> MongoDB : updateReview(review, rating, comment, tags)
-else first review
-  Activities -> MongoDB : createReview(activityId, userId, rating, comment, tags)
+opt no verified review yet, and the position is within 150 m of the place
+  Activities -> Engine : isScheduledOn(userId, activityId, today): boolean
+  Engine -> MongoDB : findItinerary(the traveller's or their groups' trips with this stop today)
 end
-Activities -> MongoDB : incrementCounters(activityId, reviewCount, ratingSum, reportedDuration, tagCounts)
+note right of Activities : verified when both hold;\na verified review stays verified when edited
+alt traveller already reviewed this activity
+  Activities -> MongoDB : updateReview(review, rating, comment, tags, verified)
+else first review
+  Activities -> MongoDB : createReview(activityId, userId, rating, comment, tags, verified)
+end
+Activities -> MongoDB : incrementCounters(activityId, reviewCount, ratingSum, verifiedReviewCount,\n verifiedRatingSum, reportedDuration, tagCounts)
 Activities -> MongoDB : findActivity(activityId), findCatalogue(cityKey)
-Activities -> Activities : communityScore(activity, cityMeanRating), communityTags(tagCounts), visitMinutes(reports)
+Activities -> Activities : communityScore(activity, cityMeanRating) (verified reviews count double),\ncommunityTags(tagCounts), visitMinutes(reports)
 Activities --> App : 201 (new) or 200 (edited) { review, activity }
-App --> Traveller : card shows the new score and tags; "Thanks! Your review was saved."
+App --> Traveller : card shows the new score and tags; "Thanks! Your review of <activity> was saved."\n(and "It has a Verified visit badge and counts double." when verified)
 @enduml

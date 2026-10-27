@@ -16,6 +16,7 @@
 | 2026-10-26 | 3.1, 3.4, 4.1, 4.2 | Added F8 Nearby trips: a group's owner can open a group trip to travellers nearby; a Nearby tab lists open trips with a stop within 10 km that start within a week, and a traveller can ask to join with a note, which the owner accepts or declines from the group's page. Trips are matched by their stops, and only the plan is shown, never the lodging or anyone's position, so opening a trip does not reveal where its members are. A new Nearby Service owns the requests; accepting one adds the member through the Group Service. |
 | 2026-10-26 | 3.1, 3.4, 3.5, 4.1, 4.2 | Added verified reviews to F2: a review written within 150 m of the place, on a day the place is a stop of one of the reviewer's trips, gets a Verified visit badge and counts double in the community score. The app sends the device's position with a review only when location is allowed, and travellers can now read an activity's reviews, verified ones first. Verification needs both the position and the trip, so a traveller passing by, or standing at a place on another day, is not verified. |
 | 2026-10-26 | 3.1, 3.4, 3.5, 4.1, 4.2, 4.3, 4.7 | F5 is implemented as suggestions rather than automatic re-plans: every 30 minutes a timer checks the forecast (OpenWeather) for outdoor stops and the venue status (Google Places) for stops of trips under way, and proposes a change for a disrupted stop (an indoor activity in the rain, another activity for a closed venue). The proposal reaches the members live and changes nothing until one of them accepts it; it lapses if the trip changes first or after 12 hours. Travellers keep control of their plan, and a wrong forecast cannot rearrange a day by itself. Push notifications (Firebase Cloud Messaging) were dropped: suggestions appear when the trip is open, which keeps the app free of background services. |
+| 2026-10-26 | 3.2, 3.4, 4.5, 4.6 | Redrew the use case diagram with all 29 use cases in their feature packages, and the dependency diagram with the eight back-end components, the Socket.io connection and the CP2 external services (Google Maps SDK, the Fused Location Provider, OpenWeather; Firebase Cloud Messaging is gone). Updated the sequence diagrams to match the implementation: verified visits in Rate & Review Activity, reading reviews in Browse & Search Activities, group preferences, budget, must-see and avoided places, and cached Google Routes times in Generate Itinerary, adjustments over REST with the change pushed over Socket.io in View & Adjust Itinerary, and suggestions that members accept or dismiss in Re-plan Itinerary. Tick Off Stops on Arrival also includes Notify Trip Party. |
 
 ---
 
@@ -51,16 +52,18 @@ How the features satisfy the project scope:
 
 ### **3.2. Use Case Diagram**
 
-![Use case diagram: eleven use cases, two human actors, five non-human actors](images/use_case_diagram.png)
+![Use case diagram: twenty-nine use cases in eight feature packages, two human actors, five non-human actors](images/use_case_diagram.png)
+
+Each feature is a package. Every branch of an actor's line ends at one of its use cases; the Trip Organizer, a specialised Traveller, also has every association of the Traveller. Shaded use cases are started by the system or only reached through an «include». The diagram's source is [`res/use_case_diagram.svg`](res/use_case_diagram.svg).
 
 ### **3.3. Actors Description**
 
 1. **Traveller**: any app user. Browses a city's activities, rates and tags the ones they have done, joins a trip, states their interests, and follows or adjusts the itinerary while travelling.
 2. **Trip Organizer**: a Traveller who also creates a group, invites friends with its code, describes a trip (dates, lodging, pace) and triggers itinerary generation. A group's owner can remove members and delete the group. Anything a Traveller can do, an Organizer can do.
 3. **Google Identity Services**: authenticates the user and returns a signed ID token that our back-end verifies.
-4. **Google Places API**: supplies the activity catalogue, coordinates and opening hours, and finds the traveller's lodging.
+4. **Google Places API**: supplies the activity catalogue, coordinates and opening hours, finds the traveller's lodging, and tells whether a venue on a trip under way is closed.
 5. **Google Routes API**: supplies travel times between stops.
-6. **OpenWeather API**: hourly forecast per trip day, used to detect when an outdoor activity stops being viable.
+6. **OpenWeather API**: the forecast in 3-hour steps at a trip's lodging, used to tell when rain is likely during an outdoor stop.
 7. **Time**: the timer that triggers the periodic check of active trips' conditions.
 
 ### **3.4. Use Case Description**
@@ -81,7 +84,7 @@ How the features satisfy the project scope:
   10. **Set Group Preferences**: a member sets their own interests for the group's trips and vetoes activities (from any group trip's stop), so the group's next plans leave them out.
   11. **Leave Group**: a member leaves, or the owner removes a member or deletes the group with its trips.
   12. **View & Adjust Itinerary**: a traveller follows the plan and locks, removes, moves or marks a stop visited; the change re-plans the affected part of the day.
-  13. **Notify Trip Party**: every group member's device receives the updated plan as soon as it changes. Included by Add Place to Itinerary, View & Adjust Itinerary and Re-plan Itinerary.
+  13. **Notify Trip Party**: every group member's device receives the updated plan as soon as it changes. Included by Add Place to Itinerary, View & Adjust Itinerary, Tick Off Stops on Arrival and Re-plan Itinerary.
 - Use cases for feature 5: **Disruption-aware re-planning**
   14. **Monitor Trip Conditions**: on a timer, the system checks the forecast and venue status for each active trip's upcoming stops.
   15. **Re-plan Itinerary**: when a disruption affects a stop, the system works out a change for that day (keeping locked stops) and suggests it to the trip's members, who accept or dismiss it.
@@ -501,9 +504,9 @@ Deployment: **Docker Compose** runs the back-end and MongoDB together on a cloud
 
 ### **4.5. Dependencies Diagram**
 
-![Dependency diagram: one Android client, four back-end components, one database, five external services](images/dependency_diagram.png)
+![Dependency diagram: one Android client, eight back-end components, one database, four external web services and two services on the device](images/dependency_diagram.png)
 
-Arrows show call dependencies (A calls B through an interface defined in B); the two-headed arrow between the app and the Trip Sync & Disruption Service is the WebSocket, used in both directions. The Itinerary Engine calls the Activity & Review Service for ranked candidates, and the Trip Sync & Disruption Service calls the Itinerary Engine for re-plans. Dashed boxes are external services.
+Arrows show call dependencies (A calls B through an interface defined in B). The app calls every back-end component's REST routes over HTTPS; the two-headed arrow between the app and the Trip Sync & Disruption Service is the Socket.io connection, used in both directions. Every component checks each request's session with the Auth & Profile Service. Inside the back-end, the Itinerary Engine asks the Activity & Review Service for candidates and the Group Service for a group's preferences, and tells the Trip Sync & Disruption Service about every change; the Activity & Review Service asks the Itinerary Engine whether a reviewed place is in the traveller's trip today; the Trip Sync & Disruption Service asks the Itinerary Engine for access checks and proposed days; the Feed Service asks the Friend Service who may see a post and the Itinerary Engine for a trip's snapshot or copy; and the Nearby Service asks the Group Service to add an accepted member. Dashed boxes are external services. The diagram's source is [`res/dependency_diagram.svg`](res/dependency_diagram.svg).
 
 ### **4.6. Use Case Sequence Diagram (5 Most Major Use Cases)**
 

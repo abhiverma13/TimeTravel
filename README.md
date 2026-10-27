@@ -2,7 +2,7 @@
 
 Crowd-rated activities, scheduled into a trip that actually fits your days.
 
-TimeTravel is an Android app (Kotlin, Jetpack Compose) with a Node.js and TypeScript back-end (Express, MongoDB). Travellers rate and tag the activities they have done; a visitor describes their trip, and TimeTravel's itinerary engine builds a day-by-day plan around opening hours, travel time and the traveller's pace. Requirements and design: [`documentation/Requirements_and_Design.md`](documentation/Requirements_and_Design.md). Tests: [`documentation/Testing.md`](documentation/Testing.md).
+TimeTravel is an Android app (Kotlin, Jetpack Compose) with a Node.js and TypeScript back-end (Express, MongoDB, Socket.io). Travellers rate and tag the activities they have done; a visitor describes their trip, and TimeTravel's itinerary engine builds a day-by-day plan around opening hours, travel time and the traveller's pace. Friends plan together in groups and see each other's changes live, follow the trip on a map, share trips to a feed, find open trips nearby to join, and get suggestions when rain or a closed venue disrupts a stop. Requirements and design: [`documentation/Requirements_and_Design.md`](documentation/Requirements_and_Design.md). Tests: [`documentation/Testing.md`](documentation/Testing.md).
 
 ## Prerequisites
 
@@ -11,7 +11,9 @@ TimeTravel is an Android app (Kotlin, Jetpack Compose) with a Node.js and TypeSc
 - Android Studio, JDK 17+, and a Pixel 9 API 36 emulator named `Pixel_9`
 - A Google Cloud project with:
   - an **OAuth web client** (its client ID is used by both the app and the back-end) and an **Android OAuth client** for package `com.example.cpen321application` with the SHA-1 of every key that signs the app (each developer's debug key and the release key). Find a key's SHA-1 with `keytool -list -v -keystore <keystore> -alias <alias>`; the debug key is `~/.android/debug.keystore`, alias `androiddebugkey`, password `android`.
-  - the **Places API (New)** enabled and an API key for it (optional: without it, only cities already in the database can be browsed, see "Demo data" below).
+  - the **Places API (New)** and the **Routes API** enabled, and an API key for them (optional: without it, only cities already in the database can be browsed, see "Demo data" below, and travel times are estimated from distance). The same key looks up activities, lodgings and venues' business status, and gets travel times from Google Maps.
+  - the **Maps SDK for Android** enabled, and an API key for it restricted to package `com.example.cpen321application` and the SHA-1 of every key that signs the app (optional: without it, the trip map shows no map tiles).
+- An **OpenWeather** API key (the free plan's 5-day forecast is enough; optional: without it, trips under way are checked for closed venues only, not for rain).
 
 ## 1. Back-end
 
@@ -30,7 +32,8 @@ Edit `backend/.env`:
 | `MONGODB_URI` | leave as is; Docker Compose points the back-end at its own MongoDB container |
 | `GOOGLE_CLIENT_ID` | the OAuth **web** client ID |
 | `JWT_SECRET` | a long random string, for example the output of `openssl rand -hex 32` |
-| `GOOGLE_PLACES_API_KEY` | the Places API (New) key |
+| `GOOGLE_PLACES_API_KEY` | the key for the Places API (New) and the Routes API |
+| `OPENWEATHER_API_KEY` | the OpenWeather key |
 | `TLS_CERT_PATH`, `TLS_KEY_PATH` | blank locally; on the VM, the certificate and key paths inside the container (`/certs/...`, mounted from `backend/certs`) |
 
 Start the back-end and its MongoDB:
@@ -52,7 +55,7 @@ docker compose exec backend npm run seed:demo
 
 ### Cloud deployment (HTTPS)
 
-The CP1 back-end runs at `https://136.67.87.217` on a Google Cloud VM (Ubuntu 24.04, e2-medium, HTTPS allowed through the firewall). To deploy it on a fresh VM:
+The back-end runs at `https://136.67.87.217` on a Google Cloud VM (Ubuntu 24.04, e2-medium, HTTPS allowed through the firewall). To deploy it on a fresh VM:
 
 1. Install Docker, then log out and back in so the group change applies:
    ```bash
@@ -78,6 +81,7 @@ Create `frontend/local.properties` (Android Studio usually writes `sdk.dir` for 
 sdk.dir=C:/Users/<username>/AppData/Local/Android/Sdk
 API_BASE_URL=http://10.0.2.2:3000
 GOOGLE_CLIENT_ID=<the OAuth web client ID>
+MAPS_API_KEY=<the Maps SDK for Android key>
 ```
 
 `10.0.2.2` is the emulator's address for the development computer; the app allows plain HTTP only to that address and `localhost`. For the deployed back-end, set `API_BASE_URL=https://136.67.87.217` (or your own server, see "Cloud deployment" above).
@@ -89,7 +93,7 @@ Build, install and launch the app on the `Pixel_9` emulator:
 ./scripts/run-frontend.sh       # macOS / Linux
 ```
 
-Sign in with Google. If sign-in reports "Sign-in was cancelled" immediately after choosing an account, the SHA-1 of the key that signed this build is missing from the Android OAuth client (see Prerequisites).
+Sign in with Google. If sign-in reports "Sign-in was cancelled" immediately after choosing an account, the SHA-1 of the key that signed this build is missing from the Android OAuth client (see Prerequisites). The app asks for the device's location only when it is needed: for the trip map and sharing your position with your group, for finding open trips nearby, and for the Verified visit badge on a review.
 
 ### Release APK
 
@@ -126,7 +130,7 @@ The back-end tests start their own in-memory MongoDB, so they need neither Docke
 
 On macOS / Linux, run `./scripts/run-frontend-e2e-tests.sh` and `./scripts/run-frontend-nfr-tests.sh`.
 
-They need Docker running, `frontend/local.properties` set up as in section 2, and the `Pixel_9` emulator. Each script starts the back-end, installs and launches the app, and waits: sign in inside the app, then press Enter in the terminal to run the tests. A suite with no test files is skipped. The Generate Itinerary end-to-end test is designed in Testing.md and is implemented in CP2.
+They need Docker running, `frontend/local.properties` set up as in section 2, and the `Pixel_9` emulator. Each script starts the back-end, installs and launches the app, and waits: sign in inside the app, then press Enter in the terminal to run the tests. A suite with no test files is skipped. The end-to-end tests cover Generate Itinerary, Rate & Review Activity and View & Adjust Itinerary; each creates the trip it needs.
 
 See [`documentation/Testing.md`](documentation/Testing.md) for details.
 

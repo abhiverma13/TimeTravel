@@ -1,0 +1,246 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1960" height="1430" viewBox="0 0 1960 1430">
+<defs>
+<marker id="open-include" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#2F5D46" stroke-width="1.8"/></marker>
+<marker id="open-extend" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#B0742A" stroke-width="1.8"/></marker>
+<marker id="general" viewBox="0 0 16 16" refX="15" refY="8" markerWidth="16" markerHeight="16" orient="auto"><path d="M 1 1 L 15 8 L 1 15 Z" fill="#F8F4E8" stroke="#2F5D46" stroke-width="1.8"/></marker>
+</defs>
+<rect width="1960" height="1430" fill="#F8F4E8"/>
+<rect x="252" y="40" width="1320" height="1280" fill="#F6F1E2" stroke="#1C382C" stroke-width="2.4"/>
+<text x="272.0" y="72.0" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">TimeTravel</text>
+<path d="M 272 120 L 272 98 L 359 98 L 367 120 Z" fill="#EEE8D6" stroke="#9AA093" stroke-width="1.2"/>
+<rect x="272" y="120" width="1280" height="112" fill="#FBF8EF" stroke="#9AA093" stroke-width="1.2"/>
+<text x="280.0" y="114.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">F1 Sign in</text>
+<path d="M 272 270 L 272 248 L 426 248 L 434 270 Z" fill="#EEE8D6" stroke="#9AA093" stroke-width="1.2"/>
+<rect x="272" y="270" width="1280" height="112" fill="#FBF8EF" stroke="#9AA093" stroke-width="1.2"/>
+<text x="280.0" y="264.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">F2 Explore &amp; review</text>
+<path d="M 272 420 L 272 398 L 455 398 L 463 420 Z" fill="#EEE8D6" stroke="#9AA093" stroke-width="1.2"/>
+<rect x="272" y="420" width="1280" height="112" fill="#FBF8EF" stroke="#9AA093" stroke-width="1.2"/>
+<text x="280.0" y="414.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">F3 Itinerary generation</text>
+<path d="M 272 570 L 272 548 L 492 548 L 500 570 Z" fill="#EEE8D6" stroke="#9AA093" stroke-width="1.2"/>
+<rect x="272" y="570" width="1280" height="112" fill="#FBF8EF" stroke="#9AA093" stroke-width="1.2"/>
+<text x="280.0" y="564.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">F4 Collaborative trips, live</text>
+<path d="M 272 720 L 272 698 L 514 698 L 522 720 Z" fill="#EEE8D6" stroke="#9AA093" stroke-width="1.2"/>
+<rect x="272" y="720" width="1280" height="112" fill="#FBF8EF" stroke="#9AA093" stroke-width="1.2"/>
+<text x="280.0" y="714.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">F5 Disruption-aware re-planning</text>
+<path d="M 272 870 L 272 848 L 500 848 L 508 870 Z" fill="#EEE8D6" stroke="#9AA093" stroke-width="1.2"/>
+<rect x="272" y="870" width="1280" height="112" fill="#FBF8EF" stroke="#9AA093" stroke-width="1.2"/>
+<text x="280.0" y="864.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">F7 Trip map and live location</text>
+<path d="M 272 1020 L 272 998 L 492 998 L 500 1020 Z" fill="#EEE8D6" stroke="#9AA093" stroke-width="1.2"/>
+<rect x="272" y="1020" width="1280" height="112" fill="#FBF8EF" stroke="#9AA093" stroke-width="1.2"/>
+<text x="280.0" y="1014.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">F6 Friends and the trip feed</text>
+<path d="M 272 1170 L 272 1148 L 396 1148 L 404 1170 Z" fill="#EEE8D6" stroke="#9AA093" stroke-width="1.2"/>
+<rect x="272" y="1170" width="1280" height="112" fill="#FBF8EF" stroke="#9AA093" stroke-width="1.2"/>
+<text x="280.0" y="1164.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">F8 Nearby trips</text>
+<path d="M 205.0 220.0 L 205.0 1270.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 205.0 220.0 L 365.0 220.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="205.0" cy="220.0" r="3.6" fill="#7E937F"/>
+<path d="M 365.0 220.0 L 365.0 208.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 205.0 370.0 L 547.0 370.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="205.0" cy="370.0" r="3.6" fill="#7E937F"/>
+<path d="M 365.0 370.0 L 365.0 358.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="365.0" cy="370.0" r="3.6" fill="#7E937F"/>
+<path d="M 547.0 370.0 L 547.0 358.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 205.0 520.0 L 365.0 520.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="205.0" cy="520.0" r="3.6" fill="#7E937F"/>
+<path d="M 365.0 520.0 L 365.0 508.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 205.0 670.0 L 1093.0 670.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="205.0" cy="670.0" r="3.6" fill="#7E937F"/>
+<path d="M 547.0 670.0 L 547.0 658.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="547.0" cy="670.0" r="3.6" fill="#7E937F"/>
+<path d="M 729.0 670.0 L 729.0 658.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="729.0" cy="670.0" r="3.6" fill="#7E937F"/>
+<path d="M 911.0 670.0 L 911.0 658.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="911.0" cy="670.0" r="3.6" fill="#7E937F"/>
+<path d="M 1093.0 670.0 L 1093.0 658.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 205.0 970.0 L 729.0 970.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="205.0" cy="970.0" r="3.6" fill="#7E937F"/>
+<path d="M 365.0 970.0 L 365.0 958.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="365.0" cy="970.0" r="3.6" fill="#7E937F"/>
+<path d="M 547.0 970.0 L 547.0 958.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="547.0" cy="970.0" r="3.6" fill="#7E937F"/>
+<path d="M 729.0 970.0 L 729.0 958.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 205.0 1120.0 L 1457.0 1120.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="205.0" cy="1120.0" r="3.6" fill="#7E937F"/>
+<path d="M 365.0 1120.0 L 365.0 1108.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="365.0" cy="1120.0" r="3.6" fill="#7E937F"/>
+<path d="M 547.0 1120.0 L 547.0 1108.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="547.0" cy="1120.0" r="3.6" fill="#7E937F"/>
+<path d="M 729.0 1120.0 L 729.0 1108.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="729.0" cy="1120.0" r="3.6" fill="#7E937F"/>
+<path d="M 911.0 1120.0 L 911.0 1108.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="911.0" cy="1120.0" r="3.6" fill="#7E937F"/>
+<path d="M 1093.0 1120.0 L 1093.0 1108.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="1093.0" cy="1120.0" r="3.6" fill="#7E937F"/>
+<path d="M 1275.0 1120.0 L 1275.0 1108.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="1275.0" cy="1120.0" r="3.6" fill="#7E937F"/>
+<path d="M 1457.0 1120.0 L 1457.0 1108.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 205.0 1270.0 L 547.0 1270.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="205.0" cy="1270.0" r="3.6" fill="#7E937F"/>
+<path d="M 365.0 1270.0 L 365.0 1258.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="365.0" cy="1270.0" r="3.6" fill="#7E937F"/>
+<path d="M 547.0 1270.0 L 547.0 1258.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 150.0 430.0 L 150.0 1180.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<line x1="198" y1="430" x2="212" y2="430" stroke="#F8F4E8" stroke-width="7"/>
+<path d="M 150.0 430.0 L 911.0 430.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="150.0" cy="430.0" r="3.6" fill="#7E937F"/>
+<path d="M 729.0 430.0 L 729.0 448.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="729.0" cy="430.0" r="3.6" fill="#7E937F"/>
+<path d="M 911.0 430.0 L 911.0 448.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<line x1="198" y1="580" x2="212" y2="580" stroke="#F8F4E8" stroke-width="7"/>
+<path d="M 150.0 580.0 L 365.0 580.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="150.0" cy="580.0" r="3.6" fill="#7E937F"/>
+<path d="M 365.0 580.0 L 365.0 598.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<line x1="198" y1="1180" x2="212" y2="1180" stroke="#F8F4E8" stroke-width="7"/>
+<path d="M 150.0 1180.0 L 1093.0 1180.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="150.0" cy="1180.0" r="3.6" fill="#7E937F"/>
+<path d="M 911.0 1180.0 L 911.0 1198.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="911.0" cy="1180.0" r="3.6" fill="#7E937F"/>
+<path d="M 1093.0 1180.0 L 1093.0 1198.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="80" cy="210" r="17" fill="#FCF8F4" stroke="#2F5D46" stroke-width="3"/>
+<path d="M 80.0 227.0 L 80.0 280.0" fill="none" stroke="#2F5D46" stroke-width="3" stroke-linejoin="round"/>
+<path d="M 48.0 248.0 L 112.0 248.0" fill="none" stroke="#2F5D46" stroke-width="3" stroke-linejoin="round"/>
+<path d="M 54.0 322.0 L 80.0 280.0 L 106.0 322.0" fill="none" stroke="#2F5D46" stroke-width="3" stroke-linejoin="round"/>
+<text x="80.0" y="348.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Traveller</text>
+<circle cx="80" cy="860" r="17" fill="#FCF8F4" stroke="#2F5D46" stroke-width="3"/>
+<path d="M 80.0 877.0 L 80.0 930.0" fill="none" stroke="#2F5D46" stroke-width="3" stroke-linejoin="round"/>
+<path d="M 48.0 898.0 L 112.0 898.0" fill="none" stroke="#2F5D46" stroke-width="3" stroke-linejoin="round"/>
+<path d="M 54.0 972.0 L 80.0 930.0 L 106.0 972.0" fill="none" stroke="#2F5D46" stroke-width="3" stroke-linejoin="round"/>
+<text x="80.0" y="998.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Trip Organizer</text>
+<path d="M 114.0 248.0 L 205.0 248.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="205.0" cy="248.0" r="3.6" fill="#7E937F"/>
+<path d="M 114.0 898.0 L 150.0 898.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="150.0" cy="898.0" r="3.6" fill="#7E937F"/>
+<path d="M 80.0 840.0 L 80.0 360.0" fill="none" stroke="#2F5D46" stroke-width="2" stroke-linejoin="round" marker-end="url(#general)"/>
+<text x="90.0" y="600.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="start">specialises</text>
+<text x="90.0" y="616.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="normal" font-style="italic" fill="#5A6B5E" text-anchor="start">Traveller</text>
+<path d="M 1660.0 320.0 L 1604.0 320.0 L 1604.0 520.0 L 933.0 520.0 L 933.0 506.8" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 1660.0 332.0 L 1628.0 332.0 L 1628.0 730.0 L 1093.0 730.0 L 1093.0 748.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 1660.0 292.0 L 395.0 292.0 L 395.0 282.0 L 395.0 300.2" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<line x1="1597" y1="426" x2="1611" y2="426" stroke="#F8F4E8" stroke-width="7"/>
+<line x1="1621" y1="426" x2="1635" y2="426" stroke="#F8F4E8" stroke-width="7"/>
+<path d="M 1660.0 426.0 L 1457.0 426.0 L 1457.0 448.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 1660.0 178.0 L 445.0 178.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 1660.0 818.0 L 1123.0 818.0 L 1123.0 805.8" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M 1660.0 852.0 L 1063.0 852.0 L 1063.0 805.8" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<rect x="1660" y="146" width="240" height="64" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<rect x="1660" y="146" width="7" height="64" fill="#2F5D46"/>
+<text x="1784.0" y="162.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="middle">«external»</text>
+<text x="1784.0" y="189.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Google Identity</text>
+<text x="1784.0" y="207.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Services</text>
+<rect x="1660" y="278" width="240" height="64" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<rect x="1660" y="278" width="7" height="64" fill="#2F5D46"/>
+<text x="1784.0" y="301.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="middle">«external»</text>
+<text x="1784.0" y="323.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Google Places API</text>
+<rect x="1660" y="424" width="240" height="64" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<rect x="1660" y="424" width="7" height="64" fill="#2F5D46"/>
+<text x="1784.0" y="447.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="middle">«external»</text>
+<text x="1784.0" y="469.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Google Routes API</text>
+<rect x="1660" y="758" width="240" height="64" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<rect x="1660" y="758" width="7" height="64" fill="#2F5D46"/>
+<text x="1784.0" y="781.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="middle">«external»</text>
+<text x="1784.0" y="803.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">OpenWeather API</text>
+<rect x="1660" y="848" width="240" height="64" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<rect x="1660" y="848" width="7" height="64" fill="#2F5D46"/>
+<text x="1784.0" y="871.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="middle">«timer»</text>
+<text x="1784.0" y="893.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="middle">Time</text>
+<path d="M 991.0 478.0 L 1377.0 478.0" fill="none" stroke="#2F5D46" stroke-width="1.7" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#open-include)"/>
+<path d="M 1457.0 748.0 L 1457.0 508.0" fill="none" stroke="#2F5D46" stroke-width="1.7" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#open-include)"/>
+<path d="M 420.0 499.8 L 1253.0 599.2" fill="none" stroke="#2F5D46" stroke-width="1.7" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#open-include)"/>
+<path d="M 1173.0 628.0 L 1195.0 628.0" fill="none" stroke="#2F5D46" stroke-width="1.7" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#open-include)"/>
+<path d="M 1412.0 753.2 L 1320.0 652.8" fill="none" stroke="#2F5D46" stroke-width="1.7" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#open-include)"/>
+<path d="M 592.0 903.2 L 1245.0 655.8" fill="none" stroke="#2F5D46" stroke-width="1.7" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#open-include)"/>
+<path d="M 1377.0 778.0 L 1173.0 778.0" fill="none" stroke="#B0742A" stroke-width="1.7" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#open-extend)"/>
+<ellipse cx="365" cy="178" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="365.0" y="183.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">1. Sign In</text>
+<ellipse cx="365" cy="328" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="365.0" y="324.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">2. Browse &amp; Search</text>
+<text x="365.0" y="341.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Activities</text>
+<ellipse cx="547" cy="328" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="547.0" y="324.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">3. Rate &amp; Review</text>
+<text x="547.0" y="341.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Activity</text>
+<ellipse cx="365" cy="478" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="365.0" y="474.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">7. Add Place</text>
+<text x="365.0" y="491.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">to Itinerary</text>
+<ellipse cx="729" cy="478" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="729.0" y="483.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">4. Create Trip</text>
+<ellipse cx="911" cy="478" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="911.0" y="474.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">5. Generate</text>
+<text x="911.0" y="491.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Itinerary</text>
+<ellipse cx="1457" cy="478" rx="80" ry="30" fill="#E4ECE0" stroke="#2F5D46" stroke-width="2"/>
+<text x="1457.0" y="474.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">6. Rank &amp; Schedule</text>
+<text x="1457.0" y="491.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Day Plan</text>
+<ellipse cx="365" cy="628" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="365.0" y="633.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">8. Create Group</text>
+<ellipse cx="547" cy="628" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="547.0" y="633.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">9. Join Group</text>
+<ellipse cx="729" cy="628" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="729.0" y="624.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">10. Set Group</text>
+<text x="729.0" y="641.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Preferences</text>
+<ellipse cx="911" cy="628" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="911.0" y="633.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">11. Leave Group</text>
+<ellipse cx="1093" cy="628" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="1093.0" y="624.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">12. View &amp; Adjust</text>
+<text x="1093.0" y="641.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Itinerary</text>
+<ellipse cx="1275" cy="628" rx="80" ry="30" fill="#E4ECE0" stroke="#2F5D46" stroke-width="2"/>
+<text x="1275.0" y="633.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">13. Notify Trip Party</text>
+<ellipse cx="1093" cy="778" rx="80" ry="30" fill="#E4ECE0" stroke="#2F5D46" stroke-width="2"/>
+<text x="1093.0" y="774.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">14. Monitor Trip</text>
+<text x="1093.0" y="791.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Conditions</text>
+<ellipse cx="1457" cy="778" rx="80" ry="30" fill="#E4ECE0" stroke="#2F5D46" stroke-width="2"/>
+<text x="1457.0" y="783.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">15. Re-plan Itinerary</text>
+<ellipse cx="365" cy="928" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="365.0" y="933.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">23. View Trip Map</text>
+<ellipse cx="547" cy="928" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="547.0" y="924.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">24. Tick Off Stops</text>
+<text x="547.0" y="941.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">on Arrival</text>
+<ellipse cx="729" cy="928" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="729.0" y="924.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">25. Share Location</text>
+<text x="729.0" y="941.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">with Group</text>
+<ellipse cx="365" cy="1078" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="365.0" y="1083.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">16. Find Travellers</text>
+<ellipse cx="547" cy="1078" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="547.0" y="1083.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">17. Manage Friends</text>
+<ellipse cx="729" cy="1078" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="729.0" y="1074.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">18. Set Account</text>
+<text x="729.0" y="1091.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Privacy</text>
+<ellipse cx="911" cy="1078" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="911.0" y="1083.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">19. Share Trip</text>
+<ellipse cx="1093" cy="1078" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="1093.0" y="1083.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">20. Browse Feed</text>
+<ellipse cx="1275" cy="1078" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="1275.0" y="1083.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">21. React to Post</text>
+<ellipse cx="1457" cy="1078" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="1457.0" y="1083.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">22. Copy Shared Trip</text>
+<ellipse cx="365" cy="1228" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="365.0" y="1233.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">27. Find Nearby Trips</text>
+<ellipse cx="547" cy="1228" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="547.0" y="1233.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">28. Ask to Join Trip</text>
+<ellipse cx="911" cy="1228" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="911.0" y="1224.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">26. Open Trip to</text>
+<text x="911.0" y="1241.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Nearby Travellers</text>
+<ellipse cx="1093" cy="1228" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
+<text x="1093.0" y="1224.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">29. Answer Join</text>
+<text x="1093.0" y="1241.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Request</text>
+<rect x="1150.0" y="455.0" width="68" height="17" rx="3" fill="#F8F4E8" opacity="0.92"/>
+<text x="1184.0" y="468.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="middle">«include»</text>
+<rect x="1463.0" y="586.2" width="68" height="17" rx="3" fill="#F8F4E8" opacity="0.92"/>
+<text x="1497.0" y="599.2" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="middle">«include»</text>
+<rect x="844.1500000000001" y="529.4396593635882" width="68" height="17" rx="3" fill="#F8F4E8" opacity="0.92"/>
+<text x="878.2" y="542.4" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="middle">«include»</text>
+<rect x="1140.0" y="649.0" width="68" height="17" rx="3" fill="#F8F4E8" opacity="0.92"/>
+<text x="1174.0" y="662.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="middle">«include»</text>
+<rect x="1376.0" y="690.0" width="68" height="17" rx="3" fill="#F8F4E8" opacity="0.92"/>
+<text x="1410.0" y="703.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="middle">«include»</text>
+<rect x="845.85" y="764.8726797492972" width="68" height="17" rx="3" fill="#F8F4E8" opacity="0.92"/>
+<text x="879.9" y="777.9" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="middle">«include»</text>
+<rect x="1241.0" y="755.0" width="68" height="17" rx="3" fill="#F8F4E8" opacity="0.92"/>
+<text x="1275.0" y="768.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="600" font-style="normal" fill="#B0742A" text-anchor="middle">«extend»</text>
+<path d="M 300.0 1370.0 L 340.0 1370.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
+<text x="350.0" y="1375.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="normal" fill="#3F4F45" text-anchor="start">association (each branch of an actor's line ends at one of its use cases)</text>
+<path d="M 930.0 1370.0 L 970.0 1370.0" fill="none" stroke="#2F5D46" stroke-width="1.8" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#open-include)"/>
+<text x="980.0" y="1375.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="normal" fill="#3F4F45" text-anchor="start">«include»</text>
+<path d="M 1070.0 1370.0 L 1110.0 1370.0" fill="none" stroke="#B0742A" stroke-width="1.8" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#open-extend)"/>
+<text x="1120.0" y="1375.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="normal" fill="#3F4F45" text-anchor="start">«extend»</text>
+<ellipse cx="1260" cy="1370" rx="26" ry="11" fill="#E4ECE0" stroke="#2F5D46" stroke-width="1.6"/>
+<text x="1294.0" y="1375.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="normal" fill="#3F4F45" text-anchor="start">started by the system or included</text>
+</svg>
