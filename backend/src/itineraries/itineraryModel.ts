@@ -1,7 +1,8 @@
 import { type HydratedDocument, Schema, type Types, model } from 'mongoose';
 
 import { INTEREST_TAGS, type InterestTag } from '../activities/interests';
-import { PACES, type Pace } from './engine/types';
+import { PACES, type Pace, TRANSPORT_MODES, type TransportMode } from './engine/types';
+import { BUDGETS, type Budget } from './tripOptions';
 
 export interface ItineraryStop {
   activityId: Types.ObjectId;
@@ -15,6 +16,8 @@ export interface ItineraryStop {
   /** Travel from the previous stop, or from the lodging for the first stop. */
   travelMinutes: number;
   communityScore: number;
+  /** A locked stop stays in place when the day is re-planned. */
+  locked: boolean;
 }
 
 export interface ItineraryDay {
@@ -35,7 +38,10 @@ export interface Lodging {
 
 /** A generated trip plan. The trip details are embedded so one document holds the whole itinerary. */
 export interface Itinerary {
+  /** Who generated it. */
   userId: Types.ObjectId;
+  /** Set for a group trip: every member of the group can see it. Personal trips have none. */
+  groupId?: Types.ObjectId | undefined;
   city: string;
   startDate: string;
   endDate: string;
@@ -47,12 +53,21 @@ export interface Itinerary {
   departureTime?: string | undefined;
   interests: InterestTag[];
   pace: Pace;
+  transportMode: TransportMode;
+  budget: Budget;
+  /** Activities the traveller asked to include, and to leave out. */
+  mustSeeIds: Types.ObjectId[];
+  avoidIds: Types.ObjectId[];
+  /** Whether travel times came from Google Routes or from the offline estimate. */
+  travelTimeSource: 'google-routes' | 'estimate';
   lodging: Lodging;
   days: ItineraryDay[];
   candidateCount: number;
   unscheduledCount: number;
   warnings: string[];
   generationMs: number;
+  /** Bumped on every adjustment, so two people editing at once cannot overwrite each other. */
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,6 +85,7 @@ const stopSchema = new Schema<ItineraryStop>(
     endTime: { type: String, required: true },
     travelMinutes: { type: Number, required: true },
     communityScore: { type: Number, required: true },
+    locked: { type: Boolean, default: false },
   },
   { _id: false },
 );
@@ -87,6 +103,7 @@ const daySchema = new Schema<ItineraryDay>(
 const itinerarySchema = new Schema<Itinerary>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    groupId: { type: Schema.Types.ObjectId, ref: 'Group', index: true },
     city: { type: String, required: true },
     startDate: { type: String, required: true },
     endDate: { type: String, required: true },
@@ -96,6 +113,11 @@ const itinerarySchema = new Schema<Itinerary>(
     departureTime: { type: String },
     interests: { type: [{ type: String, enum: INTEREST_TAGS }], default: [] },
     pace: { type: String, enum: PACES, required: true },
+    transportMode: { type: String, enum: TRANSPORT_MODES, default: 'transit' },
+    budget: { type: String, enum: BUDGETS, default: 'any' },
+    mustSeeIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Activity' }], default: [] },
+    avoidIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Activity' }], default: [] },
+    travelTimeSource: { type: String, enum: ['google-routes', 'estimate'], default: 'estimate' },
     lodging: {
       label: { type: String, required: true },
       ...pointSchema,
@@ -106,6 +128,7 @@ const itinerarySchema = new Schema<Itinerary>(
     unscheduledCount: { type: Number, required: true },
     warnings: { type: [String], default: [] },
     generationMs: { type: Number, required: true },
+    version: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

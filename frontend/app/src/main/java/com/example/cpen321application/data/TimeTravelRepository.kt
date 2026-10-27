@@ -61,9 +61,13 @@ class TimeTravelRepository(
     suspend fun generateItinerary(request: GenerateItineraryRequest): Result<Itinerary> =
         apiCall { api.generateItinerary(request) }
 
-    /** The traveller's most recent itineraries, newest first. */
-    suspend fun recentItineraries(): Result<List<ItinerarySummary>> =
-        apiCall { api.itineraries() }.map { response -> response.itineraries }
+    /** The traveller's most recent personal and group itineraries, newest first; only one group's with `groupId`. */
+    suspend fun recentItineraries(groupId: String? = null): Result<List<ItinerarySummary>> =
+        apiCall { api.itineraries(groupId) }.map { response -> response.itineraries }
 
     suspend fun itinerary(itineraryId: String): Result<Itinerary> = apiCall { api.itinerary(itineraryId) }
+
+    /** View & Adjust Itinerary: locks, unlocks, removes or moves a stop, or re-plans a day; returns the new plan. */
+    suspend fun adjustItinerary(itineraryId: String, request: AdjustRequest): Result<Itinerary> =
+        apiCall { api.adjustItinerary(itineraryId, request) }
 }

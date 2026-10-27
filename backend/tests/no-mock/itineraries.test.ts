@@ -1,10 +1,13 @@
 import request from 'supertest';
 
+import { ActivityModel } from '../../src/activities/activityModel';
 import { DEMO_VANCOUVER_PLACES } from '../../src/dev/demoVancouverPlaces';
+import type { GroupDto } from '../../src/groups/groupService';
 import type { ItineraryDto, ItinerarySummaryDto } from '../../src/itineraries/itineraryService';
 import { ItineraryModel } from '../../src/itineraries/itineraryModel';
 import { createTestApp, seedVancouver, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
+import { seedTestville } from '../helpers/testville';
 
 // 2026-10-26 is a Monday, when the Museum of Anthropology (demo data) is closed.
 const MUSEUM_WEEKEND = {
@@ -17,8 +20,14 @@ const MUSEUM_WEEKEND = {
   pace: 'moderate',
 };
 
+const TESTVILLE_DAY = { city: 'Testville', startDate: '2026-10-24', endDate: '2026-10-24', dayStart: '09:00', dayEnd: '18:00' };
+
 function allStops(itinerary: ItineraryDto): ItineraryDto['days'][number]['stops'] {
   return itinerary.days.flatMap((day) => day.stops);
+}
+
+async function testvilleId(name: string): Promise<string> {
+  return (await ActivityModel.findOne({ name }))?._id.toString() ?? '';
 }
 
 beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
@@ -198,6 +207,164 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
 
     expect(response.status).toBe(401);
   });
+
+  // Input: a group trip; the owner's group interests are museums, the member's are outdoors and food,
+  //        and the member vetoed Stanley Park Seawall (the best-rated outdoor activity)
+  // Expected status code: 201
+  // Expected behavior: the plan uses every member's interests and leaves out vetoed activities;
+  //                    it is stored as the group's, so the other member can open it
+  // Expected output: groupId set, interests [museums, outdoors, food], no Stanley Park Seawall; the member's GET returns 200
+  test("Plans a group trip from every member's interests and vetoes", async () => {
+    const { app, authService, activityService } = createTestApp();
+    const owner = await signedInUser(authService, 'Trip Owner');
+    const member = await signedInUser(authService, 'Group Member');
+    await seedVancouver(activityService);
+    const seawall = await ActivityModel.findOne({ name: 'Stanley Park Seawall' });
+    const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
+    await request(app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
+    await request(app).put(`/api/groups/${group.id}/members/me`).set(owner.authorization).send({ interests: ['museums'] });
+    await request(app)
+      .put(`/api/groups/${group.id}/members/me`)
+      .set(member.authorization)
+      .send({ interests: ['outdoors', 'food'], vetoedActivityIds: [seawall?._id.toString()] });
+
+    const response = await request(app)
+      .post('/api/itineraries/generate')
+      .set(owner.authorization)
+      .send({ ...MUSEUM_WEEKEND, interests: ['nightlife'], groupId: group.id });
+
+    const itinerary = response.body as ItineraryDto;
+    expect(response.status).toBe(201);
+    expect(itinerary.groupId).toBe(group.id);
+    expect(itinerary.interests).toEqual(['museums', 'outdoors', 'food']);
+    expect(allStops(itinerary).length).toBeGreaterThan(0);
+    expect(allStops(itinerary).map((stop) => stop.name)).not.toContain('Stanley Park Seawall');
+    const memberView = await request(app).get(`/api/itineraries/${itinerary.id}`).set(member.authorization);
+    expect(memberView.status).toBe(200);
+  });
+
+  // Input: a trip for a group the traveller does not belong to, and a groupId that is not an id
+  // Expected status code: 404 and 400
+  // Expected behavior: nothing is generated or stored
+  // Expected output: { error: "Group not found" }, then { error: "Invalid request", ... }
+  test.each([
+    ['not a member', 404],
+    ['not-an-id', 400],
+  ])('Invalid group: %s', async (scenario, status) => {
+    const { app, authService, activityService } = createTestApp();
+    const owner = await signedInUser(authService, 'Trip Owner');
+    const stranger = await signedInUser(authService, 'Someone Else');
+    await seedVancouver(activityService);
+    const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
+    const groupId = scenario === 'not a member' ? group.id : scenario;
+
+    const response = await request(app).post('/api/itineraries/generate').set(stranger.authorization).send({ ...MUSEUM_WEEKEND, groupId });
+
+    expect(response.status).toBe(status);
+    expect(await ItineraryModel.countDocuments()).toBe(0);
+  });
+
+  // Input: a one-day Testville trip on foot with a low budget
+  // Expected status code: 201
+  // Expected behavior: Town Museum (expensive) is left out; the options are stored with the plan
+  // Expected output: transportMode "walk", budget "low", travelTimeSource "estimate", no Town Museum
+  test('Plans with a transport mode and a budget', async () => {
+    const { app, authService, activityService } = createTestApp();
+    const { authorization } = await signedInUser(authService);
+    await seedTestville(activityService);
+
+    const response = await request(app)
+      .post('/api/itineraries/generate')
+      .set(authorization)
+      .send({ ...TESTVILLE_DAY, transportMode: 'walk', budget: 'low' });
+
+    const itinerary = response.body as ItineraryDto;
+    expect(response.status).toBe(201);
+    expect(itinerary).toMatchObject({ transportMode: 'walk', budget: 'low', travelTimeSource: 'estimate' });
+    expect(allStops(itinerary).length).toBeGreaterThan(0);
+    expect(allStops(itinerary).map((stop) => stop.name)).not.toContain('Town Museum');
+  });
+
+  // Input: a Testville day until 21:00 that must include Night Market (opens 17:00) and must avoid Harbour Park
+  // Expected status code: 201
+  // Expected behavior: the must-see is scheduled even though it ranks no higher than the rest; the avoided place is not
+  // Expected output: Night Market in the plan, Harbour Park not; both lists echoed
+  test('Includes must-see places and leaves out avoided ones', async () => {
+    const { app, authService, activityService } = createTestApp();
+    const { authorization } = await signedInUser(authService);
+    await seedTestville(activityService);
+    const market = await testvilleId('Night Market');
+    const park = await testvilleId('Harbour Park');
+
+    const response = await request(app)
+      .post('/api/itineraries/generate')
+      .set(authorization)
+      .send({ ...TESTVILLE_DAY, dayEnd: '21:00', mustSeeIds: [market], avoidIds: [park] });
+
+    const itinerary = response.body as ItineraryDto;
+    const names = allStops(itinerary).map((stop) => stop.name);
+    expect(response.status).toBe(201);
+    expect(names).toContain('Night Market');
+    expect(names).not.toContain('Harbour Park');
+    expect(itinerary).toMatchObject({ mustSeeIds: [market], avoidIds: [park] });
+    expect(itinerary.warnings).toEqual([]);
+  });
+
+  // Input: must-sees that cannot be included: Night Market on a day ending at 16:00, a place from another city,
+  //        and (in a group trip) a place another member vetoed
+  // Expected status code: 201 for each
+  // Expected behavior: the rest of the plan is generated, and the traveller is told why each must-see is missing
+  // Expected output: one warning per missing must-see, with its reason
+  test('Explains must-see places it cannot include', async () => {
+    const { app, authService, activityService } = createTestApp();
+    const owner = await signedInUser(authService, 'Trip Owner');
+    const member = await signedInUser(authService, 'Group Member');
+    await seedTestville(activityService);
+    await seedVancouver(activityService);
+    const market = await testvilleId('Night Market');
+    const lookout = await testvilleId('Lookout Tower');
+    const elsewhere = (await ActivityModel.findOne({ name: 'Stanley Park Seawall' }))?._id.toString();
+    const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
+    await request(app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
+    await request(app).put(`/api/groups/${group.id}/members/me`).set(member.authorization).send({ vetoedActivityIds: [lookout] });
+
+    const solo = await request(app)
+      .post('/api/itineraries/generate')
+      .set(owner.authorization)
+      .send({ ...TESTVILLE_DAY, dayEnd: '16:00', mustSeeIds: [market, elsewhere] });
+    const grouped = await request(app)
+      .post('/api/itineraries/generate')
+      .set(owner.authorization)
+      .send({ ...TESTVILLE_DAY, mustSeeIds: [lookout], groupId: group.id });
+
+    expect(solo.status).toBe(201);
+    expect((solo.body as ItineraryDto).warnings).toEqual([
+      'Night Market did not fit your days: check its opening hours.',
+      "One of your must-see places is not in this city's activities.",
+    ]);
+    expect(grouped.status).toBe(201);
+    expect((grouped.body as ItineraryDto).warnings).toEqual(['Lookout Tower was vetoed by a member of the group, so it was left out.']);
+  });
+
+  // Input: an unknown transport mode, an unknown budget, a place both must-see and avoided, and 11 must-sees
+  // Expected status code: 400 for each
+  // Expected behavior: nothing is generated
+  // Expected output: { error: "Invalid request", details: [...] }
+  test.each([
+    { transportMode: 'teleport' },
+    { budget: 'luxury' },
+    { mustSeeIds: ['64b7f0c2a1b2c3d4e5f60718'], avoidIds: ['64b7f0c2a1b2c3d4e5f60718'] },
+    { mustSeeIds: Array.from({ length: 11 }, (_, index) => `64b7f0c2a1b2c3d4e5f607${String(10 + index)}`) },
+  ])('Invalid trip options %#', async (options) => {
+    const { app, authService, activityService } = createTestApp();
+    const { authorization } = await signedInUser(authService);
+    await seedTestville(activityService);
+
+    const response = await request(app).post('/api/itineraries/generate').set(authorization).send({ ...TESTVILLE_DAY, ...options });
+
+    expect(response.status).toBe(400);
+    expect(await ItineraryModel.countDocuments()).toBe(0);
+  });
 });
 
 // Interface GET /api/itineraries/:itineraryId
@@ -285,5 +452,48 @@ describe('Unmocked: GET /api/itineraries', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ itineraries: [] });
+  });
+
+  // Input: the owner has a personal trip and a group trip; a member of the group lists theirs, then filters by the group
+  // Expected status code: 200 for both
+  // Expected behavior: the member sees the group's trip but not the owner's personal one
+  // Expected output: one summary with groupId set, both times
+  test("Lists the traveller's group trips", async () => {
+    const { app, authService, activityService } = createTestApp();
+    const owner = await signedInUser(authService, 'Trip Owner');
+    const member = await signedInUser(authService, 'Group Member');
+    await seedVancouver(activityService);
+    const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
+    await request(app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
+    await request(app).post('/api/itineraries/generate').set(owner.authorization).send(MUSEUM_WEEKEND);
+    await request(app).post('/api/itineraries/generate').set(owner.authorization).send({ ...MUSEUM_WEEKEND, groupId: group.id });
+
+    const all = await request(app).get('/api/itineraries').set(member.authorization);
+    const filtered = await request(app).get('/api/itineraries').query({ groupId: group.id }).set(member.authorization);
+
+    for (const response of [all, filtered]) {
+      const summaries = (response.body as { itineraries: ItinerarySummaryDto[] }).itineraries;
+      expect(response.status).toBe(200);
+      expect(summaries.map((summary) => summary.groupId)).toEqual([group.id]);
+    }
+  });
+
+  // Input: a filter by a group the traveller is not in, and a filter that is not an id
+  // Expected status code: 404 and 400
+  // Expected behavior: the group's trips are not revealed
+  // Expected output: { error: "Group not found" }, then { error: "Invalid request", ... }
+  test.each([
+    ['not a member', 404],
+    ['not-an-id', 400],
+  ])('Invalid group filter: %s', async (scenario, status) => {
+    const { app, authService } = createTestApp();
+    const owner = await signedInUser(authService, 'Trip Owner');
+    const stranger = await signedInUser(authService, 'Someone Else');
+    const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
+    const groupId = scenario === 'not a member' ? group.id : scenario;
+
+    const response = await request(app).get('/api/itineraries').query({ groupId }).set(stranger.authorization);
+
+    expect(response.status).toBe(status);
   });
 });

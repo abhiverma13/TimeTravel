@@ -22,15 +22,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import com.example.cpen321application.data.ItinerarySummary
 import com.example.cpen321application.data.UserProfile
 import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.SectionLabel
 import com.example.cpen321application.ui.common.TestTags
+import com.example.cpen321application.ui.common.TripCard
 import com.example.cpen321application.ui.common.Wordmark
-import com.example.cpen321application.ui.common.countText
 import com.example.cpen321application.ui.common.interestLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,6 +67,12 @@ fun HomeScreen(
                 highlighted = true,
             )
             HomeActionCard(
+                title = "Groups",
+                subtitle = "Plan trips with friends: everyone's interests count, and anyone can veto a stop.",
+                onClick = actions.onGroups,
+                modifier = Modifier.testTag(TestTags.HOME_GROUPS),
+            )
+            HomeActionCard(
                 title = "Explore & review",
                 subtitle = "Browse a city's best-rated activities, and rate and tag the ones you have done.",
                 onClick = actions.onExplore,
@@ -76,7 +80,9 @@ fun HomeScreen(
             )
             if (recentTrips.isNotEmpty()) {
                 SectionLabel("Recent trips")
-                recentTrips.forEach { trip -> RecentTripCard(trip, onClick = { actions.onOpenItinerary(trip.id) }) }
+                recentTrips.forEach { trip ->
+                    TripCard(trip, onClick = { actions.onOpenItinerary(trip.id) }, modifier = Modifier.testTag(TestTags.RECENT_TRIP))
+                }
             }
             ProfileCard(user = user, onEdit = actions.onEditProfile)
         }
@@ -87,28 +93,11 @@ fun HomeScreen(
 data class HomeActions(
     val onPlanTrip: () -> Unit,
     val onExplore: () -> Unit,
+    val onGroups: () -> Unit,
     val onOpenItinerary: (String) -> Unit,
     val onEditProfile: () -> Unit,
     val onSignOut: () -> Unit,
 )
-
-private val TRIP_DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d")
-
-@Composable
-private fun RecentTripCard(trip: ItinerarySummary, onClick: () -> Unit) {
-    val start = LocalDate.parse(trip.startDate).format(TRIP_DATE_FORMAT)
-    val end = LocalDate.parse(trip.endDate).format(TRIP_DATE_FORMAT)
-    BrandCard(onClick = onClick, modifier = Modifier.fillMaxWidth().testTag(TestTags.RECENT_TRIP)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(trip.city, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = (if (start == end) start else "$start to $end") + " · " + countText(trip.stopCount, "stop"),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
 
 // A feature box like the presentation's: cream card, serif title, green bar along the bottom.
 @Composable

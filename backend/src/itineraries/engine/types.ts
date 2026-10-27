@@ -25,6 +25,10 @@ export interface Candidate {
 export const PACES = ['relaxed', 'moderate', 'packed'] as const;
 export type Pace = (typeof PACES)[number];
 
+/** How the traveller gets between stops. Transit includes walking short hops. */
+export const TRANSPORT_MODES = ['walk', 'transit', 'drive'] as const;
+export type TransportMode = (typeof TRANSPORT_MODES)[number];
+
 export interface TripDay {
   /** ISO date, YYYY-MM-DD. */
   date: string;
@@ -43,6 +47,13 @@ export interface PlanRequest {
   /** Where each day starts and ends (the traveller's lodging). */
   origin: GeoPoint;
   interests: readonly string[];
+  /**
+   * For a group: per interest, the share of members (0 to 1) who picked it. When set it replaces
+   * `interests` for scoring, so an interest everyone shares counts more than one person's.
+   */
+  interestShares?: ReadonlyMap<string, number> | undefined;
+  /** Activities the traveller asked for: tried before anything else, never swapped out, and allowed beyond the usual distance. */
+  mustSeeIds?: ReadonlySet<string> | undefined;
   pace: Pace;
 }
 

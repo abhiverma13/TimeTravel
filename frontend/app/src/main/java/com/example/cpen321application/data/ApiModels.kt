@@ -39,6 +39,8 @@ data class TravelActivity(
     val communityTags: CommunityTags?,
     val googleRating: Double?,
     val googleRatingCount: Int,
+    /** free, low, medium or high, from travellers' tags or Google; null when unknown. */
+    val cost: String?,
     val reviewCount: Int,
     val communityScore: Double,
     /** null when the opening hours are unknown. */
@@ -73,6 +75,14 @@ data class GenerateItineraryRequest(
     val interests: List<String>,
     val pace: String,
     val lodging: String?,
+    /** Plans the trip for this group; the members' own interests and vetoes are used instead of `interests`. */
+    val groupId: String? = null,
+    /** walk, transit or drive. */
+    val transportMode: String = "transit",
+    /** any, low or medium. */
+    val budget: String = "any",
+    val mustSeeIds: List<String> = emptyList(),
+    val avoidIds: List<String> = emptyList(),
 )
 
 /** Where each day starts and ends; source is "places" or "city-centre". */
@@ -89,12 +99,16 @@ data class ItineraryStop(
     /** Travel from the previous stop, or from the lodging for the first stop. */
     val travelMinutes: Int,
     val communityScore: Double,
+    /** A locked stop stays in place when the day is re-planned. */
+    val locked: Boolean,
 )
 
 data class ItineraryDay(val date: String, val weekday: Int, val stops: List<ItineraryStop>, val returnTravelMinutes: Int)
 
 data class Itinerary(
     val id: String,
+    /** The group the trip belongs to, or null for a personal trip. */
+    val groupId: String?,
     val city: String,
     val startDate: String,
     val endDate: String,
@@ -104,17 +118,42 @@ data class Itinerary(
     val departureTime: String?,
     val interests: List<String>,
     val pace: String,
+    val transportMode: String,
+    val budget: String,
+    val mustSeeIds: List<String>,
+    val avoidIds: List<String>,
+    /** google-routes or estimate. */
+    val travelTimeSource: String,
     val lodging: Lodging,
     val days: List<ItineraryDay>,
     val candidateCount: Int,
     val unscheduledCount: Int,
     val warnings: List<String>,
     val generationMs: Int,
+    /** Sent back with every adjustment, so an out-of-date copy cannot overwrite someone else's change. */
+    val version: Int,
     val createdAt: String,
 )
 
+/**
+ * One change to a day: action is lock, unlock, remove, move (with toIndex) or replan (with an optional fromTime).
+ * Null fields are left out of the request.
+ */
+data class AdjustRequest(
+    val action: String,
+    val version: Int,
+    val dayIndex: Int,
+    val activityId: String? = null,
+    val toIndex: Int? = null,
+    val fromTime: String? = null,
+)
+
+/** A live update pushed by the back-end after anyone in the trip adjusts it. */
+data class ItineraryChange(val itinerary: Itinerary, val actorId: String, val summary: String)
+
 data class ItinerarySummary(
     val id: String,
+    val groupId: String?,
     val city: String,
     val startDate: String,
     val endDate: String,

@@ -6,6 +6,8 @@ export const MAX_DISTANCE_KM = 25;
 /** The scheduler only sees the best K candidates: small enough to solve fast, large enough to stay interesting. */
 export const MAX_CANDIDATES = 40;
 
+/** Far above any community score, so a must-see activity always outranks the rest. */
+export const MUST_SEE_BONUS = 1000;
 const MATCHING_INTEREST_WEIGHT = 1.5;
 const OTHER_INTEREST_WEIGHT = 0.5;
 
@@ -24,8 +26,23 @@ export function windowsOn(
   return openingHours === null ? ALWAYS_OPEN : openingHours.filter((window) => window.day === weekday);
 }
 
-/** Community score, boosted when the activity matches one of the traveller's interests. */
-export function utilityOf(candidate: Candidate, interests: readonly string[]): number {
+/**
+ * Community score, boosted when the activity matches one of the traveller's interests.
+ * With `interestShares` (a group), the boost grows with the share of members who picked the best
+ * matching interest: all of them gives the full boost, as for a solo traveller; none gives the minimum.
+ */
+export function utilityOf(
+  candidate: Candidate,
+  interests: readonly string[],
+  interestShares?: ReadonlyMap<string, number>,
+): number {
+  if (interestShares !== undefined) {
+    if (interestShares.size === 0) {
+      return candidate.score;
+    }
+    const share = Math.max(0, ...candidate.interests.map((interest) => interestShares.get(interest) ?? 0));
+    return candidate.score * (OTHER_INTEREST_WEIGHT + share * (MATCHING_INTEREST_WEIGHT - OTHER_INTEREST_WEIGHT));
+  }
   if (interests.length === 0) {
     return candidate.score;
   }
@@ -49,10 +66,14 @@ function fitsSomeDay(candidate: Candidate, request: PlanRequest): boolean {
  * or never open during the trip, then keeps the top MAX_CANDIDATES by utility (ties broken by id).
  */
 export function pruneCandidates(candidates: readonly Candidate[], request: PlanRequest): RankedCandidate[] {
+  const isMustSee = (candidate: Candidate): boolean => request.mustSeeIds?.has(candidate.id) ?? false;
   return candidates
-    .filter((candidate) => haversineKm(request.origin, candidate.location) <= MAX_DISTANCE_KM)
+    .filter((candidate) => isMustSee(candidate) || haversineKm(request.origin, candidate.location) <= MAX_DISTANCE_KM)
     .filter((candidate) => fitsSomeDay(candidate, request))
-    .map((candidate) => ({ ...candidate, utility: utilityOf(candidate, request.interests) }))
+    .map((candidate) => ({
+      ...candidate,
+      utility: utilityOf(candidate, request.interests, request.interestShares) + (isMustSee(candidate) ? MUST_SEE_BONUS : 0),
+    }))
     .sort((left, right) => right.utility - left.utility || left.id.localeCompare(right.id))
     .slice(0, MAX_CANDIDATES);
 }

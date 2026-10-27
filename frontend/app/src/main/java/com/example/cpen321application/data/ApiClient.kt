@@ -11,8 +11,8 @@ object ApiClient {
     // Itinerary generation can take a few seconds on a cold catalogue.
     private const val READ_TIMEOUT_SECONDS = 30L
 
-    /** Builds the API client; every request carries the stored session token, if there is one. */
-    fun create(baseUrl: String, sessionStore: SessionStore): TimeTravelApi {
+    /** Builds the Retrofit client every API interface shares; each request carries the stored session token. */
+    fun create(baseUrl: String, sessionStore: SessionStore): Retrofit {
         val authorization = Interceptor { chain ->
             val token = sessionStore.token
             val request = if (token == null) {
@@ -32,6 +32,5 @@ object ApiClient {
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(TimeTravelApi::class.java)
     }
 }

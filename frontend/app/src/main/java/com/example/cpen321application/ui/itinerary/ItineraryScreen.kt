@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,14 +17,19 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -31,12 +37,17 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import com.example.cpen321application.data.Itinerary
 import com.example.cpen321application.data.ItineraryDay
+import com.example.cpen321application.data.ItineraryStop
+import com.example.cpen321application.data.LiveStatus
 import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.SectionLabel
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.clockTime
 import com.example.cpen321application.ui.common.interestLabel
+import com.example.cpen321application.ui.trip.BUDGETS
 import com.example.cpen321application.ui.trip.PACES
+import com.example.cpen321application.ui.trip.TRANSPORT_MODES
+import com.example.cpen321application.ui.trip.labelFor
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -47,8 +58,19 @@ private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, M
 @Composable
 fun ItineraryScreen(viewModel: ItineraryViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsState()
+    val message by viewModel.message.collectAsState()
+    val busy by viewModel.busy.collectAsState()
+    val live by viewModel.live.collectAsState()
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            viewModel.messageShown()
+        }
+    }
     val title = (state as? ItineraryUiState.Loaded)?.itinerary?.city?.let { "$it itinerary" } ?: "Itinerary"
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { Text(title) },
@@ -65,17 +87,72 @@ fun ItineraryScreen(viewModel: ItineraryViewModel, onBack: () -> Unit) {
                 Text(current.message, color = MaterialTheme.colorScheme.error)
                 TextButton(onClick = viewModel::load) { Text("Try again") }
             }
-            is ItineraryUiState.Loaded -> LazyColumn(
-                modifier = modifier,
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-            ) {
-                item { Summary(current.itinerary) }
-                current.itinerary.days.forEachIndexed { index, day ->
-                    dayTimeline(day, dayNumber = index + 1, dayCount = current.itinerary.days.size, city = current.itinerary.city)
+            is ItineraryUiState.Loaded -> Column(modifier) {
+                if (busy) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
+                Timeline(current.itinerary, live, viewModel)
             }
         }
     }
+}
+
+@Composable
+private fun Timeline(itinerary: Itinerary, live: LiveStatus, viewModel: ItineraryViewModel) {
+    LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
+        item { LiveBanner(live) }
+        item { Summary(itinerary) }
+        itinerary.days.forEachIndexed { dayIndex, day ->
+            dayTimeline(
+                day,
+                DayHeading(dayIndex + 1, itinerary.days.size, itinerary.city),
+                itinerary.transportMode,
+                onReplan = { viewModel.replanDay(dayIndex, day.date) },
+            ) { stopIndex, stop ->
+                stopActions(viewModel, StopPosition(dayIndex, stopIndex, day.stops.size), stop, isGroupTrip = itinerary.groupId != null)
+            }
+        }
+    }
+}
+
+/** Where a stop sits in the trip, for the actions that depend on it. */
+private data class StopPosition(val dayIndex: Int, val stopIndex: Int, val stopCount: Int)
+
+private fun stopActions(viewModel: ItineraryViewModel, at: StopPosition, stop: ItineraryStop, isGroupTrip: Boolean): List<StopAction> =
+    buildList {
+        add(
+            if (stop.locked) {
+                StopAction("Unlock", TestTags.STOP_ACTION_LOCK) { viewModel.setLocked(at.dayIndex, stop, locked = false) }
+            } else {
+                StopAction("Lock in place", TestTags.STOP_ACTION_LOCK) { viewModel.setLocked(at.dayIndex, stop, locked = true) }
+            },
+        )
+        if (at.stopIndex > 0) {
+            add(StopAction("Move earlier", TestTags.STOP_ACTION_MOVE_EARLIER) { viewModel.move(at.dayIndex, stop, at.stopIndex - 1) })
+        }
+        if (at.stopIndex < at.stopCount - 1) {
+            add(StopAction("Move later", TestTags.STOP_ACTION_MOVE_LATER) { viewModel.move(at.dayIndex, stop, at.stopIndex + 1) })
+        }
+        add(StopAction("Remove", TestTags.STOP_ACTION_REMOVE) { viewModel.remove(at.dayIndex, stop) })
+        if (isGroupTrip) {
+            add(StopAction("Veto for this group", TestTags.STOP_ACTION_VETO) { viewModel.veto(stop) })
+        }
+    }
+
+// Whether everyone's edits are arriving live, or the device is waiting to reconnect.
+@Composable
+private fun LiveBanner(live: LiveStatus) {
+    val (text, color) = when (live) {
+        LiveStatus.LIVE -> "Live: everyone in the trip sees changes as they happen" to MaterialTheme.colorScheme.secondary
+        LiveStatus.CONNECTING -> "Connecting to live updates..." to MaterialTheme.colorScheme.onSurfaceVariant
+        LiveStatus.OFFLINE -> "Offline: live updates will resume when you reconnect" to MaterialTheme.colorScheme.error
+    }
+    Text(
+        text = text.uppercase(Locale.ROOT),
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        modifier = Modifier.padding(bottom = 8.dp).testTag(TestTags.LIVE_STATUS),
+    )
 }
 
 @Composable
@@ -83,11 +160,16 @@ private fun Summary(itinerary: Itinerary) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 8.dp)) {
         BrandCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                SectionLabel("Your trip")
+                SectionLabel(if (itinerary.groupId != null) "Your group's trip" else "Your trip")
                 Text("From ${itinerary.lodging.label}", style = MaterialTheme.typography.titleMedium)
                 val pace = PACES.firstOrNull { it.first == itinerary.pace }?.second ?: itinerary.pace
                 val interests = itinerary.interests.joinToString(", ") { interestLabel(it) }.ifEmpty { "all interests" }
                 Text("$pace pace · $interests", style = MaterialTheme.typography.bodyMedium)
+                val travelTimes = if (itinerary.travelTimeSource == "google-routes") "travel times from Google Maps" else "estimated travel times"
+                Text(
+                    text = "${labelFor(TRANSPORT_MODES, itinerary.transportMode)} · budget ${labelFor(BUDGETS, itinerary.budget)} · $travelTimes",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 Text(
                     text = "Highest-rated first, but only where the clock, the opening hours and the travel time allow it.",
                     style = MaterialTheme.typography.bodySmall,
@@ -102,18 +184,37 @@ private fun Summary(itinerary: Itinerary) {
             }
         }
         itinerary.warnings.forEach { warning ->
-            BrandCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.ITINERARY_WARNING), containerColor = MaterialTheme.colorScheme.errorContainer) {
+            BrandCard(
+                modifier = Modifier.fillMaxWidth().testTag(TestTags.ITINERARY_WARNING),
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+            ) {
                 Text(warning, color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.padding(14.dp))
             }
         }
     }
 }
 
-private fun LazyListScope.dayTimeline(day: ItineraryDay, dayNumber: Int, dayCount: Int, city: String) {
+/** "Day 2 of 3 · Vancouver". */
+private data class DayHeading(val dayNumber: Int, val dayCount: Int, val city: String)
+
+private fun LazyListScope.dayTimeline(
+    day: ItineraryDay,
+    heading: DayHeading,
+    transportMode: String,
+    onReplan: () -> Unit,
+    stopActions: (Int, ItineraryStop) -> List<StopAction>,
+) {
     item(key = "day-${day.date}") {
         Column(modifier = Modifier.padding(top = 16.dp, bottom = 4.dp).testTag(TestTags.ITINERARY_DAY)) {
-            SectionLabel("Day $dayNumber of $dayCount · $city")
-            Text(LocalDate.parse(day.date).format(DAY_FORMAT.withLocale(Locale.getDefault())), style = MaterialTheme.typography.titleLarge)
+            SectionLabel("Day ${heading.dayNumber} of ${heading.dayCount} · ${heading.city}")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    LocalDate.parse(day.date).format(DAY_FORMAT.withLocale(Locale.getDefault())),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onReplan, modifier = Modifier.testTag(TestTags.DAY_REPLAN_BUTTON)) { Text("Re-plan") }
+            }
         }
     }
     if (day.stops.isEmpty()) {
@@ -121,18 +222,19 @@ private fun LazyListScope.dayTimeline(day: ItineraryDay, dayNumber: Int, dayCoun
         return
     }
     itemsIndexed(day.stops, key = { _, stop -> "${day.date}-${stop.activityId}" }) { index, stop ->
-        TransitRow(transitText(stop.travelMinutes, fromLodging = index == 0))
-        StopRow(stop)
+        TransitRow(transitText(stop.travelMinutes, transportMode, fromLodging = index == 0))
+        StopRow(stop, stopActions(index, stop))
     }
     item(key = "return-${day.date}") {
-        TransitRow("Back at lodging by ${backAt(day)}  ·  ${day.returnTravelMinutes} min transit")
+        TransitRow("Back at lodging by ${backAt(day)}  ·  ${day.returnTravelMinutes} min $transportMode")
     }
 }
 
-private fun transitText(minutes: Int, fromLodging: Boolean): String = when {
+// The mode is walk, transit or drive, so it reads as "14 min walk".
+private fun transitText(minutes: Int, transportMode: String, fromLodging: Boolean): String = when {
     minutes == 0 -> "Next door"
     fromLodging -> "$minutes min from lodging"
-    else -> "$minutes min transit"
+    else -> "$minutes min $transportMode"
 }
 
 private fun backAt(day: ItineraryDay): String {

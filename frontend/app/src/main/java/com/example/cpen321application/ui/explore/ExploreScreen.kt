@@ -90,8 +90,12 @@ fun ExploreScreen(viewModel: ExploreViewModel, onBack: () -> Unit) {
         ) {
             item { CitySearch(state.city, state.loading, viewModel::onCityChange, viewModel::search) }
             item { InterestFilter(state.interest, viewModel::onInterestSelected) }
-            exploreResults(state, onRate = viewModel::startRating)
+            exploreResults(state, onRate = viewModel::startRating, onAdd = viewModel::startAddToTrip)
         }
+    }
+
+    state.adding?.let { adding ->
+        AddToTripDialog(adding, viewModel::chooseTrip, viewModel::addToDay, viewModel::dismissAddToTrip)
     }
 
     val rating = state.rating
@@ -106,7 +110,7 @@ fun ExploreScreen(viewModel: ExploreViewModel, onBack: () -> Unit) {
     }
 }
 
-private fun LazyListScope.exploreResults(state: ExploreUiState, onRate: (TravelActivity) -> Unit) {
+private fun LazyListScope.exploreResults(state: ExploreUiState, onRate: (TravelActivity) -> Unit, onAdd: (TravelActivity) -> Unit) {
     when {
         state.loading -> item {
             Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {
@@ -125,7 +129,7 @@ private fun LazyListScope.exploreResults(state: ExploreUiState, onRate: (TravelA
         else -> {
             item { SectionLabel("Best-rated in ${state.searchedCity}") }
             items(state.activities, key = { it.id }) { activity ->
-                ActivityCard(activity = activity, onRate = { onRate(activity) })
+                ActivityCard(activity = activity, onRate = { onRate(activity) }, onAdd = { onAdd(activity) })
             }
         }
     }
@@ -167,7 +171,7 @@ private fun InterestFilter(selected: String?, onSelect: (String?) -> Unit) {
 }
 
 @Composable
-private fun ActivityCard(activity: TravelActivity, onRate: () -> Unit) {
+private fun ActivityCard(activity: TravelActivity, onRate: () -> Unit, onAdd: () -> Unit) {
     BrandCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.ACTIVITY_CARD)) {
         Column(
             modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 4.dp, bottom = 4.dp),
@@ -187,6 +191,7 @@ private fun ActivityCard(activity: TravelActivity, onRate: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
+                TextButton(onClick = onAdd, modifier = Modifier.testTag(TestTags.ADD_TO_TRIP_BUTTON)) { Text("Add to trip") }
                 TextButton(onClick = onRate, modifier = Modifier.testTag(TestTags.RATE_BUTTON)) { Text("Rate") }
             }
         }
