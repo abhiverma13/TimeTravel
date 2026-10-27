@@ -6,6 +6,7 @@
 | --------------- | --------------------- | ------------- |
 | 2026-10-17 | All | First version for CP1: back-end interface tests for every API of the Auth & Profile Service, the Activity & Review Service and the Itinerary Engine; the first non-functional requirement test; and the end-to-end test design for Generate Itinerary. |
 | 2026-10-26 | 2.1.1 | Added the Group Service interfaces (create, list, join, read, set preferences, remove a member, delete), tested with and without mocks, and group trips in the Itinerary Engine interfaces (`groupId` on generate and on the itinerary list). |
+| 2026-10-26 | 2.1.1, 3 | Added `POST /api/itineraries/:itineraryId/adjust` and the Socket.io live-update interface, tested with and without mocks, and the NFR 2 (live update latency) test with its log. |
 
 ---
 
@@ -22,16 +23,18 @@
 | **PUT /api/users/me** | [`backend/tests/no-mock/auth.test.ts#L153`](../backend/tests/no-mock/auth.test.ts#L153) | [`backend/tests/mock/auth.test.ts#L195`](../backend/tests/mock/auth.test.ts#L195) | User DB |
 | **GET /api/activities** | [`backend/tests/no-mock/activities.test.ts#L22`](../backend/tests/no-mock/activities.test.ts#L22) | [`backend/tests/mock/activities.test.ts#L46`](../backend/tests/mock/activities.test.ts#L46), [`#L201`](../backend/tests/mock/activities.test.ts#L201) (through the production Google Places client) | Google Places API, Activity DB |
 | **POST /api/activities/:activityId/reviews** | [`backend/tests/no-mock/reviews.test.ts#L27`](../backend/tests/no-mock/reviews.test.ts#L27) | [`backend/tests/mock/reviews.test.ts#L25`](../backend/tests/mock/reviews.test.ts#L25) | Review DB, Activity DB, City catalogue DB |
-| **POST /api/groups** | [`backend/tests/no-mock/groups.test.ts#L27`](../backend/tests/no-mock/groups.test.ts#L27) | [`backend/tests/mock/groups.test.ts#L25`](../backend/tests/mock/groups.test.ts#L25) | Group DB (invite-code collisions, write failures) |
-| **GET /api/groups** | [`backend/tests/no-mock/groups.test.ts#L77`](../backend/tests/no-mock/groups.test.ts#L77) | [`backend/tests/mock/groups.test.ts#L78`](../backend/tests/mock/groups.test.ts#L78) | Group DB |
-| **POST /api/groups/join** | [`backend/tests/no-mock/groups.test.ts#L120`](../backend/tests/no-mock/groups.test.ts#L120) | [`backend/tests/mock/groups.test.ts#L97`](../backend/tests/mock/groups.test.ts#L97) | Group DB |
-| **GET /api/groups/:groupId** | [`backend/tests/no-mock/groups.test.ts#L211`](../backend/tests/no-mock/groups.test.ts#L211) | [`backend/tests/mock/groups.test.ts#L118`](../backend/tests/mock/groups.test.ts#L118) | Group DB |
-| **PUT /api/groups/:groupId/members/me** | [`backend/tests/no-mock/groups.test.ts#L249`](../backend/tests/no-mock/groups.test.ts#L249) | [`backend/tests/mock/groups.test.ts#L137`](../backend/tests/mock/groups.test.ts#L137) | Group DB (member removed during the update) |
-| **DELETE /api/groups/:groupId/members/:userId** | [`backend/tests/no-mock/groups.test.ts#L308`](../backend/tests/no-mock/groups.test.ts#L308) | [`backend/tests/mock/groups.test.ts#L157`](../backend/tests/mock/groups.test.ts#L157) | Group DB |
-| **DELETE /api/groups/:groupId** | [`backend/tests/no-mock/groups.test.ts#L381`](../backend/tests/no-mock/groups.test.ts#L381) | [`backend/tests/mock/groups.test.ts#L179`](../backend/tests/mock/groups.test.ts#L179) | Itinerary DB |
+| **POST /api/groups** | [`backend/tests/no-mock/groups.test.ts#L23`](../backend/tests/no-mock/groups.test.ts#L23) | [`backend/tests/mock/groups.test.ts#L25`](../backend/tests/mock/groups.test.ts#L25) | Group DB (invite-code collisions, write failures) |
+| **GET /api/groups** | [`backend/tests/no-mock/groups.test.ts#L73`](../backend/tests/no-mock/groups.test.ts#L73) | [`backend/tests/mock/groups.test.ts#L78`](../backend/tests/mock/groups.test.ts#L78) | Group DB |
+| **POST /api/groups/join** | [`backend/tests/no-mock/groups.test.ts#L116`](../backend/tests/no-mock/groups.test.ts#L116) | [`backend/tests/mock/groups.test.ts#L97`](../backend/tests/mock/groups.test.ts#L97) | Group DB |
+| **GET /api/groups/:groupId** | [`backend/tests/no-mock/groups.test.ts#L207`](../backend/tests/no-mock/groups.test.ts#L207) | [`backend/tests/mock/groups.test.ts#L118`](../backend/tests/mock/groups.test.ts#L118) | Group DB |
+| **PUT /api/groups/:groupId/members/me** | [`backend/tests/no-mock/groups.test.ts#L245`](../backend/tests/no-mock/groups.test.ts#L245) | [`backend/tests/mock/groups.test.ts#L137`](../backend/tests/mock/groups.test.ts#L137) | Group DB (member removed during the update) |
+| **DELETE /api/groups/:groupId/members/:userId** | [`backend/tests/no-mock/groups.test.ts#L304`](../backend/tests/no-mock/groups.test.ts#L304) | [`backend/tests/mock/groups.test.ts#L157`](../backend/tests/mock/groups.test.ts#L157) | Group DB |
+| **DELETE /api/groups/:groupId** | [`backend/tests/no-mock/groups.test.ts#L377`](../backend/tests/no-mock/groups.test.ts#L377) | [`backend/tests/mock/groups.test.ts#L179`](../backend/tests/mock/groups.test.ts#L179) | Itinerary DB |
 | **POST /api/itineraries/generate** | [`backend/tests/no-mock/itineraries.test.ts#L31`](../backend/tests/no-mock/itineraries.test.ts#L31) | [`backend/tests/mock/itineraries.test.ts#L34`](../backend/tests/mock/itineraries.test.ts#L34) | Google Places API (lodging lookup), Itinerary DB |
 | **GET /api/itineraries/:itineraryId** | [`backend/tests/no-mock/itineraries.test.ts#L262`](../backend/tests/no-mock/itineraries.test.ts#L262) | [`backend/tests/mock/itineraries.test.ts#L133`](../backend/tests/mock/itineraries.test.ts#L133) | Itinerary DB |
 | **GET /api/itineraries** | [`backend/tests/no-mock/itineraries.test.ts#L311`](../backend/tests/no-mock/itineraries.test.ts#L311) | [`backend/tests/mock/itineraries.test.ts#L154`](../backend/tests/mock/itineraries.test.ts#L154) | Itinerary DB |
+| **POST /api/itineraries/:itineraryId/adjust** | [`backend/tests/no-mock/adjust.test.ts#L39`](../backend/tests/no-mock/adjust.test.ts#L39) | [`backend/tests/mock/adjust.test.ts#L32`](../backend/tests/mock/adjust.test.ts#L32) | Itinerary DB (a concurrent change saved first, write failure), Activity DB, live-update push |
+| **Socket.io itinerary updates** | [`backend/tests/no-mock/tripSync.test.ts#L36`](../backend/tests/no-mock/tripSync.test.ts#L36) | [`backend/tests/mock/tripSync.test.ts#L14`](../backend/tests/mock/tripSync.test.ts#L14) | Itinerary DB (access check on subscribe) |
 | **GET /health** | [`backend/tests/no-mock/health.test.ts#L10`](../backend/tests/no-mock/health.test.ts#L10) | [`backend/tests/mock/health.test.ts#L11`](../backend/tests/mock/health.test.ts#L11) | MongoDB connection state |
 
 The tests without mocks run against a real MongoDB (an in-memory server started by the tests, see `backend/tests/helpers/testDatabase.ts`) and pre-populate the Vancouver catalogue in the database, so they need no Google Places key. The Itinerary Engine's scheduling core is also unit-tested in [`backend/tests/unit/`](../backend/tests/unit/), including a comparison against a brute-forced optimum.
@@ -201,7 +204,7 @@ All files                |   98.19 |    87.45 |   98.77 |    98.1 |
 | --- | --- |
 | **NFR 1: Itinerary generation time** | [`backend/tests/nfr/itineraryGenerationTime.test.ts`](../backend/tests/nfr/itineraryGenerationTime.test.ts) |
 | **NFR 3: Bounded Google Places usage** | Covered for CP1 by the mocked interface tests "Cache miss searches Places once per interest, then caches" and "City with no activities" in [`backend/tests/mock/activities.test.ts`](../backend/tests/mock/activities.test.ts#L46); a dedicated NFR test is planned for CP2. |
-| **NFR 2: Live update latency** | Planned for CP2 with the Trip Sync & Disruption Service. |
+| **NFR 2: Live update latency** | [`backend/tests/nfr/liveUpdateLatency.test.ts`](../backend/tests/nfr/liveUpdateLatency.test.ts) |
 
 ### 3.2. Test Verification and Logs
 
@@ -218,6 +221,17 @@ All files                |   98.19 |    87.45 |   98.77 |    98.1 |
     Test Suites: 1 passed, 1 total
     Tests:       1 passed, 1 total
     ==> Backend NFR tests finished.
+    ```
+
+- **NFR 2: Live update latency**
+
+  - **Verification:** The test creates a 4-member group with a 3-day packed Vancouver group trip, serves the app and its Socket.io hub on a local port, and subscribes the three other members' clients to the trip. The owner then sends 20 adjustments through `POST /api/itineraries/:itineraryId/adjust`, alternating the cheapest change (lock or unlock a stop) with the most expensive (re-planning a whole day). For each one it measures, per member, the time from sending the request to that member's client receiving `itineraryUpdated`, so the measurement includes the re-plan, the database write and the push. The test passes only if every one of the 60 deliveries takes under 2,000 ms.
+  - **Log Output**
+    ```
+    ==> Running backend NFR tests (tests/nfr/) ...
+      console.info
+        NFR live update latency: 20 adjustments x 3 other members = 60 deliveries
+        p50 53 ms, p95 77 ms, max 98 ms (limit 2000 ms)
     ```
 
 ---

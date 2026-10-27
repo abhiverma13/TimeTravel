@@ -8,6 +8,7 @@
 | 2026-10-17 | 3.4, 3.5, 4.1 | In the app, Create Trip and Generate Itinerary happen on one Trip Builder screen: the trip details are saved with the itinerary they produce. A separate trip record with party members comes with Join Trip & Set Preferences (F4), so CP1 does not store trips nobody can join yet. |
 | 2026-10-17 | 3.7, 4.7 | Added a third non-functional requirement, bounded Google Places usage, because the M2 design's "cache every metered call" decision needs a testable target. |
 | 2026-10-26 | 3.1, 3.3, 3.4, 4.1, 4.2 | Collaborative trips are built around travel groups instead of single trips: a group holds several trips, friends join it with an invite code, and every member's interests and vetoes shape its itineraries. Join Trip & Set Preferences became Create Group, Join Group, Set Group Preferences and Leave Group, owned by a new Group Service. Groups let the same friends plan more than one trip without inviting each other again. |
+| 2026-10-26 | 3.1, 3.5, 4.1, 4.4, 4.7 | View & Adjust Itinerary is implemented: any member can lock, unlock, move or remove a stop, or re-plan a day, and every member's open app receives the new plan through a Socket.io hub (Socket.io replaces plain `ws` because it is on the course's approved-library list and reconnects by itself). A locked stop keeps its time; an itinerary version number refuses edits made from an out-of-date copy, so two members editing at once never overwrite each other. |
 
 ---
 
@@ -26,7 +27,7 @@ Planning a trip is a scheduling problem, but every tool treats it as a search pr
 1. **F1 Sign in with Google** (implemented for CP1): Google account sign-in. The back-end verifies the Google ID token and issues its own session token. The traveller's profile keeps their home city and interest tags, which prefill searches and trips.
 2. **F2 Explore & review activities** (implemented for CP1): browse or search a city's activities, post a 1-5 rating, a written review and structured tags (visit length, best time of day, indoor or outdoor, cost).
 3. **F3 Itinerary generation** (implemented for CP1): dates, lodging, interests and pace in; a ranked, time-feasible, day-by-day plan out. This is our own algorithm, not a lookup.
-4. **F4 Collaborative trips, live** (groups implemented for CP2): travellers form a group and invite friends with a 6-character code. Each member keeps their own interests and vetoes for the group, and the group's itineraries are planned from all of them: an interest more members share counts more, and anything a member vetoed is left out. Every edit appears on every device as it happens.
+4. **F4 Collaborative trips, live** (implemented for CP2): travellers form a group and invite friends with a 6-character code. Each member keeps their own interests and vetoes for the group, and the group's itineraries are planned from all of them: an interest more members share counts more, and anything a member vetoed is left out. Any member can lock, move or remove a stop or re-plan a day, and every member's open app shows the new plan within seconds.
 5. **F5 Disruption-aware re-planning** (planned for CP2-CP3): a back-end watcher tracks the forecast and venue status for active trips, re-solves the affected part of the day, then pushes it out.
 
 How the features satisfy the project scope:
@@ -35,7 +36,7 @@ How the features satisfy the project scope:
 | --- | --- | --- |
 | Authentication via an external authentication service | F1 | Google Identity Services. The back-end verifies the Google ID token server-side and issues its own session token. |
 | At least one feature uses an external service through an API | F2, F3 | Google Places for the activity catalogue, coordinates and opening hours, and to find the traveller's lodging. Google Routes for the travel times between stops (CP1 uses an offline estimate, see 4.3). |
-| At least one feature changes app content or state in response to an external event | F4, F5 | A party member's edit, a forecast change or a venue closure re-solves the affected part of the plan; the new itinerary is pushed over a WebSocket and every open device re-renders. |
+| At least one feature changes app content or state in response to an external event | F4, F5 | A party member's edit, a forecast change or a venue closure re-solves the affected part of the plan; the new itinerary is pushed over Socket.io and every open device re-renders. |
 | At least one feature involves logic or computation we implement ourselves | F3, F5 | The Itinerary Engine: candidate pruning, scoring, and constrained day scheduling with local search (an Orienteering Problem with Time Windows). |
 
 ### **3.2. Use Case Diagram**
@@ -168,27 +169,29 @@ How the features satisfy the project scope:
 
 <a name="uc4"></a>
 
-#### Use Case 4: View & Adjust Itinerary (planned for CP2)
+#### Use Case 4: View & Adjust Itinerary
 
 **Description**: A traveller follows a trip's itinerary and adjusts it by locking, removing or moving a stop; the change re-plans the affected part of the day and appears on every party member's device.
 
 **Primary actor(s)**: Traveller
 
 **Main success scenario**:
-1. The traveller opens a trip from the home screen's recent trips.
-2. The app shows the itinerary timeline and connects to the trip's live updates.
-3. The traveller locks, removes or moves a stop.
-4. The system re-plans the affected part of the day, keeping locked stops in place.
-5. Every party member's app, including the traveller's, shows the updated timeline within 2 seconds.
+1. The traveller opens a trip from the home screen's recent trips or from its group's page.
+2. The app shows the itinerary timeline, connects to the trip's live updates and shows "Live".
+3. The traveller opens a stop's menu and locks, unlocks, moves (earlier or later) or removes it, or taps "Re-plan" on a day.
+4. The system re-plans the affected part of the day. Locked stops keep their times; a removed stop's time goes to another activity; re-planning today keeps the stops already started.
+5. Every group member's app, including the traveller's, shows the updated timeline within 2 seconds; the others also see who changed what (for example "Ava removed English Bay Beach").
 
 **Failure scenario(s)**:
-- 2a. The itinerary does not exist or the traveller is not in the trip's party.
+- 2a. The itinerary does not exist or the traveller is not in the trip's group.
     - 2a1. The app shows "Itinerary not found" with a Try again button.
-- 3a. The live connection is lost.
-    - 3a1. The app shows "Offline: your change will sync when you reconnect."
-    - 3a2. When the connection returns, the app reloads the latest itinerary.
-- 4a. No feasible plan keeps the requested change (for example, a moved stop would be closed).
+- 2b. The live connection is lost.
+    - 2b1. The app shows "Offline: live updates will resume when you reconnect."
+    - 2b2. When the connection returns, the app shows "Live" again and reloads the latest itinerary.
+- 4a. No feasible plan keeps the requested change (for example, a moved stop would miss its opening hours, or locked stops no longer fit).
     - 4a1. The app explains why and keeps the previous plan.
+- 4b. Another member changed the itinerary after the traveller loaded it.
+    - 4b1. The change is refused, the app shows "Someone changed this plan first. Here is the latest version." and reloads it.
 
 <a name="uc5"></a>
 
@@ -277,8 +280,10 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
             - **Purpose**: One of the traveller's personal itineraries, or a trip of a group they belong to (404 for anything else).
         4. `TripPlan planTrip(Candidate[] candidates, PlanRequest request, PlanOptions options)`
             - **Purpose**: The scheduling core: prunes candidates, builds each day by greedy insertion and improves it with time-budgeted local search.
-        5. `ItineraryDto replanItinerary(String itineraryId, TimeWindow affectedWindow, String[] frozenActivityIds)` (planned for CP2)
-            - **Purpose**: Called by the Trip Sync & Disruption Service to re-solve only the affected part of a day, keeping locked and completed stops.
+        5. `POST /api/itineraries/{itineraryId}/adjust` body `{ action, version, dayIndex, activityId?, toIndex?, fromTime? }` returns `ItineraryDto`
+            - **Purpose**: View & Adjust Itinerary. `action` is `lock`, `unlock`, `remove`, `move` (with `toIndex`) or `replan` (with an optional `fromTime`, HH:MM). Removing keeps the other stops in order and offers the freed time to other activities; moving re-times the day and is refused (422) if a stop would miss its hours; re-planning keeps stops already started and locked stops (at their times) and re-chooses the rest. `version` must be the itinerary's current version (409 otherwise); every saved change bumps it and is passed to the Trip Sync & Disruption Service.
+        6. `RoutedDay repairDay(Candidate[] kept, Candidate[] pool, DayContext context, DayRepairOptions options)`
+            - **Purpose**: The scheduling core for adjustments: keeps every kept stop, fills the free time from the pool by greedy insertion from three starts, optionally reorders when that ends the day sooner, and returns null when the kept stops no longer fit.
 4. **Group Service**
     - **Purpose**: Travel groups: members, invite codes, and each member's interests and vetoes for the group's trips. It is its own component because both the Itinerary Engine (combined preferences) and the Trip Sync & Disruption Service (who receives a group trip's updates) need the same membership answer. A group's trips belong to whoever is in the group now, so leaving a group removes access to its trips.
     - **Interfaces**:
@@ -299,11 +304,13 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
         8. `GroupTripPreferences tripPreferences(String userId, String groupId)`
             - **Purpose**: Called by the Itinerary Engine: per interest, the share of members who picked it, and every member's vetoes combined.
 5. **Trip Sync & Disruption Service** (planned for CP2-CP3)
-    - **Purpose**: A WebSocket hub per trip party, and a timer-driven watcher that detects disruption and asks the Itinerary Engine for a re-plan. We chose WebSocket over polling because a re-plan has to land on every device in seconds (NFR 2); Firebase Cloud Messaging is used only to wake a backgrounded app, never as the state channel.
+    - **Purpose**: A Socket.io hub on the API's own server (and TLS), with one room per itinerary, and a timer-driven watcher that detects disruption and asks the Itinerary Engine for a re-plan. We chose a persistent socket over polling because a re-plan has to land on every device in seconds (NFR 2); Firebase Cloud Messaging is used only to wake a backgrounded app, never as the state channel.
     - **Interfaces**:
-        1. WebSocket `/ws/trips/{tripId}`: client message `adjustStop { itineraryId, activityId, action }`; server message `itineraryUpdated { itinerary, reason }`
-            - **Purpose**: Carries adjustments from one device and pushes the updated plan to every connected party member.
-        2. `void checkActiveTrips()`
+        1. Socket.io handshake `auth: { token }`; client event `subscribe { itineraryId }` (acknowledged with `{ ok: true }` or `{ ok: false, error }`) and `unsubscribe { itineraryId }`; server event `itineraryUpdated { itinerary: ItineraryDto, actorId, summary }`
+            - **Purpose**: A device subscribes to the itineraries on screen (only those its user may see) and receives every saved adjustment, with a short summary such as "Ava removed English Bay Beach". Adjustments themselves go through the REST API, so each one is validated and versioned in one place.
+        2. `void onItineraryChanged(ItineraryChange change)`
+            - **Purpose**: Called by the Itinerary Engine after every saved adjustment; broadcasts it to the itinerary's room.
+        3. `void checkActiveTrips()`
             - **Purpose**: Runs every 30 minutes; checks the forecast and venue status for active trips and triggers a re-plan when needed.
 
 ### **4.2. Databases**
@@ -343,9 +350,9 @@ Back-end:
 5. **jsonwebtoken**
     - **Purpose**: Signs and verifies TimeTravel session tokens.
     - **Reason**: standard, stateless session tokens, so the back-end does not keep a session table.
-6. **ws** (planned for CP2)
-    - **Purpose**: WebSocket server for the Trip Sync & Disruption Service.
-    - **Reason**: the de facto WebSocket library for Node.js, without extra protocol layers we do not need.
+6. **Socket.io** (server, and `io.socket:socket.io-client` in the app)
+    - **Purpose**: The live connection of the Trip Sync & Disruption Service: authentication on connect, one room per itinerary, acknowledgements, and automatic reconnection.
+    - **Reason**: on the course's approved-library list for live updates, and its rooms and reconnection would otherwise have to be written by hand on top of plain WebSockets.
 7. **Jest, Supertest and mongodb-memory-server**
     - **Purpose**: Back-end interface, unit and non-functional tests.
     - **Reason**: Jest is the course's testing framework; Supertest drives the Express app in-process; mongodb-memory-server gives every test run a real, throwaway MongoDB without Docker.
@@ -358,7 +365,7 @@ Front-end:
     - **Purpose**: Screen navigation and screen state that survives configuration changes.
     - **Reason**: the standard Jetpack architecture for Compose apps.
 3. **Retrofit with Gson, on OkHttp**
-    - **Purpose**: Calls the REST API; OkHttp adds the session token to every request (and its WebSocket client is planned for live trip updates).
+    - **Purpose**: Calls the REST API; OkHttp adds the session token to every request.
     - **Reason**: the most common type-safe HTTP client for Android, and the one named in the M2 design.
 4. **Credential Manager with the Google ID library**
     - **Purpose**: "Sign in with Google" on the device, including adding an account when none is signed in.
@@ -392,6 +399,6 @@ The PlantUML sources of these diagrams are in [`res/`](res/).
 1. [**Itinerary generation time**](#nfr1)
     - **Implementation**: The engine first shrinks the problem: it drops activities more than 25 km from the lodging or never open long enough during the trip, and keeps the best 40 by community score times interest match. Each day is then built by greedy insertion by score density (score per minute of visit plus added travel) from three starting rules, and each result is improved by reorder (2-opt and relocation) and swap moves within a fixed budget of 200 ms per day; travel times come from a cached matrix (planned) or the offline estimate, so no external call happens inside the solve. On seeded random instances the planner matches the brute-force optimum.
 2. [**Live update latency**](#nfr2)
-    - **Implementation**: Each open app keeps one WebSocket to the Trip Sync & Disruption Service per trip; as soon as a re-plan is saved, the service broadcasts `itineraryUpdated` with the full itinerary, so devices re-render without a second request. Re-plans re-solve only the affected window, which takes milliseconds (see NFR 1). Firebase Cloud Messaging only wakes backgrounded apps.
+    - **Implementation**: Each open itinerary screen keeps one Socket.io connection to the Trip Sync & Disruption Service, subscribed to that itinerary's room; as soon as an adjustment is saved, the service broadcasts `itineraryUpdated` with the full itinerary, so devices re-render without a second request. Re-plans re-solve only the affected window, which takes milliseconds (see NFR 1). Firebase Cloud Messaging only wakes backgrounded apps.
 3. [**Bounded Google Places usage**](#nfr3)
     - **Implementation**: The Activity & Review Service records when each city was fetched (`citycatalogues.fetchedAt`) and serves the stored catalogue for 7 days, running one text search per interest tag only on a miss or after expiry. If a refresh fails, it keeps serving the older catalogue. The Itinerary Engine gets candidates through `listActivities`, so generating itineraries never calls Places for activities; only an entered lodging triggers one lookup.
