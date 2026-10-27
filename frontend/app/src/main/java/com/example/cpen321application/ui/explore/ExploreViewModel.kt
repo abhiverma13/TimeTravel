@@ -2,6 +2,9 @@ package com.example.cpen321application.ui.explore
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.cpen321application.data.AdjustRequest
+import com.example.cpen321application.data.Itinerary
+import com.example.cpen321application.data.ItinerarySummary
 import com.example.cpen321application.data.ReviewTags
 import com.example.cpen321application.data.TimeTravelRepository
 import com.example.cpen321application.data.TravelActivity
@@ -10,6 +13,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+/** Adding one place to a trip: first the trip, then the day. */
+data class AddToTripState(
+    val activity: TravelActivity,
+    val loading: Boolean = true,
+    /** The traveller's trips to the city being explored. */
+    val trips: List<ItinerarySummary> = emptyList(),
+    /** The chosen trip, once picked. */
+    val trip: Itinerary? = null,
+    val error: String? = null,
+)
 
 data class ExploreUiState(
     val city: String,
@@ -26,6 +40,8 @@ data class ExploreUiState(
     val reviewError: String? = null,
     /** A one-time confirmation for the snackbar. */
     val confirmation: String? = null,
+    /** The add-to-trip dialog, while it is open. */
+    val adding: AddToTripState? = null,
 )
 
 /** Explore & review: search a city's activities, filter by interest, and rate and tag them. */
@@ -96,4 +112,66 @@ class ExploreViewModel(private val repository: TimeTravelRepository, initialCity
     fun confirmationShown() {
         mutableState.update { it.copy(confirmation = null) }
     }
+
+    /** Add a Specific Place: lists the traveller's trips to this city. */
+    fun startAddToTrip(activity: TravelActivity) {
+        val city = state.value.searchedCity.orEmpty()
+        mutableState.update { it.copy(adding = AddToTripState(activity)) }
+        viewModelScope.launch {
+            val result = repository.recentItineraries()
+            updateAdding { adding ->
+                result.fold(
+                    onSuccess = { trips -> adding.copy(loading = false, trips = trips.filter { it.city.equals(city, ignoreCase = true) }) },
+                    onFailure = { error -> adding.copy(loading = false, error = error.message) },
+                )
+            }
+        }
+    }
+
+    fun chooseTrip(trip: ItinerarySummary) {
+        updateAdding { it.copy(loading = true, error = null) }
+        viewModelScope.launch {
+            val result = repository.itinerary(trip.id)
+            updateAdding { adding ->
+                result.fold(
+                    onSuccess = { itinerary -> adding.copy(loading = false, trip = itinerary) },
+                    onFailure = { error -> adding.copy(loading = false, error = error.message) },
+                )
+            }
+        }
+    }
+
+    /**
+     * Adds the place to that day where it costs the least extra travel, dropping the lowest-ranked unlocked stops if the
+     * day is full; the trip's members see it live.
+     */
+    fun addToDay(dayIndex: Int) {
+        val adding = state.value.adding ?: return
+        val trip = adding.trip ?: return
+        updateAdding { it.copy(loading = true, error = null) }
+        viewModelScope.launch {
+            repository.adjustItinerary(trip.id, AdjustRequest("add", trip.version, dayIndex, adding.activity.id)).fold(
+                onSuccess = { updated ->
+                    mutableState.update { it.copy(adding = null, confirmation = addedText(adding.activity.name, trip, updated, dayIndex)) }
+                },
+                onFailure = { error -> updateAdding { it.copy(loading = false, error = error.message) } },
+            )
+        }
+    }
+
+    fun dismissAddToTrip() {
+        mutableState.update { it.copy(adding = null) }
+    }
+
+    private fun updateAdding(change: (AddToTripState) -> AddToTripState) {
+        mutableState.update { current -> current.copy(adding = current.adding?.let(change)) }
+    }
+}
+
+// "Added Queen Elizabeth Park to your Vancouver trip, dropping Kitsilano Beach to make room."
+private fun addedText(placeName: String, before: Itinerary, after: Itinerary, dayIndex: Int): String {
+    val kept = after.days.getOrNull(dayIndex)?.stops.orEmpty().map { it.activityId }.toSet()
+    val dropped = before.days.getOrNull(dayIndex)?.stops.orEmpty().filter { it.activityId !in kept }.map { it.name }
+    val makingRoom = if (dropped.isEmpty()) "" else ", dropping ${dropped.joinToString(" and ")} to make room"
+    return "Added $placeName to your ${before.city} trip$makingRoom."
 }

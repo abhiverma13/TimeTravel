@@ -44,7 +44,10 @@ import com.example.cpen321application.ui.common.SectionLabel
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.clockTime
 import com.example.cpen321application.ui.common.interestLabel
+import com.example.cpen321application.ui.trip.BUDGETS
 import com.example.cpen321application.ui.trip.PACES
+import com.example.cpen321application.ui.trip.TRANSPORT_MODES
+import com.example.cpen321application.ui.trip.labelFor
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -103,6 +106,7 @@ private fun Timeline(itinerary: Itinerary, live: LiveStatus, viewModel: Itinerar
             dayTimeline(
                 day,
                 DayHeading(dayIndex + 1, itinerary.days.size, itinerary.city),
+                itinerary.transportMode,
                 onReplan = { viewModel.replanDay(dayIndex, day.date) },
             ) { stopIndex, stop ->
                 stopActions(viewModel, StopPosition(dayIndex, stopIndex, day.stops.size), stop, isGroupTrip = itinerary.groupId != null)
@@ -161,6 +165,11 @@ private fun Summary(itinerary: Itinerary) {
                 val pace = PACES.firstOrNull { it.first == itinerary.pace }?.second ?: itinerary.pace
                 val interests = itinerary.interests.joinToString(", ") { interestLabel(it) }.ifEmpty { "all interests" }
                 Text("$pace pace · $interests", style = MaterialTheme.typography.bodyMedium)
+                val travelTimes = if (itinerary.travelTimeSource == "google-routes") "travel times from Google Maps" else "estimated travel times"
+                Text(
+                    text = "${labelFor(TRANSPORT_MODES, itinerary.transportMode)} · budget ${labelFor(BUDGETS, itinerary.budget)} · $travelTimes",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 Text(
                     text = "Highest-rated first, but only where the clock, the opening hours and the travel time allow it.",
                     style = MaterialTheme.typography.bodySmall,
@@ -191,6 +200,7 @@ private data class DayHeading(val dayNumber: Int, val dayCount: Int, val city: S
 private fun LazyListScope.dayTimeline(
     day: ItineraryDay,
     heading: DayHeading,
+    transportMode: String,
     onReplan: () -> Unit,
     stopActions: (Int, ItineraryStop) -> List<StopAction>,
 ) {
@@ -212,18 +222,19 @@ private fun LazyListScope.dayTimeline(
         return
     }
     itemsIndexed(day.stops, key = { _, stop -> "${day.date}-${stop.activityId}" }) { index, stop ->
-        TransitRow(transitText(stop.travelMinutes, fromLodging = index == 0))
+        TransitRow(transitText(stop.travelMinutes, transportMode, fromLodging = index == 0))
         StopRow(stop, stopActions(index, stop))
     }
     item(key = "return-${day.date}") {
-        TransitRow("Back at lodging by ${backAt(day)}  ·  ${day.returnTravelMinutes} min transit")
+        TransitRow("Back at lodging by ${backAt(day)}  ·  ${day.returnTravelMinutes} min $transportMode")
     }
 }
 
-private fun transitText(minutes: Int, fromLodging: Boolean): String = when {
+// The mode is walk, transit or drive, so it reads as "14 min walk".
+private fun transitText(minutes: Int, transportMode: String, fromLodging: Boolean): String = when {
     minutes == 0 -> "Next door"
     fromLodging -> "$minutes min from lodging"
-    else -> "$minutes min transit"
+    else -> "$minutes min $transportMode"
 }
 
 private fun backAt(day: ItineraryDay): String {

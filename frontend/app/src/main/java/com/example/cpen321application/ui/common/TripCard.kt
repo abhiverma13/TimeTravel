@@ -14,12 +14,17 @@ import java.time.format.DateTimeFormatter
 
 private val TRIP_DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d")
 
+/** "Oct 30 to Oct 31", or one date for a one-day trip. */
+fun tripDatesText(trip: ItinerarySummary): String {
+    val start = LocalDate.parse(trip.startDate).format(TRIP_DATE_FORMAT)
+    val end = LocalDate.parse(trip.endDate).format(TRIP_DATE_FORMAT)
+    return if (start == end) start else "$start to $end"
+}
+
 /** A saved trip in a list: city, dates and number of stops, marked when it is a group trip. */
 @Composable
 fun TripCard(trip: ItinerarySummary, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val start = LocalDate.parse(trip.startDate).format(TRIP_DATE_FORMAT)
-    val end = LocalDate.parse(trip.endDate).format(TRIP_DATE_FORMAT)
-    val dates = if (start == end) start else "$start to $end"
+    val dates = tripDatesText(trip)
     val group = if (trip.groupId != null) " · Group trip" else ""
     BrandCard(onClick = onClick, modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {

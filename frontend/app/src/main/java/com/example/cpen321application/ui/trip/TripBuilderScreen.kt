@@ -90,6 +90,7 @@ fun TripBuilderScreen(viewModel: TripBuilderViewModel, onBack: () -> Unit, onIti
         ) {
             TripDetails(state, viewModel, onChooseDates = { choosingDates = true })
             TripPreferences(state, viewModel)
+            TripOptions(state, viewModel)
             if (state.error != null) {
                 Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag(TestTags.TRIP_ERROR))
             }
@@ -108,15 +109,24 @@ fun TripBuilderScreen(viewModel: TripBuilderViewModel, onBack: () -> Unit, onIti
         }
     }
 
+    TripBuilderDialogs(state, viewModel, choosingDates, onDatesClosed = { choosingDates = false })
+}
+
+// The date-range picker and the must-see and avoid picker, when open.
+@Composable
+private fun TripBuilderDialogs(state: TripBuilderUiState, viewModel: TripBuilderViewModel, choosingDates: Boolean, onDatesClosed: () -> Unit) {
+    state.placePicker?.let { picker ->
+        PlacePickerDialog(picker, state.placeChoices, onToggle = viewModel::cyclePlace, onDone = viewModel::closePlacePicker)
+    }
     if (choosingDates) {
         TripDatesDialog(
             start = state.startDate,
             end = state.endDate,
             onConfirm = { start, end ->
                 viewModel.onDatesChange(start, end ?: start)
-                choosingDates = false
+                onDatesClosed()
             },
-            onDismiss = { choosingDates = false },
+            onDismiss = onDatesClosed,
         )
     }
 }
@@ -185,6 +195,42 @@ private fun TripPreferences(state: TripBuilderUiState, viewModel: TripBuilderVie
                 onClick = { viewModel.onPaceChange(pace) },
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = PACES.size),
                 label = { Text(label) },
+            )
+        }
+    }
+}
+
+// Transport mode, budget, and the places to include or leave out.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TripOptions(state: TripBuilderUiState, viewModel: TripBuilderViewModel) {
+    SectionLabel("Getting around")
+    OptionRow(TRANSPORT_MODES, state.transportMode, viewModel::onTransportModeChange, TestTags.TRIP_MODE)
+    SectionLabel("Budget per activity")
+    OptionRow(BUDGETS, state.budget, viewModel::onBudgetChange, TestTags.TRIP_BUDGET)
+    SectionLabel("Must-see and avoid (optional)")
+    val mustSee = state.placeChoices.values.count { it == PlaceChoice.MUST_SEE }
+    val avoid = state.placeChoices.values.count { it == PlaceChoice.AVOID }
+    OutlinedButton(
+        onClick = viewModel::openPlacePicker,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.fillMaxWidth().testTag(TestTags.TRIP_PLACES_BUTTON),
+    ) {
+        Text(if (mustSee + avoid == 0) "Choose places" else "$mustSee must-see · $avoid avoided")
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OptionRow(options: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit, tagPrefix: String) {
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, (value, label) ->
+            SegmentedButton(
+                selected = selected == value,
+                onClick = { onSelect(value) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                label = { Text(label) },
+                modifier = Modifier.testTag("$tagPrefix-$value"),
             )
         }
     }

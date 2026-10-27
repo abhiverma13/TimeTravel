@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.GenerateItineraryRequest
 import com.example.cpen321application.data.TimeTravelRepository
+import com.example.cpen321application.data.TravelActivity
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,9 @@ val PACES = listOf("relaxed" to "Relaxed", "moderate" to "Moderate", "packed" to
 /** The group a trip is planned for. */
 data class TripGroup(val id: String, val name: String)
 
+/** The must-see and avoid picker: the destination's places, while it is open. */
+data class PlacePickerState(val loading: Boolean = true, val places: List<TravelActivity> = emptyList(), val error: String? = null)
+
 data class TripBuilderUiState(
     val city: String,
     val startDate: LocalDate? = null,
@@ -36,6 +40,11 @@ data class TripBuilderUiState(
     /** Set when planning for a group: the members' interests and vetoes are used instead of `interests`. */
     val group: TripGroup? = null,
     val pace: String = "moderate",
+    val transportMode: String = "transit",
+    val budget: String = "any",
+    /** Places marked must-see or avoid, by activity id. */
+    val placeChoices: Map<String, PlaceChoice> = emptyMap(),
+    val placePicker: PlacePickerState? = null,
     val generating: Boolean = false,
     val error: String? = null,
     /** Set once the plan is generated, so the screen can open it. */
@@ -57,7 +66,8 @@ class TripBuilderViewModel(
     private val mutableState = MutableStateFlow(TripBuilderUiState(city = homeCity, interests = profileInterests.toSet(), group = group))
     val state: StateFlow<TripBuilderUiState> = mutableState.asStateFlow()
 
-    fun onCityChange(city: String) = mutableState.update { it.copy(city = city, error = null) }
+    // Must-see and avoid choices are places in one city, so a new destination clears them.
+    fun onCityChange(city: String) = mutableState.update { it.copy(city = city, error = null, placeChoices = emptyMap()) }
 
     fun onDatesChange(start: LocalDate?, end: LocalDate?) = mutableState.update { it.copy(startDate = start, endDate = end, error = null) }
 
@@ -72,6 +82,38 @@ class TripBuilderViewModel(
     fun onLodgingChange(lodging: String) = mutableState.update { it.copy(lodging = lodging) }
 
     fun onPaceChange(pace: String) = mutableState.update { it.copy(pace = pace) }
+
+    fun onTransportModeChange(mode: String) = mutableState.update { it.copy(transportMode = mode) }
+
+    fun onBudgetChange(budget: String) = mutableState.update { it.copy(budget = budget) }
+
+    /** Opens the must-see and avoid picker with the destination's places, best-rated first. */
+    fun openPlacePicker() {
+        val city = state.value.city.trim()
+        if (city.isEmpty()) {
+            mutableState.update { it.copy(error = "Enter a destination city.") }
+            return
+        }
+        mutableState.update { it.copy(placePicker = PlacePickerState()) }
+        viewModelScope.launch {
+            val result = repository.activities(city, interest = null)
+            mutableState.update { current ->
+                current.copy(
+                    placePicker = result.fold(
+                        onSuccess = { places -> PlacePickerState(loading = false, places = places) },
+                        onFailure = { error -> PlacePickerState(loading = false, error = error.message) },
+                    ),
+                )
+            }
+        }
+    }
+
+    fun closePlacePicker() = mutableState.update { it.copy(placePicker = null) }
+
+    fun cyclePlace(activityId: String) = mutableState.update {
+        val next = (it.placeChoices[activityId] ?: PlaceChoice.NEUTRAL).next()
+        it.copy(placeChoices = if (next == PlaceChoice.NEUTRAL) it.placeChoices - activityId else it.placeChoices + (activityId to next))
+    }
 
     fun onInterestToggle(tag: String) = mutableState.update {
         it.copy(interests = if (tag in it.interests) it.interests - tag else it.interests + tag)
@@ -120,5 +162,9 @@ class TripBuilderViewModel(
         pace = pace,
         lodging = lodging.trim().ifEmpty { null },
         groupId = group?.id,
+        transportMode = transportMode,
+        budget = budget,
+        mustSeeIds = placeChoices.filterValues { it == PlaceChoice.MUST_SEE }.keys.toList(),
+        avoidIds = placeChoices.filterValues { it == PlaceChoice.AVOID }.keys.toList(),
     )
 }

@@ -60,6 +60,14 @@ object TestTags {
     const val GROUP_DELETE_BUTTON = "groupDeleteButton"
     const val CONFIRM_BUTTON = "confirmButton"
     const val TRIP_GROUP_NOTE = "tripGroupNote"
+    const val TRIP_MODE = "tripMode"
+    const val TRIP_BUDGET = "tripBudget"
+    const val TRIP_PLACES_BUTTON = "tripPlacesButton"
+    const val PLACE_PICKER_ROW = "placePickerRow"
+    const val PLACE_PICKER_DONE = "placePickerDone"
+    const val ADD_TO_TRIP_BUTTON = "addToTripButton"
+    const val ADD_TRIP_CHOICE = "addTripChoice"
+    const val ADD_DAY_CHOICE = "addDayChoice"
 
     fun ratingStar(stars: Int): String = "ratingStar$stars"
 }

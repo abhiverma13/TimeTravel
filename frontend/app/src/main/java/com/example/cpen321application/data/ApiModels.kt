@@ -39,6 +39,8 @@ data class TravelActivity(
     val communityTags: CommunityTags?,
     val googleRating: Double?,
     val googleRatingCount: Int,
+    /** free, low, medium or high, from travellers' tags or Google; null when unknown. */
+    val cost: String?,
     val reviewCount: Int,
     val communityScore: Double,
     /** null when the opening hours are unknown. */
@@ -75,6 +77,12 @@ data class GenerateItineraryRequest(
     val lodging: String?,
     /** Plans the trip for this group; the members' own interests and vetoes are used instead of `interests`. */
     val groupId: String? = null,
+    /** walk, transit or drive. */
+    val transportMode: String = "transit",
+    /** any, low or medium. */
+    val budget: String = "any",
+    val mustSeeIds: List<String> = emptyList(),
+    val avoidIds: List<String> = emptyList(),
 )
 
 /** Where each day starts and ends; source is "places" or "city-centre". */
@@ -110,6 +118,12 @@ data class Itinerary(
     val departureTime: String?,
     val interests: List<String>,
     val pace: String,
+    val transportMode: String,
+    val budget: String,
+    val mustSeeIds: List<String>,
+    val avoidIds: List<String>,
+    /** google-routes or estimate. */
+    val travelTimeSource: String,
     val lodging: Lodging,
     val days: List<ItineraryDay>,
     val candidateCount: Int,
