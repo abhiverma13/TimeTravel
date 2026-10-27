@@ -73,6 +73,8 @@ data class GenerateItineraryRequest(
     val interests: List<String>,
     val pace: String,
     val lodging: String?,
+    /** Plans the trip for this group; the members' own interests and vetoes are used instead of `interests`. */
+    val groupId: String? = null,
 )
 
 /** Where each day starts and ends; source is "places" or "city-centre". */
@@ -95,6 +97,8 @@ data class ItineraryDay(val date: String, val weekday: Int, val stops: List<Itin
 
 data class Itinerary(
     val id: String,
+    /** The group the trip belongs to, or null for a personal trip. */
+    val groupId: String?,
     val city: String,
     val startDate: String,
     val endDate: String,
@@ -115,6 +119,7 @@ data class Itinerary(
 
 data class ItinerarySummary(
     val id: String,
+    val groupId: String?,
     val city: String,
     val startDate: String,
     val endDate: String,

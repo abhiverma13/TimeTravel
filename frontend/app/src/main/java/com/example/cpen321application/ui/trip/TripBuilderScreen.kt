@@ -73,7 +73,7 @@ fun TripBuilderScreen(viewModel: TripBuilderViewModel, onBack: () -> Unit, onIti
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Trip Builder") },
+                title = { Text(state.group?.let { "Plan for ${it.name}" } ?: "Trip Builder") },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
@@ -163,9 +163,18 @@ private fun TripDetails(state: TripBuilderUiState, viewModel: TripBuilderViewMod
 @Composable
 private fun TripPreferences(state: TripBuilderUiState, viewModel: TripBuilderViewModel) {
     SectionLabel("Interests")
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        INTEREST_LABELS.forEach { (tag, label) ->
-            FilterChip(selected = tag in state.interests, onClick = { viewModel.onInterestToggle(tag) }, label = { Text(label) })
+    val group = state.group
+    if (group != null) {
+        Text(
+            "Everyone's interests and vetoes in ${group.name} shape this plan. Change yours on the group's page.",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.testTag(TestTags.TRIP_GROUP_NOTE),
+        )
+    } else {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            INTEREST_LABELS.forEach { (tag, label) ->
+                FilterChip(selected = tag in state.interests, onClick = { viewModel.onInterestToggle(tag) }, label = { Text(label) })
+            }
         }
     }
     SectionLabel("Pace")

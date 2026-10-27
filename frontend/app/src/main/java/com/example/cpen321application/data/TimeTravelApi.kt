@@ -27,8 +27,9 @@ interface TimeTravelApi {
     @POST("api/itineraries/generate")
     suspend fun generateItinerary(@Body body: GenerateItineraryRequest): Itinerary
 
+    /** All the traveller's itineraries, or only one group's when `groupId` is set. */
     @GET("api/itineraries")
-    suspend fun itineraries(): ItinerariesResponse
+    suspend fun itineraries(@Query("groupId") groupId: String?): ItinerariesResponse
 
     @GET("api/itineraries/{itineraryId}")
     suspend fun itinerary(@Path("itineraryId") itineraryId: String): Itinerary

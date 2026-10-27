@@ -11,9 +11,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -72,20 +82,50 @@ fun TransitRow(label: String) {
     }
 }
 
+/** Something the traveller can do to a stop, offered in the stop's menu. */
+data class StopAction(val label: String, val testTag: String, val onClick: () -> Unit)
+
 /** One stop: time, place name in serif, and its score in gold, in a cream card beside the timeline. */
 @Composable
-fun StopRow(stop: ItineraryStop) {
+fun StopRow(stop: ItineraryStop, actions: List<StopAction> = emptyList()) {
     Row(modifier = Modifier.height(IntrinsicSize.Min)) {
         TimelineGutter(hasDot = true)
         BrandCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.ITINERARY_STOP)) {
-            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = "${stop.startTime} to ${stop.endTime}",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
+            Row(verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f).padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "${stop.startTime} to ${stop.endTime}",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(stop.name, style = MaterialTheme.typography.titleMedium)
+                    StopDetails(stop)
+                }
+                if (actions.isNotEmpty()) {
+                    StopMenu(stop.name, actions)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StopMenu(stopName: String, actions: List<StopAction>) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }, modifier = Modifier.testTag(TestTags.STOP_ACTIONS_BUTTON)) {
+            Icon(Icons.Filled.MoreVert, contentDescription = "Options for $stopName")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            actions.forEach { action ->
+                DropdownMenuItem(
+                    text = { Text(action.label) },
+                    onClick = {
+                        open = false
+                        action.onClick()
+                    },
+                    modifier = Modifier.testTag(action.testTag),
                 )
-                Text(stop.name, style = MaterialTheme.typography.titleMedium)
-                StopDetails(stop)
             }
         }
     }

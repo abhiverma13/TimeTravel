@@ -61,9 +61,9 @@ class TimeTravelRepository(
     suspend fun generateItinerary(request: GenerateItineraryRequest): Result<Itinerary> =
         apiCall { api.generateItinerary(request) }
 
-    /** The traveller's most recent itineraries, newest first. */
-    suspend fun recentItineraries(): Result<List<ItinerarySummary>> =
-        apiCall { api.itineraries() }.map { response -> response.itineraries }
+    /** The traveller's most recent personal and group itineraries, newest first; only one group's with `groupId`. */
+    suspend fun recentItineraries(groupId: String? = null): Result<List<ItinerarySummary>> =
+        apiCall { api.itineraries(groupId) }.map { response -> response.itineraries }
 
     suspend fun itinerary(itineraryId: String): Result<Itinerary> = apiCall { api.itinerary(itineraryId) }
 }

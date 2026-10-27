@@ -18,6 +18,9 @@ private const val MINUTES_PER_HOUR = 60
 
 val PACES = listOf("relaxed" to "Relaxed", "moderate" to "Moderate", "packed" to "Packed")
 
+/** The group a trip is planned for. */
+data class TripGroup(val id: String, val name: String)
+
 data class TripBuilderUiState(
     val city: String,
     val startDate: LocalDate? = null,
@@ -30,6 +33,8 @@ data class TripBuilderUiState(
     val departureTime: String? = null,
     val lodging: String = "",
     val interests: Set<String>,
+    /** Set when planning for a group: the members' interests and vetoes are used instead of `interests`. */
+    val group: TripGroup? = null,
     val pace: String = "moderate",
     val generating: Boolean = false,
     val error: String? = null,
@@ -47,8 +52,9 @@ class TripBuilderViewModel(
     private val repository: TimeTravelRepository,
     homeCity: String,
     profileInterests: List<String>,
+    group: TripGroup? = null,
 ) : ViewModel() {
-    private val mutableState = MutableStateFlow(TripBuilderUiState(city = homeCity, interests = profileInterests.toSet()))
+    private val mutableState = MutableStateFlow(TripBuilderUiState(city = homeCity, interests = profileInterests.toSet(), group = group))
     val state: StateFlow<TripBuilderUiState> = mutableState.asStateFlow()
 
     fun onCityChange(city: String) = mutableState.update { it.copy(city = city, error = null) }
@@ -113,5 +119,6 @@ class TripBuilderViewModel(
         interests = interests.toList(),
         pace = pace,
         lodging = lodging.trim().ifEmpty { null },
+        groupId = group?.id,
     )
 }
