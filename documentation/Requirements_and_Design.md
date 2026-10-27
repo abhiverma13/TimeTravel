@@ -9,6 +9,7 @@
 | 2026-10-17 | 3.7, 4.7 | Added a third non-functional requirement, bounded Google Places usage, because the M2 design's "cache every metered call" decision needs a testable target. |
 | 2026-10-26 | 3.1, 3.3, 3.4, 4.1, 4.2 | Collaborative trips are built around travel groups instead of single trips: a group holds several trips, friends join it with an invite code, and every member's interests and vetoes shape its itineraries. Join Trip & Set Preferences became Create Group, Join Group, Set Group Preferences and Leave Group, owned by a new Group Service. Groups let the same friends plan more than one trip without inviting each other again. |
 | 2026-10-26 | 3.1, 3.5, 4.1, 4.4, 4.7 | View & Adjust Itinerary is implemented: any member can lock, unlock, move or remove a stop, or re-plan a day, and every member's open app receives the new plan through a Socket.io hub (Socket.io replaces plain `ws` because it is on the course's approved-library list and reconnects by itself). A locked stop keeps its time; an itinerary version number refuses edits made from an out-of-date copy, so two members editing at once never overwrite each other. |
+| 2026-10-26 | 3.1, 3.4, 3.5, 4.1, 4.2, 4.3, 4.7 | Itinerary generation takes more of the traveller's wishes: how they get around (walk, transit or drive), a budget per activity, and places they must see or want to avoid. Travel times now come from Google Routes, cached for a week, with the offline estimate as the fallback. A traveller can also add a place they found in Explore to a day of a trip (new use case Add Place to Itinerary). Adding to a full day drops the lowest-ranked unlocked stops instead of refusing: the planner fills every day, so refusing would make the feature unusable. |
 
 ---
 
@@ -26,7 +27,7 @@ Planning a trip is a scheduling problem, but every tool treats it as a search pr
 
 1. **F1 Sign in with Google** (implemented for CP1): Google account sign-in. The back-end verifies the Google ID token and issues its own session token. The traveller's profile keeps their home city and interest tags, which prefill searches and trips.
 2. **F2 Explore & review activities** (implemented for CP1): browse or search a city's activities, post a 1-5 rating, a written review and structured tags (visit length, best time of day, indoor or outdoor, cost).
-3. **F3 Itinerary generation** (implemented for CP1): dates, lodging, interests and pace in; a ranked, time-feasible, day-by-day plan out. This is our own algorithm, not a lookup.
+3. **F3 Itinerary generation** (implemented for CP1, extended for CP2): dates, lodging, interests and pace in; a ranked, time-feasible, day-by-day plan out. This is our own algorithm, not a lookup. The traveller also chooses how they get around (walk, transit or drive), a budget per activity, and places they must see or want to avoid; travel times come from Google Routes. A place found in Explore can be added to a day of a trip.
 4. **F4 Collaborative trips, live** (implemented for CP2): travellers form a group and invite friends with a 6-character code. Each member keeps their own interests and vetoes for the group, and the group's itineraries are planned from all of them: an interest more members share counts more, and anything a member vetoed is left out. Any member can lock, move or remove a stop or re-plan a day, and every member's open app shows the new plan within seconds.
 5. **F5 Disruption-aware re-planning** (planned for CP2-CP3): a back-end watcher tracks the forecast and venue status for active trips, re-solves the affected part of the day, then pushes it out.
 
@@ -35,7 +36,7 @@ How the features satisfy the project scope:
 | **Project-scope requirement** | **Feature** | **How we satisfy it** |
 | --- | --- | --- |
 | Authentication via an external authentication service | F1 | Google Identity Services. The back-end verifies the Google ID token server-side and issues its own session token. |
-| At least one feature uses an external service through an API | F2, F3 | Google Places for the activity catalogue, coordinates and opening hours, and to find the traveller's lodging. Google Routes for the travel times between stops (CP1 uses an offline estimate, see 4.3). |
+| At least one feature uses an external service through an API | F2, F3 | Google Places for the activity catalogue, coordinates and opening hours, and to find the traveller's lodging. Google Routes for the travel times between stops, for the traveller's way of getting around (see 4.3). |
 | At least one feature changes app content or state in response to an external event | F4, F5 | A party member's edit, a forecast change or a venue closure re-solves the affected part of the plan; the new itinerary is pushed over Socket.io and every open device re-renders. |
 | At least one feature involves logic or computation we implement ourselves | F3, F5 | The Itinerary Engine: candidate pruning, scoring, and constrained day scheduling with local search (an Orienteering Problem with Time Windows). |
 
@@ -61,19 +62,20 @@ How the features satisfy the project scope:
   2. **Browse & Search Activities**: the traveller looks up a city's activities, ranked by community score, optionally narrowed to one interest.
   3. **Rate & Review Activity**: the traveller rates an activity they have done from 1 to 5 stars, optionally with a written review and structured tags, which update its community score and tags.
 - Use cases for feature 3: **Itinerary generation**
-  4. **Create Trip**: the organizer describes the trip: destination, dates, daily hours, arrival and departure times, lodging, interests and pace.
+  4. **Create Trip**: the organizer describes the trip: destination, dates, daily hours, arrival and departure times, lodging, interests, pace, how they get around, a budget per activity, and places they must see or want to avoid.
   5. **Generate Itinerary**: the organizer asks for a plan and receives a day-by-day itinerary for the trip.
   6. **Rank & Schedule Day Plan**: the Itinerary Engine ranks candidate activities and schedules them into one day under opening hours, travel time, the day's hours and the pace. Included by Generate Itinerary and Re-plan Itinerary.
+  7. **Add Place to Itinerary**: a traveller adds an activity they found in Explore to a day of one of their trips in that city; it goes where it adds the least travel, and on a full day the lowest-ranked unlocked stops make room.
 - Use cases for feature 4: **Collaborative trips, live**
-  7. **Create Group**: the organizer names a group and gets an invite code to share with friends.
-  8. **Join Group**: a traveller types a friend's invite code and becomes a member, with their profile interests as their interests for the group.
-  9. **Set Group Preferences**: a member sets their own interests for the group's trips and vetoes activities (from any group trip's stop), so the group's next plans leave them out.
-  10. **Leave Group**: a member leaves, or the owner removes a member or deletes the group with its trips.
-  11. **View & Adjust Itinerary**: a traveller follows the plan and locks, removes or moves a stop; the change re-plans the affected part of the day.
-  12. **Notify Trip Party**: every group member's device receives the updated plan as soon as it changes. Included by Re-plan Itinerary.
+  8. **Create Group**: the organizer names a group and gets an invite code to share with friends.
+  9. **Join Group**: a traveller types a friend's invite code and becomes a member, with their profile interests as their interests for the group.
+  10. **Set Group Preferences**: a member sets their own interests for the group's trips and vetoes activities (from any group trip's stop), so the group's next plans leave them out.
+  11. **Leave Group**: a member leaves, or the owner removes a member or deletes the group with its trips.
+  12. **View & Adjust Itinerary**: a traveller follows the plan and locks, removes or moves a stop; the change re-plans the affected part of the day.
+  13. **Notify Trip Party**: every group member's device receives the updated plan as soon as it changes. Included by Add Place to Itinerary, View & Adjust Itinerary and Re-plan Itinerary.
 - Use cases for feature 5: **Disruption-aware re-planning**
-  13. **Monitor Trip Conditions**: on a timer, the system checks the forecast and venue status for each active trip's stops.
-  14. **Re-plan Itinerary**: when a disruption or an adjustment invalidates part of a day, the system re-solves only the affected window, keeping locked and completed stops, and notifies the party.
+  14. **Monitor Trip Conditions**: on a timer, the system checks the forecast and venue status for each active trip's stops.
+  15. **Re-plan Itinerary**: when a disruption or an adjustment invalidates part of a day, the system re-solves only the affected window, keeping locked and completed stops, and notifies the party.
 
 ### **3.5. Formal Use Case Specifications (5 Most Major Use Cases)**
 
@@ -135,7 +137,7 @@ How the features satisfy the project scope:
 
 #### Use Case 3: Generate Itinerary
 
-**Description**: The organizer describes a trip (destination, dates, daily hours, arrival and departure times, lodging, interests and pace) and receives a ranked, time-feasible, day-by-day plan.
+**Description**: The organizer describes a trip (destination, dates, daily hours, arrival and departure times, lodging, interests, pace, how they get around, a budget per activity, and places they must see or want to avoid) and receives a ranked, time-feasible, day-by-day plan.
 
 **Primary actor(s)**: Trip Organizer (secondary: Google Places API, Google Routes API)
 
@@ -144,9 +146,10 @@ How the features satisfy the project scope:
 2. The app shows the Trip Builder, with the destination prefilled from the organizer's home city and the interests from their profile.
 3. The organizer enters the destination city and chooses the first and last day of the trip.
 4. The organizer optionally changes the daily start and end times, sets an arrival time and a departure time, enters their lodging, and changes the interests and pace.
-5. The organizer taps "Generate itinerary".
-6. The system ranks the city's activities by community score and interest match and schedules them into each day around opening hours, travel time, the day's hours and the pace, starting and ending each day at the lodging.
-7. The app shows the itinerary as a day-by-day timeline: each stop's time, name, community score and interests, the transit time between stops, and when the organizer is back at the lodging.
+5. The organizer optionally chooses how they get around (Walk, Transit or Drive) and a budget per activity (Any, $ or $$), and taps "Choose places" to mark places in the destination as must-see (one tap) or avoid (two taps).
+6. The organizer taps "Generate itinerary".
+7. The system leaves out avoided places and places above the budget, ranks the rest by community score and interest match with must-see places first, gets travel times for the chosen way of getting around from Google Routes, and schedules the activities into each day around opening hours, travel time, the day's hours and the pace, starting and ending each day at the lodging.
+8. The app shows the itinerary as a day-by-day timeline: each stop's time, name, community score and interests, the travel time between stops (for example "12 min walk"), and when the organizer is back at the lodging. The summary shows the way of getting around, the budget, and whether the travel times come from Google Routes or are estimated.
 
 **Failure scenario(s)**:
 - 3a. The destination is empty.
@@ -157,15 +160,21 @@ How the features satisfy the project scope:
     - 3c1. The app shows "Trips can be at most 7 days." and does not generate.
 - 4a. The day ends less than 2 hours after it starts.
     - 4a1. The app shows "Your day must end at least 2 hours after it starts." and does not generate.
-- 6a. The city has no activities.
-    - 6a1. The app shows "No activities found for <city>" under the form.
-- 6b. The lodging cannot be found.
-    - 6b1. The system plans the days from the centre of the city's activities.
-    - 6b2. The itinerary shows a warning: "Could not find "<lodging>"; days start and end at the <city> centre."
-- 6c. No activity fits a day (for example, the hours are outside every opening time).
-    - 6c1. That day shows "Nothing fits this day. Try longer days or other interests." If no day has a stop, the itinerary also shows a warning suggesting longer days or different interests.
-- 6d. The app cannot reach TimeTravel.
-    - 6d1. The app shows "Couldn't reach TimeTravel. Check your connection and try again." and the organizer can tap "Generate itinerary" again.
+- 5a. The destination is empty when the organizer taps "Choose places".
+    - 5a1. The app shows "Enter a destination city." and does not open the list.
+- 7a. The city has no activities.
+    - 7a1. The app shows "No activities found for <city>" under the form.
+- 7b. The lodging cannot be found.
+    - 7b1. The system plans the days from the centre of the city's activities.
+    - 7b2. The itinerary shows a warning: "Could not find "<lodging>"; days start and end at the <city> centre."
+- 7c. No activity fits a day (for example, the hours are outside every opening time).
+    - 7c1. That day shows "Nothing fits this day. Try longer days or other interests." If no day has a stop, the itinerary also shows a warning suggesting longer days or different interests.
+- 7d. A must-see place fits no day (for example, it is closed on every day of the trip).
+    - 7d1. The itinerary shows a warning: "<place> did not fit your days: check its opening hours."
+- 7e. Google Routes cannot be reached.
+    - 7e1. The system uses its offline travel-time estimate, and the summary says "estimated travel times".
+- 7f. The app cannot reach TimeTravel.
+    - 7f1. The app shows "Couldn't reach TimeTravel. Check your connection and try again." and the organizer can tap "Generate itinerary" again.
 
 <a name="uc4"></a>
 
@@ -264,7 +273,7 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
     - **Purpose**: Caches each city's activity catalogue from Google Places, stores reviews, and computes each activity's community score and community tags. We chose to cache whole city catalogues (rather than searching Places per request) to bound cost and latency (NFR 3).
     - **Interfaces**:
         1. `GET /api/activities?city=<city>&interest=<tag>` returns `{ city: string, activities: ActivityDto[] }`
-            - **Purpose**: A city's activities, best community score first, optionally limited to one interest tag. `ActivityDto` is `{ id, name, address, location, interests, durationMinutes, communityTags, googleRating, googleRatingCount, reviewCount, communityScore, openingHours }`.
+            - **Purpose**: A city's activities, best community score first, optionally limited to one interest tag. `ActivityDto` is `{ id, name, address, location, interests, durationMinutes, communityTags, googleRating, googleRatingCount, reviewCount, communityScore, openingHours, cost }`, where `cost` is the community's cost tag, else Google's price level, else null.
         2. `POST /api/activities/{activityId}/reviews` body `{ rating: 1-5, comment?: string, tags?: { durationMinutes?, bestTimeOfDay?, cost?, setting? } }` returns `{ review: ReviewDto, activity: ActivityDto }`
             - **Purpose**: Creates or edits the traveller's review of an activity and returns the activity with its updated score (201 when created, 200 when edited).
         3. `ActivityDto[] listActivities(String city, String interest)`
@@ -272,8 +281,8 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
 3. **Itinerary Engine**
     - **Purpose**: Our own logic: candidate pruning, scoring, and constrained day scheduling. It is its own component because it is the part we tune and test hardest, so it stays independent of transport and storage (the scheduling core is a pure module with no I/O).
     - **Interfaces**:
-        1. `POST /api/itineraries/generate` body `{ city, startDate, endDate, dayStart?, dayEnd?, arrivalTime?, departureTime?, interests?, pace?, lodging?, groupId? }` returns `ItineraryDto`
-            - **Purpose**: Creates a trip and generates its itinerary. Dates are `YYYY-MM-DD` (at most 7 days), times `HH:MM`, pace one of relaxed, moderate or packed. With `groupId` (the caller must be a member) the trip is the group's: the Group Service's combined interests replace `interests`, each weighted by the share of members who picked it, and every member's vetoes are left out. `ItineraryDto` holds the trip details, its `groupId` (null for a personal trip), the resolved lodging, the days (each with timed stops and travel minutes) and any warnings.
+        1. `POST /api/itineraries/generate` body `{ city, startDate, endDate, dayStart?, dayEnd?, arrivalTime?, departureTime?, interests?, pace?, lodging?, groupId?, transportMode?, budget?, mustSeeIds?, avoidIds? }` returns `ItineraryDto`
+            - **Purpose**: Creates a trip and generates its itinerary. Dates are `YYYY-MM-DD` (at most 7 days), times `HH:MM`, pace one of relaxed, moderate or packed. `transportMode` is walk, transit (the default) or drive. `budget` is any (the default), low or medium; it leaves out activities whose `cost` is above it, while activities with no known cost stay in. `mustSeeIds` (up to 10) are scheduled first wherever they fit, even beyond the usual 25 km, with a warning for any that fit no day; `avoidIds` (up to 50) are left out, and no activity can be in both. Travel times among the lodging and the 12 best candidates come from Google Routes (or its cache) and the rest from the offline estimate; `travelTimeSource` in the itinerary says which. With `groupId` (the caller must be a member) the trip is the group's: the Group Service's combined interests replace `interests`, each weighted by the share of members who picked it, and every member's vetoes are left out. `ItineraryDto` holds the trip details, its `groupId` (null for a personal trip), the resolved lodging, the days (each with timed stops and travel minutes) and any warnings.
         2. `GET /api/itineraries?groupId=<id>` returns `{ itineraries: ItinerarySummary[] }`
             - **Purpose**: The traveller's 20 most recent personal and group itineraries, newest first; with `groupId`, only that group's.
         3. `GET /api/itineraries/{itineraryId}` returns `ItineraryDto`
@@ -281,9 +290,11 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
         4. `TripPlan planTrip(Candidate[] candidates, PlanRequest request, PlanOptions options)`
             - **Purpose**: The scheduling core: prunes candidates, builds each day by greedy insertion and improves it with time-budgeted local search.
         5. `POST /api/itineraries/{itineraryId}/adjust` body `{ action, version, dayIndex, activityId?, toIndex?, fromTime? }` returns `ItineraryDto`
-            - **Purpose**: View & Adjust Itinerary. `action` is `lock`, `unlock`, `remove`, `move` (with `toIndex`) or `replan` (with an optional `fromTime`, HH:MM). Removing keeps the other stops in order and offers the freed time to other activities; moving re-times the day and is refused (422) if a stop would miss its hours; re-planning keeps stops already started and locked stops (at their times) and re-chooses the rest. `version` must be the itinerary's current version (409 otherwise); every saved change bumps it and is passed to the Trip Sync & Disruption Service.
+            - **Purpose**: View & Adjust Itinerary and Add Place to Itinerary. `action` is `lock`, `unlock`, `remove`, `add`, `move` (with `toIndex`) or `replan` (with an optional `fromTime`, HH:MM). Adding puts an activity of the trip's city where it adds the least travel; on a full day it drops the fewest unlocked stops that make room, lowest-ranked first (409 if the activity is already in the trip, 422 if it does not fit even then). Removing keeps the other stops in order and offers the freed time to other activities; moving re-times the day and is refused (422) if a stop would miss its hours; re-planning keeps stops already started and locked stops (at their times) and re-chooses the rest. `version` must be the itinerary's current version (409 otherwise); every saved change bumps it and is passed to the Trip Sync & Disruption Service.
         6. `RoutedDay repairDay(Candidate[] kept, Candidate[] pool, DayContext context, DayRepairOptions options)`
             - **Purpose**: The scheduling core for adjustments: keeps every kept stop, fills the free time from the pool by greedy insertion from three starts, optionally reorders when that ends the day sooner, and returns null when the kept stops no longer fit.
+        7. `TravelTimes forPoints(GeoPoint[] points, TransportMode mode, boolean fetchMissing)`
+            - **Purpose**: Travel times between the points for one way of getting around: Google Routes times cached in the last 7 days, plus, with `fetchMissing`, the missing pairs requested from Routes in batches within its per-request limit. Every other pair, and every pair if Routes fails, uses the offline estimate. Generation fetches; adjustments use cached times only, so they never wait on Google.
 4. **Group Service**
     - **Purpose**: Travel groups: members, invite codes, and each member's interests and vetoes for the group's trips. It is its own component because both the Itinerary Engine (combined preferences) and the Trip Sync & Disruption Service (who receives a group trip's updates) need the same membership answer. A group's trips belong to whoever is in the group now, so leaving a group removes access to its trips.
     - **Interfaces**:
@@ -316,7 +327,7 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
 ### **4.2. Databases**
 
 1. **MongoDB** (one database, accessed through Mongoose)
-    - **Purpose**: Stores `users` (Google identity, home city, interests), `activities` (the cached catalogue, with a 2dsphere index on location for "near my lodging" queries and the review counters), `citycatalogues` (when each city was last fetched from Places, for cache expiry), `reviews`, `groups` (name, unique invite code, and each member's role, interests and vetoes, indexed by member), and `itineraries` (one document per trip with its days and stops, and the group's id for a group trip). Planned for CP2: `travelmatrices` (cached Google Routes matrices with a time-to-live).
+    - **Purpose**: Stores `users` (Google identity, home city, interests), `activities` (the cached catalogue, with a 2dsphere index on location for "near my lodging" queries and the review counters), `citycatalogues` (when each city was last fetched from Places, for cache expiry), `reviews`, `groups` (name, unique invite code, and each member's role, interests and vetoes, indexed by member), `itineraries` (one document per trip with its days and stops, its options, and the group's id for a group trip), and `traveltimes` (Google Routes travel times per way of getting around and pair of points, deleted by a time-to-live index a week after they were fetched).
     - **Why MongoDB, not MySQL**: an itinerary is one nested, variable-shaped document per trip, and we need 2dsphere geo queries on activities. A relational schema would join five tables to read a single day.
 
 ### **4.3. External Modules**
@@ -325,8 +336,8 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
     - **Purpose**: Signs the traveller in on the device (Credential Manager) and issues the Google ID token that the Auth & Profile Service verifies server-side.
 2. **Google Places API (New), Text Search**
     - **Purpose**: Supplies each city's activities (name, address, coordinates, types, rating, opening hours) and finds the traveller's lodging.
-3. **Google Routes API, Compute Route Matrix** (planned for CP2)
-    - **Purpose**: One batched travel-time matrix over the pruned candidates, cached in MongoDB with a time-to-live. In CP1, and whenever Routes fails or the quota runs out, the engine falls back to an offline estimate: straight-line distance times a detour factor, walked for short hops and by transit otherwise, so the planner degrades instead of failing.
+3. **Google Routes API, Compute Route Matrix**
+    - **Purpose**: Travel times by walking, transit or driving among the lodging and the best candidates, requested in batches within Google's per-request limit (100 pairs for transit, 625 otherwise) and cached in MongoDB for a week. Whenever Routes fails or the quota runs out, the engine falls back to an offline estimate (straight-line distance times a detour factor, at walking, transit or driving speed), so the planner degrades instead of failing.
 4. **OpenWeather API** (planned for CP2-CP3)
     - **Purpose**: Hourly forecast per trip day, used to detect when an outdoor activity stops being viable.
 5. **Firebase Cloud Messaging** (planned for CP2-CP3; the permitted exception for push notifications)
@@ -397,7 +408,7 @@ The PlantUML sources of these diagrams are in [`res/`](res/).
 ### **4.7. Design of Non-Functional Requirements**
 
 1. [**Itinerary generation time**](#nfr1)
-    - **Implementation**: The engine first shrinks the problem: it drops activities more than 25 km from the lodging or never open long enough during the trip, and keeps the best 40 by community score times interest match. Each day is then built by greedy insertion by score density (score per minute of visit plus added travel) from three starting rules, and each result is improved by reorder (2-opt and relocation) and swap moves within a fixed budget of 200 ms per day; travel times come from a cached matrix (planned) or the offline estimate, so no external call happens inside the solve. On seeded random instances the planner matches the brute-force optimum.
+    - **Implementation**: The engine first shrinks the problem: it drops activities more than 25 km from the lodging or never open long enough during the trip, and keeps the best 40 by community score times interest match. Each day is then built by greedy insertion by score density (score per minute of visit plus added travel) from three starting rules, and each result is improved by reorder (2-opt and relocation) and swap moves within a fixed budget of 200 ms per day; travel times among the lodging and the 12 best candidates are read from the cache or fetched from Google Routes in one batch before the solve, and the offline estimate covers every other pair, so no external call happens inside the solve. On seeded random instances the planner matches the brute-force optimum.
 2. [**Live update latency**](#nfr2)
     - **Implementation**: Each open itinerary screen keeps one Socket.io connection to the Trip Sync & Disruption Service, subscribed to that itinerary's room; as soon as an adjustment is saved, the service broadcasts `itineraryUpdated` with the full itinerary, so devices re-render without a second request. Re-plans re-solve only the affected window, which takes milliseconds (see NFR 1). Firebase Cloud Messaging only wakes backgrounded apps.
 3. [**Bounded Google Places usage**](#nfr3)
