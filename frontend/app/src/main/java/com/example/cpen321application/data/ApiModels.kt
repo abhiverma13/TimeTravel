@@ -177,6 +177,25 @@ data class AdjustRequest(
 /** A live update pushed by the back-end after anyone in the trip adjusts it. */
 data class ItineraryChange(val itinerary: Itinerary, val actorId: String, val summary: String)
 
+/** A change proposed after a disruption (rain on an outdoor stop, or a closed venue); nothing changes until accepted. */
+data class Suggestion(
+    val id: String,
+    val itineraryId: String,
+    val dayIndex: Int,
+    val date: String,
+    val activityId: String,
+    val activityName: String,
+    /** rain or closed. */
+    val reason: String,
+    val message: String,
+    /** The day's stops if accepted, in order. */
+    val proposedStops: List<String>,
+    val createdAt: String,
+    val expiresAt: String,
+)
+
+data class SuggestionsResponse(val suggestions: List<Suggestion>)
+
 data class ItinerarySummary(
     val id: String,
     val groupId: String?,

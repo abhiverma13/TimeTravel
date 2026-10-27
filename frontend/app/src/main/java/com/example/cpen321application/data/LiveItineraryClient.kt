@@ -35,6 +35,7 @@ class LiveItinerary internal constructor(private val socket: Socket, private val
 private const val ITINERARY_UPDATED = "itineraryUpdated"
 private const val MEMBER_LOCATION = "memberLocation"
 private const val MEMBER_LOCATION_STOPPED = "memberLocationStopped"
+private const val SUGGESTION_ADDED = "suggestionAdded"
 
 /**
  * Live itinerary updates from the Trip Sync & Disruption Service, over Socket.io on the API's own address and with the
@@ -45,7 +46,7 @@ class LiveItineraryClient(private val baseUrl: String, private val sessionStore:
 
     /**
      * Subscribes to one itinerary. Every callback runs on a background thread; the member callbacks report other members'
-     * shared positions, and their user id when they stop sharing.
+     * shared positions, and their user id when they stop sharing; `onSuggestion` gets new disruption suggestions.
      */
     fun open(
         itineraryId: String,
@@ -53,6 +54,7 @@ class LiveItineraryClient(private val baseUrl: String, private val sessionStore:
         onChange: (ItineraryChange) -> Unit,
         onMemberLocation: (MemberLocation) -> Unit = {},
         onMemberGone: (String) -> Unit = {},
+        onSuggestion: (Suggestion) -> Unit = {},
     ): LiveItinerary {
         val options = IO.Options.builder()
             .setAuth(mapOf("token" to sessionStore.token.orEmpty()))
@@ -71,6 +73,7 @@ class LiveItineraryClient(private val baseUrl: String, private val sessionStore:
         socket.on(ITINERARY_UPDATED) { args -> parse(args.firstOrNull(), ItineraryChange::class.java)?.let(onChange) }
         socket.on(MEMBER_LOCATION) { args -> parse(args.firstOrNull(), MemberLocation::class.java)?.let(onMemberLocation) }
         socket.on(MEMBER_LOCATION_STOPPED) { args -> (args.firstOrNull() as? JSONObject)?.optString("userId")?.let(onMemberGone) }
+        socket.on(SUGGESTION_ADDED) { args -> parse(args.firstOrNull(), Suggestion::class.java)?.let(onSuggestion) }
         onStatus(LiveStatus.CONNECTING)
         socket.connect()
         return LiveItinerary(socket, itineraryId)

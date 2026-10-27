@@ -60,6 +60,14 @@ class TimeTravelRepository(
     suspend fun reviewActivity(activityId: String, rating: Int, comment: String, tags: ReviewTags, location: GeoPoint?): Result<ReviewResponse> =
         apiCall { api.reviewActivity(activityId, ReviewRequest(rating, comment, tags, location)) }
 
+    /** Suggestions waiting for an answer on this trip. */
+    suspend fun suggestions(itineraryId: String): Result<List<Suggestion>> = apiCall { api.suggestions(itineraryId) }.map { it.suggestions }
+
+    /** Accepts a suggestion; the trip changes for every member. */
+    suspend fun acceptSuggestion(suggestionId: String): Result<Itinerary> = apiCall { api.acceptSuggestion(suggestionId) }
+
+    suspend fun dismissSuggestion(suggestionId: String): Result<Unit> = apiCall { api.dismissSuggestion(suggestionId) }
+
     /** An activity's reviews, verified ones first. */
     suspend fun reviews(activityId: String): Result<List<ReviewListItem>> = apiCall { api.reviews(activityId) }.map { it.reviews }
 

@@ -11,6 +11,7 @@ import com.example.cpen321application.data.ItineraryStop
 import com.example.cpen321application.data.LiveItinerary
 import com.example.cpen321application.data.LiveItineraryClient
 import com.example.cpen321application.data.LiveStatus
+import com.example.cpen321application.data.Suggestion
 import com.example.cpen321application.data.TimeTravelRepository
 import java.time.LocalDate
 import java.time.LocalTime
@@ -18,6 +19,7 @@ import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 sealed interface ItineraryUiState {
@@ -58,8 +60,17 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
     /** A short note to show once: someone else's change, or why an adjustment was refused. */
     val message: StateFlow<String?> = mutableMessage.asStateFlow()
 
-    private val connection: LiveItinerary =
-        dependencies.live.open(itineraryId, onStatus = ::onLiveStatus, onChange = ::onLiveChange)
+    private val mutableSuggestions = MutableStateFlow<List<Suggestion>>(emptyList())
+
+    /** Changes proposed after a disruption, waiting for someone in the trip to accept or dismiss them. */
+    val suggestions: StateFlow<List<Suggestion>> = mutableSuggestions.asStateFlow()
+
+    private val connection: LiveItinerary = dependencies.live.open(
+        itineraryId,
+        onStatus = ::onLiveStatus,
+        onChange = ::onLiveChange,
+        onSuggestion = { suggestion -> mutableSuggestions.update { list -> list.filterNot { it.id == suggestion.id } + suggestion } },
+    )
 
     init {
         load()
@@ -98,6 +109,29 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
         }
     }
 
+    /** Applies a suggestion for everyone; refused (and dropped) if the trip changed since it was made. */
+    fun acceptSuggestion(suggestion: Suggestion) {
+        mutableBusy.value = true
+        viewModelScope.launch {
+            dependencies.repository.acceptSuggestion(suggestion.id).fold(
+                onSuccess = { itinerary ->
+                    showIfNewer(itinerary)
+                    mutableMessage.value = "Done: the plan is updated for everyone in the trip."
+                },
+                onFailure = { error -> mutableMessage.value = error.message },
+            )
+            mutableSuggestions.update { list -> list.filterNot { it.id == suggestion.id } }
+            mutableBusy.value = false
+        }
+    }
+
+    fun dismissSuggestion(suggestion: Suggestion) {
+        mutableSuggestions.update { list -> list.filterNot { it.id == suggestion.id } }
+        viewModelScope.launch {
+            dependencies.repository.dismissSuggestion(suggestion.id).onFailure { error -> mutableMessage.value = error.message }
+        }
+    }
+
     fun messageShown() {
         mutableMessage.value = null
     }
@@ -127,6 +161,8 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
 
     private fun refresh() {
         viewModelScope.launch {
+            // Suggestions are made for one version of the trip, so they are reloaded with it.
+            dependencies.repository.suggestions(itineraryId).onSuccess { mutableSuggestions.value = it }
             dependencies.repository.itinerary(itineraryId).fold(
                 onSuccess = { itinerary -> mutableState.value = ItineraryUiState.Loaded(itinerary) },
                 onFailure = { error ->
@@ -157,6 +193,9 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
     private fun onLiveChange(change: ItineraryChange) {
         val wasNewer = (loadedItinerary()?.version ?: -1) < change.itinerary.version
         showIfNewer(change.itinerary)
+        if (wasNewer) {
+            viewModelScope.launch { dependencies.repository.suggestions(itineraryId).onSuccess { mutableSuggestions.value = it } }
+        }
         if (wasNewer && change.actorId != dependencies.myUserId) {
             mutableMessage.value = change.summary
         }

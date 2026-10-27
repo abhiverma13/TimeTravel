@@ -42,6 +42,9 @@ object TestTags {
     const val SHARE_CONFIRM_BUTTON = "shareConfirmButton"
 
     const val MAP_BUTTON = "mapButton"
+    const val SUGGESTION_CARD = "suggestionCard"
+    const val SUGGESTION_ACCEPT_BUTTON = "suggestionAcceptButton"
+    const val SUGGESTION_DISMISS_BUTTON = "suggestionDismissButton"
     const val MAP_VIEW = "mapView"
     const val MAP_NEXT_STOP = "mapNextStop"
     const val MAP_SHARE_SWITCH = "mapShareSwitch"

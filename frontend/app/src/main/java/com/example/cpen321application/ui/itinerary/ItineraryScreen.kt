@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -41,6 +42,7 @@ import com.example.cpen321application.data.Itinerary
 import com.example.cpen321application.data.ItineraryDay
 import com.example.cpen321application.data.ItineraryStop
 import com.example.cpen321application.data.LiveStatus
+import com.example.cpen321application.data.Suggestion
 import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.SectionLabel
 import com.example.cpen321application.ui.common.TestTags
@@ -66,6 +68,7 @@ fun ItineraryScreen(viewModel: ItineraryViewModel, share: SharePostViewModel, on
     val message by viewModel.message.collectAsState()
     val busy by viewModel.busy.collectAsState()
     val live by viewModel.live.collectAsState()
+    val suggestions by viewModel.suggestions.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(message) {
         message?.let {
@@ -94,7 +97,7 @@ fun ItineraryScreen(viewModel: ItineraryViewModel, share: SharePostViewModel, on
                 if (busy) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
-                Timeline(current.itinerary, live, viewModel)
+                Timeline(current.itinerary, live, suggestions, viewModel)
             }
         }
     }
@@ -104,9 +107,12 @@ fun ItineraryScreen(viewModel: ItineraryViewModel, share: SharePostViewModel, on
 }
 
 @Composable
-private fun Timeline(itinerary: Itinerary, live: LiveStatus, viewModel: ItineraryViewModel) {
+private fun Timeline(itinerary: Itinerary, live: LiveStatus, suggestions: List<Suggestion>, viewModel: ItineraryViewModel) {
     LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
         item { LiveBanner(live) }
+        items(suggestions, key = { "suggestion-${it.id}" }) { suggestion ->
+            SuggestionCard(suggestion, onAccept = { viewModel.acceptSuggestion(suggestion) }, onDismiss = { viewModel.dismissSuggestion(suggestion) })
+        }
         item { Summary(itinerary) }
         itinerary.days.forEachIndexed { dayIndex, day ->
             dayTimeline(
