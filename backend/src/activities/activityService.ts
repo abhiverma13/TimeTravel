@@ -1,5 +1,9 @@
 import { Types, isValidObjectId } from 'mongoose';
 
+import { UserModel } from '../auth/userModel';
+import { haversineKm } from '../itineraries/engine/travelTime';
+import type { GeoPoint } from '../itineraries/engine/types';
+import { isScheduledOn } from '../itineraries/visits';
 import { HttpError } from '../middleware/errorHandler';
 import { type ActivityDocument, ActivityModel, type CityCatalogue, CityCatalogueModel, toCityKey } from './activityModel';
 import { DEFAULT_CITY_MEAN_RATING, cityMeanRating, communityScore } from './communityScore';
@@ -11,6 +15,11 @@ import { type CommunityTags, type CostLevel, type ReviewTags, TAG_VALUES, commun
 
 /** Google Places results are reused for a week before the city is fetched again. */
 export const CATALOGUE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** A review written this close to the place, on a day it is in the traveller's trip, is verified. */
+export const VERIFIED_RADIUS_M = 150;
+const METRES_PER_KM = 1000;
+const REVIEW_LIST_LIMIT = 50;
+const FORMER_TRAVELLER = 'Former traveller';
 
 /** A place together with the interest searches that returned it. */
 export interface TaggedPlace extends PlaceResult {
@@ -32,6 +41,8 @@ export interface ActivityDto {
   /** What a visit costs: what travellers reported most, otherwise Google's price level; null when neither is known. */
   cost: CostLevel | null;
   reviewCount: number;
+  /** Reviews written at the place on a day it was in the reviewer's trip. */
+  verifiedReviewCount: number;
   communityScore: number;
   /** null when opening hours are unknown. */
   openingHours: OpeningPeriod[] | null;
@@ -56,12 +67,15 @@ export function toActivityDto(activity: ActivityDocument, meanRating: number): A
     googleRatingCount: activity.googleRatingCount,
     cost: tags.cost ?? activity.priceLevel ?? null,
     reviewCount: activity.reviewCount,
+    verifiedReviewCount: activity.verifiedReviewCount,
     communityScore: communityScore(
       {
         googleRating: activity.googleRating,
         googleRatingCount: activity.googleRatingCount,
         reviewCount: activity.reviewCount,
         reviewRatingSum: activity.reviewRatingSum,
+        verifiedReviewCount: activity.verifiedReviewCount,
+        verifiedRatingSum: activity.verifiedRatingSum,
       },
       meanRating,
     ),
@@ -73,6 +87,13 @@ export interface ReviewInput {
   rating: number;
   comment: string;
   tags: ReviewTags;
+  /** Where the traveller is while reviewing, to verify the visit. */
+  location?: GeoPoint | undefined;
+}
+
+/** A review as other travellers read it. */
+export interface ReviewListItemDto extends ReviewDto {
+  author: string;
 }
 
 export interface ReviewResult {
@@ -125,18 +146,30 @@ export class ActivityService {
     const userObjectId = new Types.ObjectId(userId);
 
     const existing = await ReviewModel.findOne({ activityId: activityObjectId, userId: userObjectId });
+    const { location, ...content } = input;
+    // Once verified, a review stays verified when edited.
+    const verified = existing?.verified === true || (await this.isVerifiedVisit(userId, activityObjectId, location));
     const counterChanges = tagCounterChanges(existing ? reviewTagsOf(existing) : null, input.tags);
     let review: ReviewDocument;
     if (existing) {
       counterChanges.set('reviewRatingSum', input.rating - existing.rating);
+      if (verified) {
+        counterChanges.set('verifiedReviewCount', existing.verified ? 0 : 1);
+        counterChanges.set('verifiedRatingSum', input.rating - (existing.verified ? existing.rating : 0));
+      }
       existing.rating = input.rating;
       existing.comment = input.comment;
       existing.tags = input.tags;
+      existing.verified = verified;
       review = await existing.save();
     } else {
       counterChanges.set('reviewCount', 1);
       counterChanges.set('reviewRatingSum', input.rating);
-      review = await ReviewModel.create({ activityId: activityObjectId, userId: userObjectId, ...input });
+      if (verified) {
+        counterChanges.set('verifiedReviewCount', 1);
+        counterChanges.set('verifiedRatingSum', input.rating);
+      }
+      review = await ReviewModel.create({ activityId: activityObjectId, userId: userObjectId, ...content, verified });
     }
     await ActivityModel.updateOne({ _id: activityObjectId }, { $inc: Object.fromEntries(counterChanges) });
 
@@ -150,6 +183,32 @@ export class ActivityService {
       review: toReviewDto(review),
       activity: toActivityDto(activity, catalogue?.meanRating ?? DEFAULT_CITY_MEAN_RATING),
     };
+  }
+
+  // A visit is verified when the traveller is within 150 m of the place on a day it is a stop of one of their trips.
+  private async isVerifiedVisit(userId: string, activityId: Types.ObjectId, location: GeoPoint | undefined): Promise<boolean> {
+    if (location === undefined) {
+      return false;
+    }
+    const activity = await ActivityModel.findById(activityId, { location: 1 });
+    const [lng = 0, lat = 0] = activity?.location.coordinates ?? [];
+    if (activity === null || haversineKm(location, { lat, lng }) * METRES_PER_KM > VERIFIED_RADIUS_M) {
+      return false;
+    }
+    return isScheduledOn(userId, activityId, this.now().toISOString().slice(0, 10));
+  }
+
+  /** An activity's reviews for reading, verified ones first, then newest first. */
+  async listReviews(activityId: string): Promise<ReviewListItemDto[]> {
+    if (!isValidObjectId(activityId) || (await ActivityModel.exists({ _id: activityId })) === null) {
+      throw new HttpError(404, 'Activity not found');
+    }
+    const reviews = await ReviewModel.find({ activityId: new Types.ObjectId(activityId) })
+      .sort({ verified: -1, updatedAt: -1, _id: -1 })
+      .limit(REVIEW_LIST_LIMIT);
+    const users = await UserModel.find({ _id: { $in: reviews.map((review) => review.userId) } }, { name: 1 });
+    const names = new Map(users.map((user) => [user._id.toString(), user.name]));
+    return reviews.map((review) => ({ ...toReviewDto(review), author: names.get(review.userId.toString()) ?? FORMER_TRAVELLER }));
   }
 
   /** Stores places as a city's catalogue. Reviews already left on known places are kept. */

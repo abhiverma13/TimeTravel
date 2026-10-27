@@ -24,11 +24,13 @@ const reviewBody = z.object({
       setting: z.enum(SETTINGS).optional(),
     })
     .default({}),
+  location: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).optional(),
 });
 
 /**
  * GET  /api/activities?city=<city>[&interest=<tag>]
  * POST /api/activities/:activityId/reviews
+ * GET  /api/activities/:activityId/reviews
  */
 export function createActivityRouter(authService: AuthService, activityService: ActivityService): Router {
   const router = Router();
@@ -43,6 +45,10 @@ export function createActivityRouter(authService: AuthService, activityService: 
     const input = reviewBody.parse(request.body);
     const result = await activityService.reviewActivity(authenticatedUserId(response), request.params.activityId, input);
     response.status(result.created ? 201 : 200).json({ review: result.review, activity: result.activity });
+  });
+
+  router.get('/:activityId/reviews', async (request, response) => {
+    response.json({ reviews: await activityService.listReviews(request.params.activityId) });
   });
 
   return router;

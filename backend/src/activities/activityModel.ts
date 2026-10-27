@@ -21,6 +21,9 @@ export interface Activity {
   openingHours: OpeningPeriod[] | null;
   reviewCount: number;
   reviewRatingSum: number;
+  /** Count and rating sum of the verified reviews among them, which count a second time in the score. */
+  verifiedReviewCount: number;
+  verifiedRatingSum: number;
   /** Sum and count of the visit lengths travellers reported in reviews. */
   reportedDurationSum: number;
   reportedDurationCount: number;
@@ -55,6 +58,8 @@ const activitySchema = new Schema<Activity>(
     openingHours: { type: [openingPeriodSchema], default: null },
     reviewCount: { type: Number, default: 0 },
     reviewRatingSum: { type: Number, default: 0 },
+    verifiedReviewCount: { type: Number, default: 0 },
+    verifiedRatingSum: { type: Number, default: 0 },
     reportedDurationSum: { type: Number, default: 0 },
     reportedDurationCount: { type: Number, default: 0 },
     tagCounts: Object.fromEntries(TAG_VALUES.map((value) => [value, { type: Number, default: 0 }])),

@@ -10,17 +10,20 @@ export interface ScoreInputs {
   googleRatingCount: number;
   reviewCount: number;
   reviewRatingSum: number;
+  /** Verified reviews (already in reviewCount and reviewRatingSum) count once more, so twice in all. */
+  verifiedReviewCount?: number;
+  verifiedRatingSum?: number;
 }
 
 /**
- * Bayesian average of the city mean, Google's rating (as a capped prior) and TimeTravel reviews,
- * so one 5-star review cannot outrank a well-reviewed landmark. Rounded to two decimals.
+ * Bayesian average of the city mean, Google's rating (as a capped prior) and TimeTravel reviews, verified ones counting
+ * double, so one 5-star review cannot outrank a well-reviewed landmark. Rounded to two decimals.
  */
 export function communityScore(inputs: ScoreInputs, cityMeanRating: number): number {
   const googleWeight = inputs.googleRating === null ? 0 : Math.min(inputs.googleRatingCount, GOOGLE_PRIOR_MAX_WEIGHT);
   const weightedSum =
-    SHRINKAGE_WEIGHT * cityMeanRating + (inputs.googleRating ?? 0) * googleWeight + inputs.reviewRatingSum;
-  const totalWeight = SHRINKAGE_WEIGHT + googleWeight + inputs.reviewCount;
+    SHRINKAGE_WEIGHT * cityMeanRating + (inputs.googleRating ?? 0) * googleWeight + inputs.reviewRatingSum + (inputs.verifiedRatingSum ?? 0);
+  const totalWeight = SHRINKAGE_WEIGHT + googleWeight + inputs.reviewCount + (inputs.verifiedReviewCount ?? 0);
   return Math.round((weightedSum / totalWeight) * 100) / 100;
 }
 

@@ -18,6 +18,8 @@ export interface Review {
   rating: number;
   comment: string;
   tags: ReviewTags;
+  /** Written at the place on a day it was in the traveller's trip; counts double in the community score. */
+  verified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +36,7 @@ const reviewSchema = new Schema<Review>(
       cost: { type: String, enum: COST_LEVELS },
       setting: { type: String, enum: SETTINGS },
     },
+    verified: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
@@ -49,6 +52,7 @@ export interface ReviewDto {
   rating: number;
   comment: string;
   tags: ReviewTags;
+  verified: boolean;
   updatedAt: string;
 }
 
@@ -59,6 +63,7 @@ export function toReviewDto(review: ReviewDocument): ReviewDto {
     rating: review.rating,
     comment: review.comment,
     tags: reviewTagsOf(review),
+    verified: review.verified,
     updatedAt: review.updatedAt.toISOString(),
   };
 }
