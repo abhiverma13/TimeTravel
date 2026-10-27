@@ -47,8 +47,8 @@ if ($backendPortLine) {
     $BackendPort = ($backendPortLine -replace '^PORT=', '').Trim(' ', '"')
 }
 $env:PORT = $BackendPort
-$tlsCertConfigured = (Get-Content 'backend\.env' | Where-Object { $_ -match '^TLS_CERT_PATH=.+$' } | Select-Object -First 1) -ne $null
-$tlsKeyConfigured = (Get-Content 'backend\.env' | Where-Object { $_ -match '^TLS_KEY_PATH=.+$' } | Select-Object -First 1) -ne $null
+$tlsCertConfigured = $null -ne (Get-Content 'backend\.env' | Where-Object { $_ -match '^TLS_CERT_PATH=.+$' } | Select-Object -First 1)
+$tlsKeyConfigured = $null -ne (Get-Content 'backend\.env' | Where-Object { $_ -match '^TLS_KEY_PATH=.+$' } | Select-Object -First 1)
 $usesTls = $tlsCertConfigured -and $tlsKeyConfigured
 $healthScheme = if ($usesTls) { 'https' } else { 'http' }
 $BackendHealthUrl = if ($env:BACKEND_HEALTH_URL) { $env:BACKEND_HEALTH_URL } else { "${healthScheme}://localhost:$BackendPort/health" }

@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
@@ -97,7 +99,8 @@ describe('Unmocked: GET /api/users/me', () => {
   // Expected output: { error: "Invalid or expired session token" }
   test('Forged session token', async () => {
     const { app } = createTestApp();
-    const forged = jwt.sign({}, 'some-other-secret', { subject: '64b7f0c2a1b2c3d4e5f60718' });
+    const otherSecret = randomBytes(32).toString('hex');
+    const forged = jwt.sign({}, otherSecret, { subject: '64b7f0c2a1b2c3d4e5f60718' });
 
     const response = await request(app).get('/api/users/me').set('Authorization', `Bearer ${forged}`);
 
