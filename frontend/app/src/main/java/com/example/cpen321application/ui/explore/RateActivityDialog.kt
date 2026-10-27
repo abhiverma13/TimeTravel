@@ -80,7 +80,7 @@ fun RateActivityDialog(
                     value = comment,
                     onValueChange = { comment = it.take(MAX_COMMENT_LENGTH) },
                     label = { Text("Review (optional)") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag(TestTags.REVIEW_FIELD),
                 )
                 TagChoice("How long you stayed", VISIT_LENGTH_LABELS, visitMinutes) { visitMinutes = it }
                 TagChoice("Best time of day", BEST_TIME_LABELS, bestTime) { bestTime = it }

@@ -58,6 +58,7 @@ object TestTags {
     const val ACTIVITY_CARD = "activityCard"
     const val RATE_BUTTON = "rateButton"
     const val SUBMIT_RATING_BUTTON = "submitRatingButton"
+    const val REVIEW_FIELD = "reviewField"
     const val REVIEWS_BUTTON = "reviewsButton"
     const val VERIFIED_BADGE = "verifiedBadge"
 
