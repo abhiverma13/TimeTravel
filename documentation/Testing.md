@@ -15,6 +15,7 @@
 | 2026-10-26 | 2.1.1 | Added verified reviews to the `POST /api/activities/:activityId/reviews` tests, and the new `GET /api/activities/:activityId/reviews` interface, tested with and without mocks. |
 | 2026-10-26 | 2.1.1 | Added the disruption suggestion interfaces (list, accept, dismiss), the disruption timer (`checkActiveTrips`, with OpenWeather and Places mocked and through the production clients) and the Socket.io `suggestionAdded` push, tested with and without mocks. |
 | 2026-10-26 | 2.1.1, 2.3-2.5, 3, 4 | Added three tests without mocks (driving times without Google Routes, adjusting a trip that avoids places, nearby trips nearest first) and regenerated the coverage reports; their uncovered line numbers now refer to the TypeScript source, as source maps are on in the back-end `tsconfig.json`. Added the NFR 3 (bounded Google Places usage) test and its log. Implemented the Generate Itinerary end-to-end test and added the Rate & Review Activity and View & Adjust Itinerary end-to-end tests, with their logs. |
+| 2026-10-27 | 4.2 | The Generate Itinerary end-to-end test's unknown lodging is now "no such place zzzz": Google Places matched "zzzz no such hotel, Vancouver" to real Vancouver hotels, so the deployed back-end never warned that the lodging could not be found. |
 
 ---
 
@@ -399,7 +400,7 @@ The app tags the elements these tests use with stable test tags ([`ui/common/Tes
     | 5. The organizer taps "Generate itinerary". | Click `generateButton`. |
     | 6. The system ranks and schedules the city's activities into each day. | Wait until a node tagged `itineraryDay` is displayed (up to 10 s). |
     | 7. The app shows the itinerary as a day-by-day timeline. | Wait until a stop's "HH:MM to HH:MM" line (inside a node tagged `itineraryStop`) is displayed. Check the first day's first stop starts at or after 13:00. Scroll the timeline to the text "Back at lodging by", then to the headings "Day 1 of 3", "Day 2 of 3" and "Day 3 of 3". |
-    | 6b. The lodging cannot be found. | Go back to home, click `homePlanTrip`, replace the text in `tripCityField` with "Vancouver", choose the same dates, type "zzzz no such hotel" in `tripLodgingField`, click `generateButton`. |
+    | 6b. The lodging cannot be found. | Go back to home, click `homePlanTrip`, replace the text in `tripCityField` with "Vancouver", choose the same dates, type "no such place zzzz" in `tripLodgingField`, click `generateButton`. |
     | 6b1-6b2. The system plans from the city centre and the itinerary shows a warning. | Wait until a node tagged `itineraryWarning` is displayed. Check the text inside it contains "Could not find". Check the text "From Vancouver centre" is displayed. |
 
     Failure scenario 6a (no activities for the city) needs a city the back-end cannot find activities for, and 6d (TimeTravel unreachable) needs the back-end to be stopped; both are verified manually, because the front-end tests run against the real deployed back-end without mocks.

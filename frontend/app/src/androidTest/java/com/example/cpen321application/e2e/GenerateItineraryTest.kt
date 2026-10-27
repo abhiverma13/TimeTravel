@@ -84,7 +84,7 @@ class GenerateItineraryTest : E2eTest() {
         clickTag(TestTags.HOME_PLAN_TRIP)
         typeInto(TestTags.TRIP_CITY_FIELD, "Vancouver")
         chooseTripDates(firstDay, lastDay)
-        typeInto(TestTags.TRIP_LODGING_FIELD, "zzzz no such hotel")
+        typeInto(TestTags.TRIP_LODGING_FIELD, "no such place zzzz")
         clickTag(TestTags.GENERATE_BUTTON)
         waitFor(hasTestTag(TestTags.ITINERARY_WARNING))
         compose.onNode(hasText("Could not find", substring = true) and hasAnyAncestor(hasTestTag(TestTags.ITINERARY_WARNING)))
