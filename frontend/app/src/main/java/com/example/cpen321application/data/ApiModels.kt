@@ -101,6 +101,8 @@ data class ItineraryStop(
     val communityScore: Double,
     /** A locked stop stays in place when the day is re-planned. */
     val locked: Boolean,
+    /** Ticked off when a traveller was there, by hand or by the map when they arrive. */
+    val visited: Boolean = false,
 )
 
 data class ItineraryDay(val date: String, val weekday: Int, val stops: List<ItineraryStop>, val returnTravelMinutes: Int)

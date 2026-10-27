@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,7 +60,7 @@ private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, M
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ItineraryScreen(viewModel: ItineraryViewModel, share: SharePostViewModel, onBack: () -> Unit) {
+fun ItineraryScreen(viewModel: ItineraryViewModel, share: SharePostViewModel, onBack: () -> Unit, onOpenMap: () -> Unit) {
     val state by viewModel.state.collectAsState()
     val sharing by share.state.collectAsState()
     val message by viewModel.message.collectAsState()
@@ -78,24 +79,9 @@ fun ItineraryScreen(viewModel: ItineraryViewModel, share: SharePostViewModel, on
             share.sharedShown()
         }
     }
-    val title = (state as? ItineraryUiState.Loaded)?.itinerary?.city?.let { "$it itinerary" } ?: "Itinerary"
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
-        topBar = {
-            TopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-                },
-                actions = {
-                    if (state is ItineraryUiState.Loaded) {
-                        IconButton(onClick = share::open, modifier = Modifier.testTag(TestTags.SHARE_TRIP_BUTTON)) {
-                            Icon(Icons.Filled.Share, contentDescription = "Share to the feed")
-                        }
-                    }
-                },
-            )
-        },
+        topBar = { ItineraryTopBar((state as? ItineraryUiState.Loaded)?.itinerary, onBack, onOpenMap, share::open) },
     ) { innerPadding ->
         val modifier = Modifier.fillMaxSize().padding(innerPadding)
         when (val current = state) {
@@ -153,11 +139,40 @@ private fun stopActions(viewModel: ItineraryViewModel, at: StopPosition, stop: I
         if (at.stopIndex < at.stopCount - 1) {
             add(StopAction("Move later", TestTags.STOP_ACTION_MOVE_LATER) { viewModel.move(at.dayIndex, stop, at.stopIndex + 1) })
         }
+        add(
+            if (stop.visited) {
+                StopAction("Not visited yet", TestTags.STOP_ACTION_VISIT) { viewModel.setVisited(at.dayIndex, stop, visited = false) }
+            } else {
+                StopAction("Mark visited", TestTags.STOP_ACTION_VISIT) { viewModel.setVisited(at.dayIndex, stop, visited = true) }
+            },
+        )
         add(StopAction("Remove", TestTags.STOP_ACTION_REMOVE) { viewModel.remove(at.dayIndex, stop) })
         if (isGroupTrip) {
             add(StopAction("Veto for this group", TestTags.STOP_ACTION_VETO) { viewModel.veto(stop) })
         }
     }
+
+// The trip's city, back, and once the plan is loaded, its map and sharing it to the feed.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ItineraryTopBar(itinerary: Itinerary?, onBack: () -> Unit, onOpenMap: () -> Unit, onShare: () -> Unit) {
+    TopAppBar(
+        title = { Text(itinerary?.city?.let { "$it itinerary" } ?: "Itinerary") },
+        navigationIcon = {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+        },
+        actions = {
+            if (itinerary != null) {
+                IconButton(onClick = onOpenMap, modifier = Modifier.testTag(TestTags.MAP_BUTTON)) {
+                    Icon(Icons.Filled.Place, contentDescription = "Map")
+                }
+                IconButton(onClick = onShare, modifier = Modifier.testTag(TestTags.SHARE_TRIP_BUTTON)) {
+                    Icon(Icons.Filled.Share, contentDescription = "Share to the feed")
+                }
+            }
+        },
+    )
+}
 
 // Whether everyone's edits are arriving live, or the device is waiting to reconnect.
 @Composable

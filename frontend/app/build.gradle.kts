@@ -42,6 +42,8 @@ android {
             "GOOGLE_CLIENT_ID",
             "\"${localProperty("GOOGLE_CLIENT_ID")}\""
         )
+        // The Maps SDK reads its key from the manifest; without one the trip map stays blank.
+        manifestPlaceholders["MAPS_API_KEY"] = localProperty("MAPS_API_KEY")
     }
 
     // Release signing is optional: set RELEASE_STORE_FILE (relative to frontend/) and the three
@@ -105,6 +107,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.socket.io.client)
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.location)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

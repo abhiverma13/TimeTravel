@@ -12,8 +12,20 @@ import org.json.JSONObject
 /** Whether live updates for the itinerary on screen are arriving. */
 enum class LiveStatus { CONNECTING, LIVE, OFFLINE }
 
+/** Where a member of the trip is, as their device last reported it. */
+data class MemberLocation(val itineraryId: String, val userId: String, val name: String, val lat: Double, val lng: Double, val at: String)
+
 /** An open live connection for one itinerary. */
-class LiveItinerary internal constructor(private val socket: Socket) {
+class LiveItinerary internal constructor(private val socket: Socket, private val itineraryId: String) {
+    /** Sends this device's position to the trip's other members; it is passed on, never stored. */
+    fun shareLocation(lat: Double, lng: Double) {
+        socket.emit("shareLocation", JSONObject().put("itineraryId", itineraryId).put("lat", lat).put("lng", lng))
+    }
+
+    fun stopSharingLocation() {
+        socket.emit("stopSharingLocation", JSONObject().put("itineraryId", itineraryId))
+    }
+
     fun close() {
         socket.off()
         socket.disconnect()
@@ -21,6 +33,8 @@ class LiveItinerary internal constructor(private val socket: Socket) {
 }
 
 private const val ITINERARY_UPDATED = "itineraryUpdated"
+private const val MEMBER_LOCATION = "memberLocation"
+private const val MEMBER_LOCATION_STOPPED = "memberLocationStopped"
 
 /**
  * Live itinerary updates from the Trip Sync & Disruption Service, over Socket.io on the API's own address and with the
@@ -29,8 +43,17 @@ private const val ITINERARY_UPDATED = "itineraryUpdated"
 class LiveItineraryClient(private val baseUrl: String, private val sessionStore: SessionStore) {
     private val gson = Gson()
 
-    /** Subscribes to one itinerary. Both callbacks run on a background thread. */
-    fun open(itineraryId: String, onStatus: (LiveStatus) -> Unit, onChange: (ItineraryChange) -> Unit): LiveItinerary {
+    /**
+     * Subscribes to one itinerary. Every callback runs on a background thread; the member callbacks report other members'
+     * shared positions, and their user id when they stop sharing.
+     */
+    fun open(
+        itineraryId: String,
+        onStatus: (LiveStatus) -> Unit,
+        onChange: (ItineraryChange) -> Unit,
+        onMemberLocation: (MemberLocation) -> Unit = {},
+        onMemberGone: (String) -> Unit = {},
+    ): LiveItinerary {
         val options = IO.Options.builder()
             .setAuth(mapOf("token" to sessionStore.token.orEmpty()))
             .setTransports(arrayOf(WebSocket.NAME))
@@ -45,16 +68,18 @@ class LiveItineraryClient(private val baseUrl: String, private val sessionStore:
         }
         socket.on(Socket.EVENT_DISCONNECT) { onStatus(LiveStatus.OFFLINE) }
         socket.on(Socket.EVENT_CONNECT_ERROR) { onStatus(LiveStatus.OFFLINE) }
-        socket.on(ITINERARY_UPDATED) { args -> parseChange(args.firstOrNull())?.let(onChange) }
+        socket.on(ITINERARY_UPDATED) { args -> parse(args.firstOrNull(), ItineraryChange::class.java)?.let(onChange) }
+        socket.on(MEMBER_LOCATION) { args -> parse(args.firstOrNull(), MemberLocation::class.java)?.let(onMemberLocation) }
+        socket.on(MEMBER_LOCATION_STOPPED) { args -> (args.firstOrNull() as? JSONObject)?.optString("userId")?.let(onMemberGone) }
         onStatus(LiveStatus.CONNECTING)
         socket.connect()
-        return LiveItinerary(socket)
+        return LiveItinerary(socket, itineraryId)
     }
 
-    private fun parseChange(payload: Any?): ItineraryChange? {
+    private fun <T> parse(payload: Any?, type: Class<T>): T? {
         val json = (payload as? JSONObject)?.toString() ?: return null
         return try {
-            gson.fromJson(json, ItineraryChange::class.java)
+            gson.fromJson(json, type)
         } catch (expected: JsonParseException) {
             null
         }

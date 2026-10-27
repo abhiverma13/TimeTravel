@@ -32,6 +32,13 @@ object TestTags {
     const val SHARE_CAPTION_FIELD = "shareCaptionField"
     const val SHARE_CONFIRM_BUTTON = "shareConfirmButton"
 
+    const val MAP_BUTTON = "mapButton"
+    const val MAP_VIEW = "mapView"
+    const val MAP_NEXT_STOP = "mapNextStop"
+    const val MAP_SHARE_SWITCH = "mapShareSwitch"
+    const val STOP_VISITED = "stopVisited"
+    const val STOP_ACTION_VISIT = "stopActionVisit"
+
     const val EXPLORE_CITY_FIELD = "exploreCityField"
     const val EXPLORE_SEARCH_BUTTON = "exploreSearchButton"
     const val EXPLORE_ERROR = "exploreError"

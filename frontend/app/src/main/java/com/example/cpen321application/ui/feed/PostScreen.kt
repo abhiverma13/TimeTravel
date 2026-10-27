@@ -174,6 +174,7 @@ private fun LazyListScope.postDay(index: Int, trip: PostTrip, day: PostDay) {
                 travelMinutes = stop.travelMinutes,
                 communityScore = stop.communityScore,
                 locked = false,
+                visited = false,
             ),
         )
     }

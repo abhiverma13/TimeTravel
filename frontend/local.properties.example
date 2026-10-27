@@ -7,6 +7,10 @@ API_BASE_URL=http://10.0.2.2:3000
 # Google OAuth client ID.
 GOOGLE_CLIENT_ID=
 
+# Google Maps SDK for Android key, restricted to this app's package and signing certificates.
+# Without it the trip map shows no map tiles.
+MAPS_API_KEY=
+
 # Optional release signing (paths are relative to frontend/). Without these, assembleRelease
 # produces an unsigned APK that cannot be installed.
 RELEASE_STORE_FILE=

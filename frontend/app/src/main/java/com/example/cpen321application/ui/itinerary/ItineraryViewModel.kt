@@ -76,6 +76,9 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
     fun move(dayIndex: Int, stop: ItineraryStop, toIndex: Int) =
         adjust { version -> AdjustRequest("move", version, dayIndex, stop.activityId, toIndex = toIndex) }
 
+    fun setVisited(dayIndex: Int, stop: ItineraryStop, visited: Boolean) =
+        adjust { version -> AdjustRequest(if (visited) "visit" else "unvisit", version, dayIndex, stop.activityId) }
+
     fun remove(dayIndex: Int, stop: ItineraryStop) = adjust { version -> AdjustRequest("remove", version, dayIndex, stop.activityId) }
 
     /** Re-plans a day: today from now on (stops already started stay), any other day in full. Locked stops stay. */

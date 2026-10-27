@@ -106,6 +106,14 @@ fun StopRow(stop: ItineraryStop, actions: List<StopAction> = emptyList()) {
                             modifier = Modifier.testTag(TestTags.STOP_LOCKED),
                         )
                     }
+                    if (stop.visited) {
+                        Text(
+                            text = "✓ VISITED",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.testTag(TestTags.STOP_VISITED),
+                        )
+                    }
                     Text(stop.name, style = MaterialTheme.typography.titleMedium)
                     StopDetails(stop)
                 }

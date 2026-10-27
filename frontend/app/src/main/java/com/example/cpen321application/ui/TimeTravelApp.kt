@@ -57,6 +57,8 @@ import com.example.cpen321application.ui.home.ProfileDialog
 import com.example.cpen321application.ui.itinerary.ItineraryDependencies
 import com.example.cpen321application.ui.itinerary.ItineraryScreen
 import com.example.cpen321application.ui.itinerary.ItineraryViewModel
+import com.example.cpen321application.ui.map.MapScreen
+import com.example.cpen321application.ui.map.MapViewModel
 import com.example.cpen321application.ui.profile.ProfileActions
 import com.example.cpen321application.ui.profile.ProfileScreen
 import com.example.cpen321application.ui.profile.ProfileViewModel
@@ -82,8 +84,11 @@ private object Routes {
     const val TRIP_BUILDER = "tripBuilder?$GROUP_ID={$GROUP_ID}&$GROUP_NAME={$GROUP_NAME}"
     const val ITINERARY_ID = "itineraryId"
     const val ITINERARY = "itinerary/{$ITINERARY_ID}"
+    const val ITINERARY_MAP = "itinerary/{$ITINERARY_ID}/map"
 
     fun itinerary(itineraryId: String) = "itinerary/$itineraryId"
+
+    fun itineraryMap(itineraryId: String) = "itinerary/$itineraryId/map"
 
     fun group(groupId: String) = "group/$groupId"
 
@@ -285,6 +290,14 @@ private fun NavGraphBuilder.tripScreens(navController: NavHostController, sessio
                 ItineraryViewModel(ItineraryDependencies(it.repository, it.groups, it.liveItineraries, session.user.id), itineraryId)
             },
             share = appViewModel(key = "share-$itineraryId") { SharePostViewModel(it.posts, itineraryId) },
+            onBack = navController::popBackStack,
+            onOpenMap = { navController.navigate(Routes.itineraryMap(itineraryId)) },
+        )
+    }
+    composable(Routes.ITINERARY_MAP) { entry ->
+        val itineraryId = entry.arguments?.getString(Routes.ITINERARY_ID).orEmpty()
+        MapScreen(
+            viewModel = appViewModel(key = "map-$itineraryId") { MapViewModel(it.repository, it.liveItineraries, itineraryId) },
             onBack = navController::popBackStack,
         )
     }
