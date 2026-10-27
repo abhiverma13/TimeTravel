@@ -9,8 +9,18 @@ object TestTags {
     const val PROFILE_EDIT_BUTTON = "profileEditButton"
     const val PROFILE_CITY_FIELD = "profileCityField"
     const val PROFILE_SAVE_BUTTON = "profileSaveButton"
+    const val PRIVACY_SWITCH = "privacySwitch"
 
-    const val HOME_EXPLORE = "homeExplore"
+    const val FIND_FRIENDS_BUTTON = "findFriendsButton"
+    const val FRIEND_SEARCH_FIELD = "friendSearchField"
+    const val TRAVELLER_ROW = "travellerRow"
+    const val TRAVELLER_PROFILE = "travellerProfile"
+    const val FRIEND_ADD_BUTTON = "friendAddButton"
+    const val FRIEND_ACCEPT_BUTTON = "friendAcceptButton"
+
+    const val TAB_TRIPS = "tabTrips"
+    const val TAB_EXPLORE = "tabExplore"
+    const val TAB_PROFILE = "tabProfile"
 
     const val EXPLORE_CITY_FIELD = "exploreCityField"
     const val EXPLORE_SEARCH_BUTTON = "exploreSearchButton"
