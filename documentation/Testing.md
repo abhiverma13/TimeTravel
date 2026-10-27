@@ -12,6 +12,7 @@
 | 2026-10-26 | 2.1.1 | Added the Feed Service interfaces (share, feeds, read, delete, like, unlike, comments, copy a shared trip), tested with and without mocks; the copy is also tested with Google Routes mocked. |
 | 2026-10-26 | 2.1.1 | Added the `visit` and `unvisit` adjustments to the `POST /api/itineraries/:itineraryId/adjust` tests, and the Socket.io location-sharing interface, tested with and without mocks. |
 | 2026-10-26 | 2.1.1 | Added the Nearby Service interfaces (open a trip, find nearby trips, ask to join, list, accept and decline requests), tested with and without mocks. |
+| 2026-10-26 | 2.1.1 | Added verified reviews to the `POST /api/activities/:activityId/reviews` tests, and the new `GET /api/activities/:activityId/reviews` interface, tested with and without mocks. |
 
 ---
 
@@ -27,7 +28,8 @@
 | **GET /api/users/me** | [`backend/tests/no-mock/auth.test.ts#L60`](../backend/tests/no-mock/auth.test.ts#L60) | [`backend/tests/mock/auth.test.ts#L173`](../backend/tests/mock/auth.test.ts#L173) | User DB |
 | **PUT /api/users/me** | [`backend/tests/no-mock/auth.test.ts#L153`](../backend/tests/no-mock/auth.test.ts#L153) | [`backend/tests/mock/auth.test.ts#L195`](../backend/tests/mock/auth.test.ts#L195) | User DB |
 | **GET /api/activities** | [`backend/tests/no-mock/activities.test.ts#L22`](../backend/tests/no-mock/activities.test.ts#L22) | [`backend/tests/mock/activities.test.ts#L46`](../backend/tests/mock/activities.test.ts#L46), [`#L201`](../backend/tests/mock/activities.test.ts#L201) (through the production Google Places client) | Google Places API, Activity DB |
-| **POST /api/activities/:activityId/reviews** | [`backend/tests/no-mock/reviews.test.ts#L27`](../backend/tests/no-mock/reviews.test.ts#L27) | [`backend/tests/mock/reviews.test.ts#L25`](../backend/tests/mock/reviews.test.ts#L25) | Review DB, Activity DB, City catalogue DB |
+| **POST /api/activities/:activityId/reviews** | [`backend/tests/no-mock/reviews.test.ts#L57`](../backend/tests/no-mock/reviews.test.ts#L57) | [`backend/tests/mock/reviews.test.ts#L27`](../backend/tests/mock/reviews.test.ts#L27) | Review DB, Activity DB, City catalogue DB |
+| **GET /api/activities/:activityId/reviews** | [`backend/tests/no-mock/reviews.test.ts#L315`](../backend/tests/no-mock/reviews.test.ts#L315) | [`backend/tests/mock/reviews.test.ts#L112`](../backend/tests/mock/reviews.test.ts#L112) | Review DB |
 | **POST /api/groups** | [`backend/tests/no-mock/groups.test.ts#L23`](../backend/tests/no-mock/groups.test.ts#L23) | [`backend/tests/mock/groups.test.ts#L25`](../backend/tests/mock/groups.test.ts#L25) | Group DB (invite-code collisions, write failures) |
 | **GET /api/groups** | [`backend/tests/no-mock/groups.test.ts#L73`](../backend/tests/no-mock/groups.test.ts#L73) | [`backend/tests/mock/groups.test.ts#L78`](../backend/tests/mock/groups.test.ts#L78) | Group DB |
 | **POST /api/groups/join** | [`backend/tests/no-mock/groups.test.ts#L116`](../backend/tests/no-mock/groups.test.ts#L116) | [`backend/tests/mock/groups.test.ts#L97`](../backend/tests/mock/groups.test.ts#L97) | Group DB |
