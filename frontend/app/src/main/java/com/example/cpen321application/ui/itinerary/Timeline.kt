@@ -98,6 +98,14 @@ fun StopRow(stop: ItineraryStop, actions: List<StopAction> = emptyList()) {
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                     )
+                    if (stop.locked) {
+                        Text(
+                            text = "LOCKED IN PLACE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.testTag(TestTags.STOP_LOCKED),
+                        )
+                    }
                     Text(stop.name, style = MaterialTheme.typography.titleMedium)
                     StopDetails(stop)
                 }

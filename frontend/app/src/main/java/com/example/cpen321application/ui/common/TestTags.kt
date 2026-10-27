@@ -34,6 +34,13 @@ object TestTags {
     const val ITINERARY_WARNING = "itineraryWarning"
     const val STOP_ACTIONS_BUTTON = "stopActionsButton"
     const val STOP_ACTION_VETO = "stopActionVeto"
+    const val STOP_ACTION_LOCK = "stopActionLock"
+    const val STOP_ACTION_MOVE_EARLIER = "stopActionMoveEarlier"
+    const val STOP_ACTION_MOVE_LATER = "stopActionMoveLater"
+    const val STOP_ACTION_REMOVE = "stopActionRemove"
+    const val STOP_LOCKED = "stopLocked"
+    const val DAY_REPLAN_BUTTON = "dayReplanButton"
+    const val LIVE_STATUS = "liveStatus"
 
     const val HOME_GROUPS = "homeGroups"
     const val GROUPS_CREATE_BUTTON = "groupsCreateButton"

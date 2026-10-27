@@ -91,6 +91,8 @@ data class ItineraryStop(
     /** Travel from the previous stop, or from the lodging for the first stop. */
     val travelMinutes: Int,
     val communityScore: Double,
+    /** A locked stop stays in place when the day is re-planned. */
+    val locked: Boolean,
 )
 
 data class ItineraryDay(val date: String, val weekday: Int, val stops: List<ItineraryStop>, val returnTravelMinutes: Int)
@@ -114,8 +116,26 @@ data class Itinerary(
     val unscheduledCount: Int,
     val warnings: List<String>,
     val generationMs: Int,
+    /** Sent back with every adjustment, so an out-of-date copy cannot overwrite someone else's change. */
+    val version: Int,
     val createdAt: String,
 )
+
+/**
+ * One change to a day: action is lock, unlock, remove, move (with toIndex) or replan (with an optional fromTime).
+ * Null fields are left out of the request.
+ */
+data class AdjustRequest(
+    val action: String,
+    val version: Int,
+    val dayIndex: Int,
+    val activityId: String? = null,
+    val toIndex: Int? = null,
+    val fromTime: String? = null,
+)
+
+/** A live update pushed by the back-end after anyone in the trip adjusts it. */
+data class ItineraryChange(val itinerary: Itinerary, val actorId: String, val summary: String)
 
 data class ItinerarySummary(
     val id: String,

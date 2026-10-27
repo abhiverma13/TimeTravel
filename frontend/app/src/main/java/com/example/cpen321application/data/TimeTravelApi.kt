@@ -33,4 +33,7 @@ interface TimeTravelApi {
 
     @GET("api/itineraries/{itineraryId}")
     suspend fun itinerary(@Path("itineraryId") itineraryId: String): Itinerary
+
+    @POST("api/itineraries/{itineraryId}/adjust")
+    suspend fun adjustItinerary(@Path("itineraryId") itineraryId: String, @Body body: AdjustRequest): Itinerary
 }

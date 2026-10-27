@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,6 +17,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -36,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.example.cpen321application.data.Itinerary
 import com.example.cpen321application.data.ItineraryDay
 import com.example.cpen321application.data.ItineraryStop
+import com.example.cpen321application.data.LiveStatus
 import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.SectionLabel
 import com.example.cpen321application.ui.common.TestTags
@@ -53,6 +56,8 @@ private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, M
 fun ItineraryScreen(viewModel: ItineraryViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsState()
     val message by viewModel.message.collectAsState()
+    val busy by viewModel.busy.collectAsState()
+    val live by viewModel.live.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(message) {
         message?.let {
@@ -79,20 +84,71 @@ fun ItineraryScreen(viewModel: ItineraryViewModel, onBack: () -> Unit) {
                 Text(current.message, color = MaterialTheme.colorScheme.error)
                 TextButton(onClick = viewModel::load) { Text("Try again") }
             }
-            is ItineraryUiState.Loaded -> LazyColumn(
-                modifier = modifier,
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-            ) {
-                item { Summary(current.itinerary) }
-                val isGroupTrip = current.itinerary.groupId != null
-                current.itinerary.days.forEachIndexed { index, day ->
-                    dayTimeline(day, DayHeading(index + 1, current.itinerary.days.size, current.itinerary.city)) { stop ->
-                        if (isGroupTrip) listOf(StopAction("Veto for this group", TestTags.STOP_ACTION_VETO) { viewModel.veto(stop) }) else emptyList()
-                    }
+            is ItineraryUiState.Loaded -> Column(modifier) {
+                if (busy) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
+                Timeline(current.itinerary, live, viewModel)
             }
         }
     }
+}
+
+@Composable
+private fun Timeline(itinerary: Itinerary, live: LiveStatus, viewModel: ItineraryViewModel) {
+    LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
+        item { LiveBanner(live) }
+        item { Summary(itinerary) }
+        itinerary.days.forEachIndexed { dayIndex, day ->
+            dayTimeline(
+                day,
+                DayHeading(dayIndex + 1, itinerary.days.size, itinerary.city),
+                onReplan = { viewModel.replanDay(dayIndex, day.date) },
+            ) { stopIndex, stop ->
+                stopActions(viewModel, StopPosition(dayIndex, stopIndex, day.stops.size), stop, isGroupTrip = itinerary.groupId != null)
+            }
+        }
+    }
+}
+
+/** Where a stop sits in the trip, for the actions that depend on it. */
+private data class StopPosition(val dayIndex: Int, val stopIndex: Int, val stopCount: Int)
+
+private fun stopActions(viewModel: ItineraryViewModel, at: StopPosition, stop: ItineraryStop, isGroupTrip: Boolean): List<StopAction> =
+    buildList {
+        add(
+            if (stop.locked) {
+                StopAction("Unlock", TestTags.STOP_ACTION_LOCK) { viewModel.setLocked(at.dayIndex, stop, locked = false) }
+            } else {
+                StopAction("Lock in place", TestTags.STOP_ACTION_LOCK) { viewModel.setLocked(at.dayIndex, stop, locked = true) }
+            },
+        )
+        if (at.stopIndex > 0) {
+            add(StopAction("Move earlier", TestTags.STOP_ACTION_MOVE_EARLIER) { viewModel.move(at.dayIndex, stop, at.stopIndex - 1) })
+        }
+        if (at.stopIndex < at.stopCount - 1) {
+            add(StopAction("Move later", TestTags.STOP_ACTION_MOVE_LATER) { viewModel.move(at.dayIndex, stop, at.stopIndex + 1) })
+        }
+        add(StopAction("Remove", TestTags.STOP_ACTION_REMOVE) { viewModel.remove(at.dayIndex, stop) })
+        if (isGroupTrip) {
+            add(StopAction("Veto for this group", TestTags.STOP_ACTION_VETO) { viewModel.veto(stop) })
+        }
+    }
+
+// Whether everyone's edits are arriving live, or the device is waiting to reconnect.
+@Composable
+private fun LiveBanner(live: LiveStatus) {
+    val (text, color) = when (live) {
+        LiveStatus.LIVE -> "Live: everyone in the trip sees changes as they happen" to MaterialTheme.colorScheme.secondary
+        LiveStatus.CONNECTING -> "Connecting to live updates..." to MaterialTheme.colorScheme.onSurfaceVariant
+        LiveStatus.OFFLINE -> "Offline: live updates will resume when you reconnect" to MaterialTheme.colorScheme.error
+    }
+    Text(
+        text = text.uppercase(Locale.ROOT),
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        modifier = Modifier.padding(bottom = 8.dp).testTag(TestTags.LIVE_STATUS),
+    )
 }
 
 @Composable
@@ -119,7 +175,10 @@ private fun Summary(itinerary: Itinerary) {
             }
         }
         itinerary.warnings.forEach { warning ->
-            BrandCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.ITINERARY_WARNING), containerColor = MaterialTheme.colorScheme.errorContainer) {
+            BrandCard(
+                modifier = Modifier.fillMaxWidth().testTag(TestTags.ITINERARY_WARNING),
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+            ) {
                 Text(warning, color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.padding(14.dp))
             }
         }
@@ -129,11 +188,23 @@ private fun Summary(itinerary: Itinerary) {
 /** "Day 2 of 3 · Vancouver". */
 private data class DayHeading(val dayNumber: Int, val dayCount: Int, val city: String)
 
-private fun LazyListScope.dayTimeline(day: ItineraryDay, heading: DayHeading, stopActions: (ItineraryStop) -> List<StopAction>) {
+private fun LazyListScope.dayTimeline(
+    day: ItineraryDay,
+    heading: DayHeading,
+    onReplan: () -> Unit,
+    stopActions: (Int, ItineraryStop) -> List<StopAction>,
+) {
     item(key = "day-${day.date}") {
         Column(modifier = Modifier.padding(top = 16.dp, bottom = 4.dp).testTag(TestTags.ITINERARY_DAY)) {
             SectionLabel("Day ${heading.dayNumber} of ${heading.dayCount} · ${heading.city}")
-            Text(LocalDate.parse(day.date).format(DAY_FORMAT.withLocale(Locale.getDefault())), style = MaterialTheme.typography.titleLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    LocalDate.parse(day.date).format(DAY_FORMAT.withLocale(Locale.getDefault())),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onReplan, modifier = Modifier.testTag(TestTags.DAY_REPLAN_BUTTON)) { Text("Re-plan") }
+            }
         }
     }
     if (day.stops.isEmpty()) {
@@ -142,7 +213,7 @@ private fun LazyListScope.dayTimeline(day: ItineraryDay, heading: DayHeading, st
     }
     itemsIndexed(day.stops, key = { _, stop -> "${day.date}-${stop.activityId}" }) { index, stop ->
         TransitRow(transitText(stop.travelMinutes, fromLodging = index == 0))
-        StopRow(stop, stopActions(stop))
+        StopRow(stop, stopActions(index, stop))
     }
     item(key = "return-${day.date}") {
         TransitRow("Back at lodging by ${backAt(day)}  ·  ${day.returnTravelMinutes} min transit")

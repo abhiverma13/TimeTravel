@@ -26,6 +26,7 @@ import com.example.cpen321application.ui.home.HomeActions
 import com.example.cpen321application.ui.home.HomeScreen
 import com.example.cpen321application.ui.home.HomeViewModel
 import com.example.cpen321application.ui.home.ProfileDialog
+import com.example.cpen321application.ui.itinerary.ItineraryDependencies
 import com.example.cpen321application.ui.itinerary.ItineraryScreen
 import com.example.cpen321application.ui.itinerary.ItineraryViewModel
 import com.example.cpen321application.ui.signin.SignInScreen
@@ -142,7 +143,9 @@ private fun NavGraphBuilder.tripScreens(navController: NavHostController, sessio
     composable(Routes.ITINERARY) { entry ->
         val itineraryId = entry.arguments?.getString(Routes.ITINERARY_ID).orEmpty()
         ItineraryScreen(
-            viewModel = appViewModel(key = itineraryId) { ItineraryViewModel(it.repository, it.groups, itineraryId, session.user.id) },
+            viewModel = appViewModel(key = itineraryId) {
+                ItineraryViewModel(ItineraryDependencies(it.repository, it.groups, it.liveItineraries, session.user.id), itineraryId)
+            },
             onBack = navController::popBackStack,
         )
     }

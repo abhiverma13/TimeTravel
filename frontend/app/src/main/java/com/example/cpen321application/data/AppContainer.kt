@@ -14,4 +14,5 @@ class AppContainer(context: Context) {
         GoogleSignInClient(BuildConfig.GOOGLE_CLIENT_ID),
     )
     val groups = GroupRepository(retrofit.create(GroupApi::class.java))
+    val liveItineraries = LiveItineraryClient(BuildConfig.API_BASE_URL, sessionStore)
 }

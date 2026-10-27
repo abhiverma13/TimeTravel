@@ -66,4 +66,8 @@ class TimeTravelRepository(
         apiCall { api.itineraries(groupId) }.map { response -> response.itineraries }
 
     suspend fun itinerary(itineraryId: String): Result<Itinerary> = apiCall { api.itinerary(itineraryId) }
+
+    /** View & Adjust Itinerary: locks, unlocks, removes or moves a stop, or re-plans a day; returns the new plan. */
+    suspend fun adjustItinerary(itineraryId: String, request: AdjustRequest): Result<Itinerary> =
+        apiCall { api.adjustItinerary(itineraryId, request) }
 }
