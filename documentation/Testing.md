@@ -11,6 +11,7 @@
 | 2026-10-26 | 2.1.1 | Added the Friend Service interfaces (search and view travellers, list friends, send and accept requests, remove a friendship, set privacy), tested with and without mocks. |
 | 2026-10-26 | 2.1.1 | Added the Feed Service interfaces (share, feeds, read, delete, like, unlike, comments, copy a shared trip), tested with and without mocks; the copy is also tested with Google Routes mocked. |
 | 2026-10-26 | 2.1.1 | Added the `visit` and `unvisit` adjustments to the `POST /api/itineraries/:itineraryId/adjust` tests, and the Socket.io location-sharing interface, tested with and without mocks. |
+| 2026-10-26 | 2.1.1 | Added the Nearby Service interfaces (open a trip, find nearby trips, ask to join, list, accept and decline requests), tested with and without mocks. |
 
 ---
 
@@ -57,6 +58,12 @@
 | **POST /api/posts/:postId/comments** | [`backend/tests/no-mock/posts.test.ts#L403`](../backend/tests/no-mock/posts.test.ts#L403) | [`backend/tests/mock/posts.test.ts#L177`](../backend/tests/mock/posts.test.ts#L177) | Comment DB |
 | **DELETE /api/posts/:postId/comments/:commentId** | [`backend/tests/no-mock/posts.test.ts#L434`](../backend/tests/no-mock/posts.test.ts#L434) | [`backend/tests/mock/posts.test.ts#L194`](../backend/tests/mock/posts.test.ts#L194) | Comment DB |
 | **POST /api/posts/:postId/copy** | [`backend/tests/no-mock/posts.test.ts#L472`](../backend/tests/no-mock/posts.test.ts#L472) | [`backend/tests/mock/posts.test.ts#L213`](../backend/tests/mock/posts.test.ts#L213) | Google Routes API, Itinerary DB |
+| **PUT /api/nearby/trips/:itineraryId** | [`backend/tests/no-mock/nearby.test.ts#L52`](../backend/tests/no-mock/nearby.test.ts#L52) | [`backend/tests/mock/nearby.test.ts#L75`](../backend/tests/mock/nearby.test.ts#L75) | Itinerary DB |
+| **GET /api/nearby/trips** | [`backend/tests/no-mock/nearby.test.ts#L110`](../backend/tests/no-mock/nearby.test.ts#L110) | [`backend/tests/mock/nearby.test.ts#L41`](../backend/tests/mock/nearby.test.ts#L41) | Itinerary DB, Group DB (a group deleted while listing) |
+| **POST /api/nearby/trips/:itineraryId/requests** | [`backend/tests/no-mock/nearby.test.ts#L176`](../backend/tests/no-mock/nearby.test.ts#L176) | [`backend/tests/mock/nearby.test.ts#L92`](../backend/tests/mock/nearby.test.ts#L92) | Join request DB |
+| **GET /api/nearby/requests** | [`backend/tests/no-mock/nearby.test.ts#L229`](../backend/tests/no-mock/nearby.test.ts#L229) | [`backend/tests/mock/nearby.test.ts#L109`](../backend/tests/mock/nearby.test.ts#L109) | Join request DB |
+| **POST /api/nearby/requests/:requestId/accept** | [`backend/tests/no-mock/nearby.test.ts#L269`](../backend/tests/no-mock/nearby.test.ts#L269) | [`backend/tests/mock/nearby.test.ts#L126`](../backend/tests/mock/nearby.test.ts#L126) | Group DB (the group fills up first) |
+| **POST /api/nearby/requests/:requestId/decline** | [`backend/tests/no-mock/nearby.test.ts#L327`](../backend/tests/no-mock/nearby.test.ts#L327) | [`backend/tests/mock/nearby.test.ts#L146`](../backend/tests/mock/nearby.test.ts#L146) | Join request DB |
 | **GET /health** | [`backend/tests/no-mock/health.test.ts#L10`](../backend/tests/no-mock/health.test.ts#L10) | [`backend/tests/mock/health.test.ts#L11`](../backend/tests/mock/health.test.ts#L11) | MongoDB connection state |
 
 The tests without mocks run against a real MongoDB (an in-memory server started by the tests, see `backend/tests/helpers/testDatabase.ts`) and pre-populate the Vancouver catalogue in the database, so they need no Google Places key. The Itinerary Engine's scheduling core is also unit-tested in [`backend/tests/unit/`](../backend/tests/unit/), including a comparison against a brute-forced optimum.

@@ -13,6 +13,7 @@
 | 2026-10-26 | 3.1, 3.4, 3.5, 4.1, 4.2 | Added F6 Friends and the trip feed, starting with friends and private accounts: travellers find each other by name or email, send and answer friend requests, and can make their account private so only friends see their details (and, later in F6, their posts). The privacy setting belongs to a new Friend Service rather than the Auth & Profile Service, because only the Friend Service decides who sees what. The app now has a bottom navigation bar (Trips, Explore, Profile), so Browse & Search Activities starts from the Explore tab and sign-out and the profile moved to the Profile tab. |
 | 2026-10-26 | 3.1, 3.4, 4.1, 4.2 | Completed F6 with the trip feed: a traveller shares a trip with a rating and caption, reads a Friends or Everyone feed (optionally for one city), likes and comments on posts, and copies a shared trip into their own trips on new dates. A post keeps a frozen copy of the plan, so later edits to the itinerary do not change what others read. Copying re-times every day for its new weekday and leaves out, with a warning, any stop that no longer fits, rather than re-planning from scratch, because the point of copying is getting the same places. A new Feed Service owns posts and comments; who may see a post is asked of the Friend Service. |
 | 2026-10-26 | 3.1, 3.4, 4.1, 4.3, 4.4 | Added F7 Trip map and live location: each trip has a map of the day's stops and route, with where you are and how far the next stop is. On the trip's current day a stop is ticked off as visited when you arrive within 100 m of it, and stops can also be marked visited by hand. On a group trip, members can choose to share their position with each other while the map is open. Positions are relayed live and never stored, and nothing is tracked in the background, because a traveller's location is the most sensitive thing the app handles. |
+| 2026-10-26 | 3.1, 3.4, 4.1, 4.2 | Added F8 Nearby trips: a group's owner can open a group trip to travellers nearby; a Nearby tab lists open trips with a stop within 10 km that start within a week, and a traveller can ask to join with a note, which the owner accepts or declines from the group's page. Trips are matched by their stops, and only the plan is shown, never the lodging or anyone's position, so opening a trip does not reveal where its members are. A new Nearby Service owns the requests; accepting one adds the member through the Group Service. |
 
 ---
 
@@ -35,6 +36,7 @@ Planning a trip is a scheduling problem, but every tool treats it as a search pr
 5. **F5 Disruption-aware re-planning** (planned for CP2-CP3): a back-end watcher tracks the forecast and venue status for active trips, re-solves the affected part of the day, then pushes it out.
 6. **F6 Friends and the trip feed** (implemented for CP2): travellers find each other by name or email and become friends once a request is accepted. A traveller shares a trip with a rating and a caption; friends see it in their Friends feed, and everyone sees it in the Everyone feed unless the account is private. Posts can be liked, commented on, and copied into your own trips on new dates.
 7. **F7 Trip map and live location** (implemented for CP2): each trip has a map of the day's stops and route with the traveller's position and the distance to the next stop. On the trip's current day, a stop is ticked off as visited when the traveller arrives within 100 m. Members of a group trip can share their position with each other while the map is open; positions are passed on live and never stored.
+8. **F8 Nearby trips** (implemented for CP2): a group's owner can open a group trip to travellers nearby. Travellers see open trips with a stop within 10 km that start within the next week (the plan only, never the lodging or anyone's position) and can ask to join the group with a note; the owner accepts or declines.
 
 How the features satisfy the project scope:
 
@@ -93,6 +95,11 @@ How the features satisfy the project scope:
   23. **View Trip Map**: a traveller opens a trip's map and sees one day's stops in order, the route, where they are and how far the next stop is.
   24. **Tick Off Stops on Arrival**: on the trip's current day, arriving within 100 m of a stop marks it visited for everyone in the trip.
   25. **Share Location with Group**: a member of a group trip turns on sharing on the map, and the other members with the map open see where they are until they turn it off or leave.
+- Use cases for feature 8: **Nearby trips**
+  26. **Open Trip to Nearby Travellers**: a group's owner turns on "Open to travellers nearby" for one of the group's trips, or turns it off.
+  27. **Find Nearby Trips**: a traveller opens the Nearby tab and sees open trips near where they are.
+  28. **Ask to Join Trip**: a traveller asks to join an open trip's group, with an optional note to its owner.
+  29. **Answer Join Request**: the group's owner accepts a request, adding the traveller to the group, or declines it.
 
 ### **3.5. Formal Use Case Specifications (5 Most Major Use Cases)**
 
@@ -333,6 +340,8 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
             - **Purpose**: The owner deletes the group and all its trips (403 for other members).
         8. `GroupTripPreferences tripPreferences(String userId, String groupId)`
             - **Purpose**: Called by the Itinerary Engine: per interest, the share of members who picked it, and every member's vetoes combined.
+        9. `Group addMember(ObjectId groupId, String userId)`
+            - **Purpose**: Called by the Nearby Service when an owner accepts a join request, and by joining with an invite code: adds the traveller with their profile interests in one atomic update (409 if the group is full).
 5. **Trip Sync & Disruption Service** (planned for CP2-CP3)
     - **Purpose**: A Socket.io hub on the API's own server (and TLS), with one room per itinerary, and a timer-driven watcher that detects disruption and asks the Itinerary Engine for a re-plan. We chose a persistent socket over polling because a re-plan has to land on every device in seconds (NFR 2); Firebase Cloud Messaging is used only to wake a backgrounded app, never as the state channel.
     - **Interfaces**:
@@ -387,10 +396,24 @@ Screens from the CP1 build (demo catalogue), in the presentation's visual style:
         9. `POST /api/posts/{postId}/copy` body `{ startDate }` returns `ItineraryDto`
             - **Purpose**: Copies the shared trip into the caller's own trips starting on `startDate` (201). Each day keeps its stops in order, re-timed for its new weekday with the Itinerary Engine's `copyTrip`; a stop that no longer fits is left out with a warning.
 
+8. **Nearby Service**
+    - **Purpose**: Group trips opened to travellers nearby, and requests to join their groups. It is its own component because it joins two concerns, where a trip is and who may join a group, under one privacy rule: nearby travellers see a trip's plan and nothing about where its members stay or are.
+    - **Interfaces**:
+        1. `PUT /api/nearby/trips/{itineraryId}` body `{ openToJoin: boolean }` returns `{ openToJoin }`
+            - **Purpose**: The group's owner opens a group trip to travellers nearby, or closes it (403 for other members, 409 for a personal trip).
+        2. `GET /api/nearby/trips?lat=<lat>&lng=<lng>` returns `{ trips: NearbyTripDto[] }`
+            - **Purpose**: Up to 20 open trips, nearest first, with a stop within 10 km of the position that have not ended and start within 7 days, leaving out the caller's own groups. `NearbyTripDto` is `{ itineraryId, groupId, groupName, organizer, memberCount, city, startDate, endDate, stopNames, interests, distanceKm, myRequest }`; it never includes the lodging or any member's position.
+        3. `POST /api/nearby/trips/{itineraryId}/requests` body `{ note? }` returns `JoinRequestDto`
+            - **Purpose**: Asks to join the trip's group with a note of up to 200 characters (201); refused if the trip is not open (404), the caller is already a member (409), or already has a pending request (409). `JoinRequestDto` is `{ id, itineraryId, groupId, requester: { id, name }, note, status, createdAt }`.
+        4. `GET /api/nearby/requests?groupId=<id>` returns `{ requests: JoinRequestDto[] }`
+            - **Purpose**: The group's pending requests, oldest first; owner only (403 for other members).
+        5. `POST /api/nearby/requests/{requestId}/accept` and `POST /api/nearby/requests/{requestId}/decline` return `JoinRequestDto`
+            - **Purpose**: The group's owner answers a pending request once (409 after that); accepting adds the traveller to the group through the Group Service (409 if the group is full).
+
 ### **4.2. Databases**
 
 1. **MongoDB** (one database, accessed through Mongoose)
-    - **Purpose**: Stores `users` (Google identity, home city, interests, whether the account is private), `friendships` (who asked whom, pending or accepted, with the two user ids in sorted order under a unique index, so two travellers never have two friendships), `activities` (the cached catalogue, with a 2dsphere index on location for "near my lodging" queries and the review counters), `citycatalogues` (when each city was last fetched from Places, for cache expiry), `reviews`, `groups` (name, unique invite code, and each member's role, interests and vetoes, indexed by member), `itineraries` (one document per trip with its days and stops (each stop marked locked or visited), its options, and the group's id for a group trip), `traveltimes` (Google Routes travel times per way of getting around and pair of points, deleted by a time-to-live index a week after they were fetched), `posts` (the author, a frozen copy of the trip, the rating and caption, and who liked it, indexed for the feed by time, author and city), and `comments` (indexed by post).
+    - **Purpose**: Stores `users` (Google identity, home city, interests, whether the account is private), `friendships` (who asked whom, pending or accepted, with the two user ids in sorted order under a unique index, so two travellers never have two friendships), `activities` (the cached catalogue, with a 2dsphere index on location for "near my lodging" queries and the review counters), `citycatalogues` (when each city was last fetched from Places, for cache expiry), `reviews`, `groups` (name, unique invite code, and each member's role, interests and vetoes, indexed by member), `itineraries` (one document per trip with its days and stops (each stop marked locked or visited), its options, the group's id for a group trip, and whether it is open to travellers nearby), `joinrequests` (who asked to join which group through which trip, their note and the answer), `traveltimes` (Google Routes travel times per way of getting around and pair of points, deleted by a time-to-live index a week after they were fetched), `posts` (the author, a frozen copy of the trip, the rating and caption, and who liked it, indexed for the feed by time, author and city), and `comments` (indexed by post).
     - **Why MongoDB, not MySQL**: an itinerary is one nested, variable-shaped document per trip, and we need 2dsphere geo queries on activities. A relational schema would join five tables to read a single day.
 
 ### **4.3. External Modules**
