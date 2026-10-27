@@ -9,6 +9,8 @@ const userSchema = new Schema(
     name: { type: String, required: true },
     homeCity: { type: String, default: '' },
     interests: { type: [{ type: String, enum: INTEREST_TAGS }], default: [] },
+    /** A private account shows its details and posts to friends only; set through the Friend Service. */
+    isPrivate: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

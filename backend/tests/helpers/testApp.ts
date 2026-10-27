@@ -7,6 +7,7 @@ import { AuthService } from '../../src/auth/authService';
 import { createGoogleTokenVerifier, type GoogleTokenVerifier } from '../../src/auth/googleTokenVerifier';
 import { UserModel } from '../../src/auth/userModel';
 import { DEMO_VANCOUVER_PLACES } from '../../src/dev/demoVancouverPlaces';
+import { FriendService } from '../../src/friends/friendService';
 import { GroupService } from '../../src/groups/groupService';
 import { ItineraryService } from '../../src/itineraries/itineraryService';
 import type { RoutesClient } from '../../src/itineraries/routesClient';
@@ -32,6 +33,7 @@ export interface TestApp {
   activityService: ActivityService;
   groupService: GroupService;
   itineraryService: ItineraryService;
+  friendService: FriendService;
 }
 
 export function createTestApp(options: TestAppOptions = {}): TestApp {
@@ -43,12 +45,14 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   const activityService = new ActivityService(placesClient, options.now);
   const groupService = new GroupService();
   const itineraryService = new ItineraryService(activityService, placesClient, groupService, new TravelTimeService(options.routesClient ?? null));
+  const friendService = new FriendService();
   return {
-    app: createApp({ authService, activityService, groupService, itineraryService }),
+    app: createApp({ authService, activityService, groupService, itineraryService, friendService }),
     authService,
     activityService,
     groupService,
     itineraryService,
+    friendService,
   };
 }
 
