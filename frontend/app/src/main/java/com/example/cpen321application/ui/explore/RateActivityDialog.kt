@@ -94,8 +94,9 @@ fun RateActivityDialog(
     )
 }
 
+/** Five stars to tap; the first `stars` are filled. */
 @Composable
-private fun StarPicker(stars: Int, onStars: (Int) -> Unit) {
+fun StarPicker(stars: Int, onStars: (Int) -> Unit) {
     Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
         for (star in 1..MAX_STARS) {
             IconButton(onClick = { onStars(star) }, modifier = Modifier.testTag(TestTags.ratingStar(star))) {

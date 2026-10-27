@@ -3,7 +3,10 @@ package com.example.cpen321application.ui.friends
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.FriendRepository
+import com.example.cpen321application.data.Post
+import com.example.cpen321application.data.PostRepository
 import com.example.cpen321application.data.Traveller
+import com.example.cpen321application.ui.feed.toggleLike
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,10 +19,12 @@ data class TravellerUiState(
     val error: String? = null,
     val busy: Boolean = false,
     val actionError: String? = null,
+    /** Their shared trips you may see; none for a private account you are not friends with. */
+    val posts: List<Post> = emptyList(),
 )
 
-/** Another traveller's profile, and the friendship actions that fit it. */
-class TravellerViewModel(private val friends: FriendRepository, private val userId: String) : ViewModel() {
+/** Another traveller's profile, their shared trips, and the friendship actions that fit it. */
+class TravellerViewModel(private val friends: FriendRepository, private val posts: PostRepository, private val userId: String) : ViewModel() {
     private val mutableState = MutableStateFlow(TravellerUiState())
     val state: StateFlow<TravellerUiState> = mutableState.asStateFlow()
 
@@ -31,11 +36,20 @@ class TravellerViewModel(private val friends: FriendRepository, private val user
         mutableState.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             val result = friends.traveller(userId)
+            val shared = posts.postsBy(userId).getOrDefault(emptyList())
             mutableState.update { current ->
                 result.fold(
-                    onSuccess = { traveller -> current.copy(loading = false, traveller = traveller) },
+                    onSuccess = { traveller -> current.copy(loading = false, traveller = traveller, posts = shared) },
                     onFailure = { error -> current.copy(loading = false, error = error.message) },
                 )
+            }
+        }
+    }
+
+    fun toggleLike(post: Post) {
+        viewModelScope.launch {
+            posts.toggleLike(post).onSuccess { updated ->
+                mutableState.update { it.copy(posts = it.posts.map { old -> if (old.id == updated.id) updated else old }) }
             }
         }
     }

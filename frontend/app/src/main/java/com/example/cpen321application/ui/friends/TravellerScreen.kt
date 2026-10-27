@@ -29,12 +29,15 @@ import com.example.cpen321application.data.FRIENDSHIP_SELF
 import com.example.cpen321application.data.Traveller
 import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.TestTags
+import com.example.cpen321application.ui.common.SectionLabel
 import com.example.cpen321application.ui.common.countText
+import com.example.cpen321application.ui.feed.PostCard
+import com.example.cpen321application.ui.feed.PostCardActions
 
 /** Another traveller's profile: who they are, how many friends they have, and your friendship with them. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TravellerScreen(viewModel: TravellerViewModel, onBack: () -> Unit) {
+fun TravellerScreen(viewModel: TravellerViewModel, onBack: () -> Unit, onOpenPost: (String) -> Unit) {
     val state by viewModel.state.collectAsState()
     Scaffold(
         topBar = {
@@ -58,6 +61,12 @@ fun TravellerScreen(viewModel: TravellerViewModel, onBack: () -> Unit) {
                 else -> TravellerCard(traveller, state.busy, viewModel::act)
             }
             state.actionError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            if (state.posts.isNotEmpty()) {
+                SectionLabel("Shared trips")
+                state.posts.forEach { post ->
+                    PostCard(post, PostCardActions(onOpen = { onOpenPost(post.id) }, onOpenAuthor = {}, onLike = { viewModel.toggleLike(post) }))
+                }
+            }
         }
     }
 }

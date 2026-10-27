@@ -3,6 +3,7 @@ package com.example.cpen321application.ui.trip
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.DropdownMenuItem
@@ -14,6 +15,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -99,5 +101,28 @@ fun TripDatesDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     ) {
         DateRangePicker(state = state, title = { Text("Trip dates", modifier = Modifier.padding(start = 24.dp, top = 16.dp, end = 12.dp)) }, modifier = Modifier.height(DATE_PICKER_HEIGHT_DP.dp))
+    }
+}
+
+/** Lets the traveller pick the day a copied trip starts, from today onwards. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StartDateDialog(title: String, onConfirm: (LocalDate) -> Unit, onDismiss: () -> Unit) {
+    val today = remember { LocalDate.now().toUtcMillis() }
+    val state = rememberDatePickerState(
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= today
+        },
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { state.selectedDateMillis?.let { onConfirm(it.toUtcDate()) } }, enabled = state.selectedDateMillis != null) {
+                Text("Done")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    ) {
+        DatePicker(state = state, title = { Text(title, modifier = Modifier.padding(start = 24.dp, top = 16.dp, end = 12.dp)) })
     }
 }

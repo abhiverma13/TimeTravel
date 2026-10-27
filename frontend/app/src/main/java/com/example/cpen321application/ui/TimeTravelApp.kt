@@ -5,6 +5,7 @@ import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
@@ -34,6 +35,12 @@ import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.appViewModel
 import com.example.cpen321application.ui.explore.ExploreScreen
 import com.example.cpen321application.ui.explore.ExploreViewModel
+import com.example.cpen321application.ui.feed.FeedScreen
+import com.example.cpen321application.ui.feed.FeedViewModel
+import com.example.cpen321application.ui.feed.PostNavigation
+import com.example.cpen321application.ui.feed.PostScreen
+import com.example.cpen321application.ui.feed.PostViewModel
+import com.example.cpen321application.ui.feed.SharePostViewModel
 import com.example.cpen321application.ui.friends.FindFriendsScreen
 import com.example.cpen321application.ui.friends.FindFriendsViewModel
 import com.example.cpen321application.ui.friends.TravellerScreen
@@ -62,6 +69,9 @@ private object Routes {
     const val HOME = "home"
     const val EXPLORE = "explore"
     const val PROFILE = "profile"
+    const val FEED = "feed"
+    const val POST_ID = "postId"
+    const val POST = "post/{$POST_ID}"
     const val FIND_FRIENDS = "findFriends"
     const val USER_ID = "userId"
     const val TRAVELLER = "traveller/{$USER_ID}"
@@ -79,6 +89,8 @@ private object Routes {
 
     fun traveller(userId: String) = "traveller/$userId"
 
+    fun post(postId: String) = "post/$postId"
+
     fun tripBuilder(group: TripGroup? = null) =
         if (group == null) "tripBuilder" else "tripBuilder?$GROUP_ID=${group.id}&$GROUP_NAME=${Uri.encode(group.name)}"
 }
@@ -92,6 +104,7 @@ private class Tab(val route: String, val label: String, val icon: ImageVector, v
 private val TABS = listOf(
     Tab(Routes.HOME, "Trips", Icons.Filled.Home, TestTags.TAB_TRIPS),
     Tab(Routes.EXPLORE, "Explore", Icons.Filled.Search, TestTags.TAB_EXPLORE),
+    Tab(Routes.FEED, "Feed", Icons.AutoMirrored.Filled.List, TestTags.TAB_FEED),
     Tab(Routes.PROFILE, "Profile", Icons.Filled.Person, TestTags.TAB_PROFILE),
 )
 
@@ -152,6 +165,7 @@ private fun SignedInScreens(session: SessionState.SignedIn, viewModel: SessionVi
             tripScreens(navController, session)
             groupScreens(navController, session)
             friendScreens(navController)
+            feedScreens(navController)
         }
     }
 }
@@ -215,8 +229,30 @@ private fun NavGraphBuilder.friendScreens(navController: NavHostController) {
     composable(Routes.TRAVELLER) { entry ->
         val userId = entry.arguments?.getString(Routes.USER_ID).orEmpty()
         TravellerScreen(
-            viewModel = appViewModel(key = "traveller-$userId") { TravellerViewModel(it.friends, userId) },
+            viewModel = appViewModel(key = "traveller-$userId") { TravellerViewModel(it.friends, it.posts, userId) },
             onBack = navController::popBackStack,
+            onOpenPost = { navController.navigate(Routes.post(it)) },
+        )
+    }
+}
+
+private fun NavGraphBuilder.feedScreens(navController: NavHostController) {
+    composable(Routes.FEED) {
+        FeedScreen(
+            viewModel = appViewModel { FeedViewModel(it.posts) },
+            onOpenPost = { navController.navigate(Routes.post(it)) },
+            onOpenTraveller = { navController.navigate(Routes.traveller(it)) },
+        )
+    }
+    composable(Routes.POST) { entry ->
+        val postId = entry.arguments?.getString(Routes.POST_ID).orEmpty()
+        PostScreen(
+            viewModel = appViewModel(key = "post-$postId") { PostViewModel(it.posts, postId) },
+            navigation = PostNavigation(
+                onBack = navController::popBackStack,
+                onOpenTraveller = { navController.navigate(Routes.traveller(it)) },
+                onOpenItinerary = { navController.navigate(Routes.itinerary(it)) },
+            ),
         )
     }
 }
@@ -248,6 +284,7 @@ private fun NavGraphBuilder.tripScreens(navController: NavHostController, sessio
             viewModel = appViewModel(key = itineraryId) {
                 ItineraryViewModel(ItineraryDependencies(it.repository, it.groups, it.liveItineraries, session.user.id), itineraryId)
             },
+            share = appViewModel(key = "share-$itineraryId") { SharePostViewModel(it.posts, itineraryId) },
             onBack = navController::popBackStack,
         )
     }

@@ -21,6 +21,16 @@ object TestTags {
     const val TAB_TRIPS = "tabTrips"
     const val TAB_EXPLORE = "tabExplore"
     const val TAB_PROFILE = "tabProfile"
+    const val TAB_FEED = "tabFeed"
+
+    const val POST_CARD = "postCard"
+    const val POST_LIKE_BUTTON = "postLikeButton"
+    const val POST_COPY_BUTTON = "postCopyButton"
+    const val COMMENT_FIELD = "commentField"
+    const val COMMENT_SEND_BUTTON = "commentSendButton"
+    const val SHARE_TRIP_BUTTON = "shareTripButton"
+    const val SHARE_CAPTION_FIELD = "shareCaptionField"
+    const val SHARE_CONFIRM_BUTTON = "shareConfirmButton"
 
     const val EXPLORE_CITY_FIELD = "exploreCityField"
     const val EXPLORE_SEARCH_BUTTON = "exploreSearchButton"

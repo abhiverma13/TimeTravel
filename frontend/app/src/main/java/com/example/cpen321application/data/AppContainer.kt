@@ -15,5 +15,6 @@ class AppContainer(context: Context) {
     )
     val groups = GroupRepository(retrofit.create(GroupApi::class.java))
     val friends = FriendRepository(retrofit.create(FriendApi::class.java))
+    val posts = PostRepository(retrofit.create(PostApi::class.java))
     val liveItineraries = LiveItineraryClient(BuildConfig.API_BASE_URL, sessionStore)
 }

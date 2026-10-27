@@ -15,9 +15,12 @@ import java.time.format.DateTimeFormatter
 private val TRIP_DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d")
 
 /** "Oct 30 to Oct 31", or one date for a one-day trip. */
-fun tripDatesText(trip: ItinerarySummary): String {
-    val start = LocalDate.parse(trip.startDate).format(TRIP_DATE_FORMAT)
-    val end = LocalDate.parse(trip.endDate).format(TRIP_DATE_FORMAT)
+fun tripDatesText(trip: ItinerarySummary): String = tripDatesText(trip.startDate, trip.endDate)
+
+/** "Oct 30 to Oct 31" for dates written YYYY-MM-DD, or one date when they are the same. */
+fun tripDatesText(startDate: String, endDate: String): String {
+    val start = LocalDate.parse(startDate).format(TRIP_DATE_FORMAT)
+    val end = LocalDate.parse(endDate).format(TRIP_DATE_FORMAT)
     return if (start == end) start else "$start to $end"
 }
 

@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -44,6 +45,8 @@ import com.example.cpen321application.ui.common.SectionLabel
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.clockTime
 import com.example.cpen321application.ui.common.interestLabel
+import com.example.cpen321application.ui.feed.SharePostDialog
+import com.example.cpen321application.ui.feed.SharePostViewModel
 import com.example.cpen321application.ui.trip.BUDGETS
 import com.example.cpen321application.ui.trip.PACES
 import com.example.cpen321application.ui.trip.TRANSPORT_MODES
@@ -56,8 +59,9 @@ private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, M
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ItineraryScreen(viewModel: ItineraryViewModel, onBack: () -> Unit) {
+fun ItineraryScreen(viewModel: ItineraryViewModel, share: SharePostViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsState()
+    val sharing by share.state.collectAsState()
     val message by viewModel.message.collectAsState()
     val busy by viewModel.busy.collectAsState()
     val live by viewModel.live.collectAsState()
@@ -68,6 +72,12 @@ fun ItineraryScreen(viewModel: ItineraryViewModel, onBack: () -> Unit) {
             viewModel.messageShown()
         }
     }
+    LaunchedEffect(sharing.shared) {
+        if (sharing.shared) {
+            snackbar.showSnackbar("Shared to the feed.")
+            share.sharedShown()
+        }
+    }
     val title = (state as? ItineraryUiState.Loaded)?.itinerary?.city?.let { "$it itinerary" } ?: "Itinerary"
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -76,6 +86,13 @@ fun ItineraryScreen(viewModel: ItineraryViewModel, onBack: () -> Unit) {
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                },
+                actions = {
+                    if (state is ItineraryUiState.Loaded) {
+                        IconButton(onClick = share::open, modifier = Modifier.testTag(TestTags.SHARE_TRIP_BUTTON)) {
+                            Icon(Icons.Filled.Share, contentDescription = "Share to the feed")
+                        }
+                    }
                 },
             )
         },
@@ -94,6 +111,9 @@ fun ItineraryScreen(viewModel: ItineraryViewModel, onBack: () -> Unit) {
                 Timeline(current.itinerary, live, viewModel)
             }
         }
+    }
+    if (sharing.open) {
+        SharePostDialog(sharing, share)
     }
 }
 
