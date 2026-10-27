@@ -136,6 +136,24 @@ describe('Unmocked: GET /api/nearby/trips', () => {
     expect(Object.keys(trip ?? {})).not.toContain('lodging');
   });
 
+  // Input: Vera next to Night Market, with Olivia's trip and Wes's Night Market trip (opened after it) both open
+  // Expected status code: 200
+  // Expected behavior: trips are listed nearest first, by their stop closest to Vera
+  // Expected output: Wes's trip (0 km) before Olivia's (0.3 km, at Town Museum)
+  test('Lists the nearest trip first', async () => {
+    const { vera, wes, client, itineraryId, open } = await openTrip();
+    await open();
+    const marketCrew = (await client(wes).post('/api/groups', { name: 'Market crew' })).body as GroupDto;
+    const marketTrip = await storeTestvilleTrip(wes.userId, ['Night Market'], { groupId: marketCrew.id });
+    await client(wes).put(`/api/nearby/trips/${marketTrip}`, { openToJoin: true });
+
+    const response = await client(vera).get('/api/nearby/trips?lat=49.284&lng=-123.116');
+
+    expect(response.status).toBe(200);
+    expect(trips(response).map((trip) => trip.itineraryId)).toEqual([marketTrip, itineraryId]);
+    expect(trips(response).map((trip) => trip.distanceKm)).toEqual([0, 0.3]);
+  });
+
   // Input: the trip closed; Vera 50 km away; the trip already over (server date 2026-10-25); the trip more than 7 days
   //        ahead (server date 2026-10-10); and Max, who is in the trip's group
   // Expected status code: 200 for each

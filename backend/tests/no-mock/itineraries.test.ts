@@ -285,6 +285,28 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     expect(allStops(itinerary).map((stop) => stop.name)).not.toContain('Town Museum');
   });
 
+  // Input: a one-day Testville trip by car, with no Google Routes key
+  // Expected status code: 201
+  // Expected behavior: travel times are estimated for driving, including the time to park
+  // Expected output: transportMode "drive", travelTimeSource "estimate", and at least 5 minutes for each drive
+  test('Estimates driving times without Google Routes', async () => {
+    const { app, authService, activityService } = createTestApp();
+    const { authorization } = await signedInUser(authService);
+    await seedTestville(activityService);
+
+    const response = await request(app)
+      .post('/api/itineraries/generate')
+      .set(authorization)
+      .send({ ...TESTVILLE_DAY, transportMode: 'drive' });
+
+    const itinerary = response.body as ItineraryDto;
+    const drives = allStops(itinerary).map((stop) => stop.travelMinutes).filter((minutes) => minutes > 0);
+    expect(response.status).toBe(201);
+    expect(itinerary).toMatchObject({ transportMode: 'drive', travelTimeSource: 'estimate' });
+    expect(drives.length).toBeGreaterThan(0);
+    expect(drives.every((minutes) => minutes >= 5)).toBe(true);
+  });
+
   // Input: a Testville day until 21:00 that must include Night Market (opens 17:00) and must avoid Harbour Park
   // Expected status code: 201
   // Expected behavior: the must-see is scheduled even though it ranks no higher than the rest; the avoided place is not

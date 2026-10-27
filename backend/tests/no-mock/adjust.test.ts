@@ -2,6 +2,7 @@ import request from 'supertest';
 
 import { ActivityModel } from '../../src/activities/activityModel';
 import type { GroupDto } from '../../src/groups/groupService';
+import { ItineraryModel } from '../../src/itineraries/itineraryModel';
 import type { ItineraryDto } from '../../src/itineraries/itineraryService';
 import { createTestApp, seedVancouver, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
@@ -73,6 +74,22 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
     expect(day).toContain('Lookout Tower');
     expect(day.indexOf('Morning Bakery')).toBeLessThan(day.indexOf('Town Museum'));
     expect(day.at(0)).toBe('Morning Bakery');
+  });
+
+  // Input: remove Harbour Park from [Morning Bakery, Harbour Park, Town Museum] in a trip that avoids Lookout Tower
+  // Expected status code: 200
+  // Expected behavior: the freed time is never given to a place the trip avoids
+  // Expected output: neither Harbour Park nor Lookout Tower in the day
+  test('Removing a stop never brings in an avoided place', async () => {
+    const { itinerary, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park', 'Town Museum']);
+    const tower = await ActivityModel.findOne({ name: 'Lookout Tower' });
+    await ItineraryModel.updateOne({ _id: itinerary.id }, { $set: { avoidIds: [tower?._id] } });
+
+    const response = await adjust({ action: 'remove', version: 0, dayIndex: 0, activityId: idOf(itinerary, 'Harbour Park') });
+
+    expect(response.status).toBe(200);
+    expect(names(response.body as ItineraryDto)).not.toContain('Harbour Park');
+    expect(names(response.body as ItineraryDto)).not.toContain('Lookout Tower');
   });
 
   // Input: move Lookout Tower from last to first in [Harbour Park, Town Museum, Lookout Tower]
