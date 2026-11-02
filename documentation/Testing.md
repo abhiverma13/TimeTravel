@@ -4,18 +4,19 @@
 
 | **Change Date** | **Modified Sections** | **Rationale** |
 | --------------- | --------------------- | ------------- |
-| 2026-10-17 | All | First version for CP1: back-end interface tests for every API of the Auth & Profile Service, the Activity & Review Service and the Itinerary Engine; the first non-functional requirement test; and the end-to-end test design for Generate Itinerary. |
-| 2026-10-26 | 2.1.1 | Added the Group Service interfaces (create, list, join, read, set preferences, remove a member, delete), tested with and without mocks, and group trips in the Itinerary Engine interfaces (`groupId` on generate and on the itinerary list). |
-| 2026-10-26 | 2.1.1, 3 | Added `POST /api/itineraries/:itineraryId/adjust` and the Socket.io live-update interface, tested with and without mocks, and the NFR 2 (live update latency) test with its log. |
-| 2026-10-26 | 2.1.1 | Added the trip options (way of getting around, budget, must-see and avoid places) to the `POST /api/itineraries/generate` tests, with Google Routes mocked and through the production Routes client, and the `add` action to the `POST /api/itineraries/:itineraryId/adjust` tests. |
-| 2026-10-26 | 2.1.1 | Added the Friend Service interfaces (search and view travellers, list friends, send and accept requests, remove a friendship, set privacy), tested with and without mocks. |
-| 2026-10-26 | 2.1.1 | Added the Feed Service interfaces (share, feeds, read, delete, like, unlike, comments, copy a shared trip), tested with and without mocks; the copy is also tested with Google Routes mocked. |
-| 2026-10-26 | 2.1.1 | Added the `visit` and `unvisit` adjustments to the `POST /api/itineraries/:itineraryId/adjust` tests, and the Socket.io location-sharing interface, tested with and without mocks. |
-| 2026-10-26 | 2.1.1 | Added the Nearby Service interfaces (open a trip, find nearby trips, ask to join, list, accept and decline requests), tested with and without mocks. |
-| 2026-10-26 | 2.1.1 | Added verified reviews to the `POST /api/activities/:activityId/reviews` tests, and the new `GET /api/activities/:activityId/reviews` interface, tested with and without mocks. |
-| 2026-10-26 | 2.1.1 | Added the disruption suggestion interfaces (list, accept, dismiss), the disruption timer (`checkActiveTrips`, with OpenWeather and Places mocked and through the production clients) and the Socket.io `suggestionAdded` push, tested with and without mocks. |
-| 2026-10-26 | 2.1.1, 2.3-2.5, 3, 4 | Added three tests without mocks (driving times without Google Routes, adjusting a trip that avoids places, nearby trips nearest first) and regenerated the coverage reports; their uncovered line numbers now refer to the TypeScript source, as source maps are on in the back-end `tsconfig.json`. Added the NFR 3 (bounded Google Places usage) test and its log. Implemented the Generate Itinerary end-to-end test and added the Rate & Review Activity and View & Adjust Itinerary end-to-end tests, with their logs. |
-| 2026-10-27 | 4.2 | The Generate Itinerary end-to-end test's unknown lodging is now "no such place zzzz": Google Places matched "zzzz no such hotel, Vancouver" to real Vancouver hotels, so the deployed back-end never warned that the lodging could not be found. |
+| 2026-10-17 | All | First version for CP1: interface tests for the Auth & Profile Service, Activity & Review Service and Itinerary Engine, the NFR 1 test, and the Generate Itinerary end-to-end test design. |
+| 2026-10-26 | 2.1.1 | Added the Group Service interfaces and group trips in the Itinerary Engine interfaces. |
+| 2026-10-26 | 2.1.1, 3 | Added the adjust interface, Socket.io live updates, and the NFR 2 test with its log. |
+| 2026-10-26 | 2.1.1 | Added trip options to the generate tests (Google Routes mocked and through the production client) and the `add` adjustment. |
+| 2026-10-26 | 2.1.1 | Added the Friend Service interfaces. |
+| 2026-10-26 | 2.1.1 | Added the Feed Service interfaces; copying is also tested with Google Routes mocked. |
+| 2026-10-26 | 2.1.1 | Added the `visit` and `unvisit` adjustments and Socket.io location sharing. |
+| 2026-10-26 | 2.1.1 | Added the Nearby Service interfaces. |
+| 2026-10-26 | 2.1.1 | Added verified reviews and the reviews list interface. |
+| 2026-10-26 | 2.1.1 | Added the suggestion interfaces, the disruption timer (OpenWeather and Places mocked and through the production clients) and the `suggestionAdded` push. |
+| 2026-10-26 | 2.1.1, 2.3-2.5, 3, 4 | Added three unmocked tests and regenerated coverage, with uncovered lines now mapped to the TypeScript source. Added the NFR 3 test, and implemented the three end-to-end tests with their logs. |
+| 2026-10-27 | 4.2 | The Generate Itinerary test's unknown lodging is now "no such place zzzz", because Google Places matched the old one to real Vancouver hotels. |
+| 2026-11-02 | All | Shortened the wording after CP1 feedback, and renumbered the Generate Itinerary test steps to match the CP2 use case. |
 
 ---
 
@@ -76,7 +77,7 @@
 | **Disruption timer: checkActiveTrips()** | [`backend/tests/no-mock/suggestions.test.ts#L191`](../backend/tests/no-mock/suggestions.test.ts#L191) | [`backend/tests/mock/suggestions.test.ts#L63`](../backend/tests/mock/suggestions.test.ts#L63), [`#L254`](../backend/tests/mock/suggestions.test.ts#L254) (through the production OpenWeather and Places clients) | OpenWeather API, Google Places API (business status), Suggestion DB |
 | **GET /health** | [`backend/tests/no-mock/health.test.ts#L10`](../backend/tests/no-mock/health.test.ts#L10) | [`backend/tests/mock/health.test.ts#L11`](../backend/tests/mock/health.test.ts#L11) | MongoDB connection state |
 
-The tests without mocks run against a real MongoDB (an in-memory server started by the tests, see `backend/tests/helpers/testDatabase.ts`) and pre-populate the Vancouver catalogue in the database, so they need no Google Places key. The Itinerary Engine's scheduling core is also unit-tested in [`backend/tests/unit/`](../backend/tests/unit/), including a comparison against a brute-forced optimum.
+The tests without mocks run against a real in-memory MongoDB (`backend/tests/helpers/testDatabase.ts`) preloaded with the Vancouver catalogue, so they need no Google Places key. The engine's scheduling core also has unit tests in [`backend/tests/unit/`](../backend/tests/unit/), including a comparison against a brute-forced optimum.
 
 #### 2.1.2. Commit Hash Where Tests Run
 
@@ -84,27 +85,27 @@ The tests without mocks run against a real MongoDB (an in-memory server started 
 
 #### 2.1.3. Explanation on How to Run the Tests
 
-1. **Clone the repository** and install the back-end dependencies (Node.js 22 and npm 10 are required; Docker is not needed for the tests):
+1. **Clone the repository** and install the back-end dependencies (Node.js 22 and npm 10; Docker is not needed):
    ```
    git clone https://github.com/abhiverma13/TimeTravel.git
    cd TimeTravel/backend
    npm ci
    ```
-2. **Run the interface tests** (with mocks, without mocks, then combined, each with coverage) from the repository root:
+2. **Run the interface tests** (with mocks, without mocks and combined, each with coverage) from the repository root:
    ```
    ./scripts/run-backend-interface-tests.sh      # or .\scripts\run-backend-interface-tests.ps1 on Windows
    ```
-3. **Run the non-functional requirement tests**:
+3. **Run the NFR tests**:
    ```
    ./scripts/run-backend-nfr-tests.sh            # or .\scripts\run-backend-nfr-tests.ps1 on Windows
    ```
-4. **Run everything at once** (interface, unit and NFR tests): `cd backend && npm test`.
+4. **Run everything** (interface, unit and NFR tests): `cd backend && npm test`.
 
-The first run downloads a MongoDB binary for the in-memory server (about 1 minute); later runs reuse it. Coverage reports are written to `backend/coverage/mock`, `backend/coverage/no-mock` and `backend/coverage/interface`.
+The first run downloads a MongoDB binary (about 1 minute). Coverage reports go to `backend/coverage/mock`, `backend/coverage/no-mock` and `backend/coverage/interface`.
 
 ### 2.2. GitHub Actions Configuration Location
 
-[`.github/workflows/backend-tests.yml`](../.github/workflows/backend-tests.yml): on every push to `main` (and every pull request into `main`) it type-checks the back-end and runs the mocked, unmocked and combined interface tests with coverage, the unit tests and the NFR tests, and uploads the coverage reports as an artifact.
+[`.github/workflows/backend-tests.yml`](../.github/workflows/backend-tests.yml): on every push and pull request to `main`, it type-checks the back-end, runs the interface (with coverage), unit and NFR tests, and uploads the coverage reports.
 
 ### 2.3. Jest Coverage Report Screenshots With Mocks
 
@@ -230,9 +231,9 @@ All files                |   91.14 |     74.5 |    92.8 |   90.81 |
   tripSync.ts            |   90.14 |    89.28 |   84.21 |   89.85 | 73,94-96,136,144,150
 ```
 
-Without mocks, the clients of the external services are not reached: Google Places (`placesClient.ts`), Google Routes (`routesClient.ts`, and the routed part of `travelTimes.ts`), OpenWeather (`weatherClient.ts`, and the forecast checks in `disruptionService.ts`) and the success path of Google token verification. Real calls need API keys and a real Google ID token, which the tests cannot obtain. Those paths, and database failures, are covered by the tests with mocks.
+Without mocks, the external service clients are not reached: Google Places (`placesClient.ts`), Google Routes (`routesClient.ts` and the routed part of `travelTimes.ts`), OpenWeather (`weatherClient.ts` and the forecast checks in `disruptionService.ts`), and successful Google token verification. Real calls need API keys and a real Google ID token, so the tests with mocks cover these paths and database failures.
 
-The "Uncovered Line #s" columns refer to lines of the TypeScript source (the back-end `tsconfig.json` has source maps on, so Jest maps coverage back to the `.ts` files).
+"Uncovered Line #s" refers to lines of the TypeScript source (source maps are on in the back-end `tsconfig.json`).
 
 ### 2.5. Jest Coverage Report Screenshots With and Without Mocks Combined
 
@@ -298,16 +299,16 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
 
 **Why the combined coverage is below 100%:**
 
-- **`src/config/env.ts` (0%)**: it reads the environment variables once when the server process starts and is only imported by `src/index.ts`, the start-up file excluded from coverage. The interface tests build the app with explicit test configuration (see `backend/tests/helpers/testApp.ts`) so they do not depend on a developer's `.env`; `env.ts` runs every time the server starts with `scripts/run-backend.*`.
-- **`src/itineraries/itineraryService.ts` line 295**: a guard for a planned stop whose activity is not among the candidates. The engine only schedules the candidates it is given, so this cannot happen; the guard exists because TypeScript's `Map.get` may return `undefined`.
-- **`src/itineraries/itineraryService.ts` lines 505 and 512, and `src/itineraries/dayRepair.ts` line 154**: when the disruption timer asks for a replacement, the proposal is dropped if the stop left the day between the timer's check and the proposal (a member edited the trip at that very moment), or if the rest of the day no longer fits without the stop (line 154, which `proposeReplacement` turns into line 512). Taking a stop out of a day that fits always leaves a day that fits, because every remaining stop can be reached at the same time or sooner as long as travel times obey the triangle inequality. Our estimated travel times always do; only Google Routes times could break it (a detour faster than the direct trip). Both are race or data guards that keep the timer from failing; they cannot be produced reliably through the API.
-- **`src/itineraries/dayRepair.ts` line 214**: the tie-break when adding a place to a full day, and two ways of making room drop stops of exactly the same value; the one with less travel wins. A stop's value comes from its rating, number of ratings and interests, so a tie needs two places identical in all of them.
-- **`src/itineraries/engine/adjust.ts` line 18**: while re-planning a day, a reordering of the filled day ends it sooner and the freed time is offered to another activity. Greedy insertion already puts each stop where it costs the least travel, so the short days in the interface tests never improve by reordering; the reorder step itself is covered by the engine's unit tests ([`backend/tests/unit/localSearch.test.ts`](../backend/tests/unit/localSearch.test.ts) and [`dayRepair.test.ts`](../backend/tests/unit/dayRepair.test.ts)).
-- **`src/sync/tripSync.ts` lines 136, 144 and 150**: `.catch` handlers on the Socket.io event handlers. Subscribing and sharing a location catch their own errors and answer the device (tested with mocks), and leaving a room cannot fail with Socket.io's in-memory adapter, so these only log an unexpected bug instead of letting an unhandled promise rejection stop the server.
-- **`src/nearby/nearbyService.ts` (99% of statements)**: the default clock in the constructor. The tests give every service their own clock (see `backend/tests/helpers/testApp.ts`) so dates are predictable; the running server uses the default.
-- **`src/middleware/errorHandler.ts` lines 26-27**: hands an error to Express's default handler if a response was already partly sent. No route writes a response before failing, so this cannot be reached through the API; it is the error-handling pattern from the Express documentation.
-- **`src/middleware/authenticate.ts` line 28**: rejects a request if a protected route is reached without the session middleware. Every protected router installs `requireSession`, so this is a defensive check.
-- **Remaining branch gaps** (for example `interests.ts` 85-86, `placesClient.ts` 116-122, `weatherClient.ts` 74, `tripCalendar.ts` 23, the engine files): default values in destructuring and `??` fallbacks for fields Google Places, Google Routes or OpenWeather may omit, which TypeScript's strict null checks require even where the data always has them.
+- **`src/config/env.ts` (0%)**: reads the environment variables once at start-up and is imported only by `src/index.ts`, which is excluded from coverage. The tests build the app with explicit configuration (`backend/tests/helpers/testApp.ts`) so they do not depend on a developer's `.env`.
+- **`src/itineraries/itineraryService.ts` line 295**: a guard for a planned stop whose activity is not a candidate. The engine schedules only its candidates, so this cannot happen; the guard exists because `Map.get` may return `undefined`.
+- **`src/itineraries/itineraryService.ts` lines 505 and 512, and `src/itineraries/dayRepair.ts` line 154**: a disruption proposal is dropped if the stop left the day between the timer's check and the proposal (a simultaneous edit), or if the rest of the day no longer fits without it (line 154, surfaced as line 512). Removing a stop from a feasible day keeps it feasible whenever travel times obey the triangle inequality, which our estimates always do; only Google Routes times could break it. Both are race or data guards that cannot be produced reliably through the API.
+- **`src/itineraries/dayRepair.ts` line 214**: the tie-break when two ways of making room on a full day drop stops of exactly the same value; the one with less travel wins. A tie needs two places with the same rating, rating count and interests.
+- **`src/itineraries/engine/adjust.ts` line 18**: during a re-plan, a reordering ends the day sooner and the freed time goes to another activity. Greedy insertion already places each stop at the least travel, so the short test days never improve by reordering; the engine's unit tests cover the reorder step ([`backend/tests/unit/localSearch.test.ts`](../backend/tests/unit/localSearch.test.ts) and [`dayRepair.test.ts`](../backend/tests/unit/dayRepair.test.ts)).
+- **`src/sync/tripSync.ts` lines 136, 144 and 150**: `.catch` handlers on Socket.io events. Subscribing and sharing catch their own errors (tested with mocks), and leaving a room cannot fail with the in-memory adapter, so these only log an unexpected bug instead of letting an unhandled rejection stop the server.
+- **`src/nearby/nearbyService.ts` (99% of statements)**: the constructor's default clock. The tests inject their own clock (`backend/tests/helpers/testApp.ts`) so dates are predictable.
+- **`src/middleware/errorHandler.ts` lines 26-27**: passes an error to Express's default handler if a response was partly sent. No route writes before failing, so this is unreachable through the API; it follows the Express documentation's error-handling pattern.
+- **`src/middleware/authenticate.ts` line 28**: rejects a protected route reached without the session middleware. Every protected router installs `requireSession`, so this is a defensive check.
+- **Remaining branch gaps** (for example `interests.ts` 85-86, `placesClient.ts` 116-122, `weatherClient.ts` 74, `tripCalendar.ts` 23, the engine files): destructuring defaults and `??` fallbacks for fields Google Places, Google Routes or OpenWeather may omit, required by TypeScript's strict null checks.
 
 ---
 
@@ -325,7 +326,7 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
 
 - **NFR 1: Itinerary generation time**
 
-  - **Verification:** The test loads the 30-activity Vancouver catalogue plus 30 synthetic downtown activities, so pruning still leaves the maximum of 40 candidates, then sends 20 consecutive `POST /api/itineraries/generate` requests for a 5-day trip (08:00 to 21:00 days, packed pace, all interests) through the real Express app and an in-memory MongoDB. It measures each request from send to response, which includes reading the catalogue, the engine's solve and saving the itinerary, and asserts that the 95th percentile is under 3,000 ms. It also checks that every response is 201 with 5 days and that the engine really saw 40 candidates.
+  - **Verification:** The test loads the 30-activity Vancouver catalogue plus 30 synthetic downtown activities, so pruning keeps the maximum of 40 candidates. It sends 20 consecutive `POST /api/itineraries/generate` requests for a 5-day trip (08:00 to 21:00, packed pace, all interests) through the real Express app and an in-memory MongoDB, times each from send to response, and asserts that the 95th percentile is under 3,000 ms. It also checks that every response is 201 with 5 days and that the engine saw 40 candidates.
   - **Log Output**
     ```
     ==> Running backend NFR tests (tests/nfr/) ...
@@ -340,7 +341,7 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
 
 - **NFR 2: Live update latency**
 
-  - **Verification:** The test creates a 4-member group with a 3-day packed Vancouver group trip, serves the app and its Socket.io hub on a local port, and subscribes the three other members' clients to the trip. The owner then sends 20 adjustments through `POST /api/itineraries/:itineraryId/adjust`, alternating the cheapest change (lock or unlock a stop) with the most expensive (re-planning a whole day). For each one it measures, per member, the time from sending the request to that member's client receiving `itineraryUpdated`, so the measurement includes the re-plan, the database write and the push. The test passes only if every one of the 60 deliveries takes under 2,000 ms.
+  - **Verification:** The test creates a 4-member group with a 3-day packed Vancouver trip, serves the app and its Socket.io hub on a local port, and subscribes the other three members. The owner sends 20 adjustments, alternating the cheapest (lock or unlock a stop) and the most expensive (re-plan a day). For each, it times every member from the request to receiving `itineraryUpdated`, which includes the re-plan, the database write and the push. All 60 deliveries must take under 2,000 ms.
   - **Log Output**
     ```
     ==> Running backend NFR tests (tests/nfr/) ...
@@ -351,7 +352,7 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
 
 - **NFR 3: Bounded Google Places usage**
 
-  - **Verification:** The test serves the real Express app and an in-memory MongoDB with a fake Google Places client that returns the Vancouver catalogue and counts every call, and a server clock the test moves forward. Two travellers search Vancouver four times a day (all activities, and by interest) and generate a 2-day Vancouver itinerary once a day, for 6 days. The clock then passes the 7-day mark and one more search is made, and finally an itinerary is generated with a lodging. The test asserts that the first search makes exactly one text search per interest tag (7), that the 6 days of searching and planning make none, that the search after 7 days refreshes the city with 7 more, and that an entered lodging adds exactly 1. It also checks that every search and generation succeeds.
+  - **Verification:** The test runs the real Express app and an in-memory MongoDB with a fake Google Places client that counts every call, and a clock the test moves forward. For 6 days, two travellers search Vancouver four times a day and generate a 2-day itinerary once a day. The clock then passes 7 days for one more search, and a final itinerary is generated with a lodging. The test asserts 7 text searches (one per interest tag) for the first search, none over the 6 days, 7 for the refresh after 7 days, and exactly 1 for the lodging, and that every request succeeds.
   - **Log Output**
     ```
     ==> Running backend NFR tests (tests/nfr/) ...
@@ -371,11 +372,11 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
 
 [`frontend/app/src/androidTest/java/com/example/cpen321application/e2e/`](../frontend/app/src/androidTest/java/com/example/cpen321application/e2e/)
 
-There is one test class per use case. The steps they share (waiting for the back-end, choosing dates in the date picker, choosing a time, scrolling a list) are in [`androidTest/.../testing/E2eTest.kt`](../frontend/app/src/androidTest/java/com/example/cpen321application/testing/E2eTest.kt), outside the `e2e` folder so the course script does not run it as a test.
+There is one test class per use case. Shared steps (waiting for the back-end, picking dates and times, scrolling) are in [`androidTest/.../testing/E2eTest.kt`](../frontend/app/src/androidTest/java/com/example/cpen321application/testing/E2eTest.kt), outside the `e2e` folder so the course script does not run it as a test.
 
-The app tags the elements these tests use with stable test tags ([`ui/common/TestTags.kt`](../frontend/app/src/main/java/com/example/cpen321application/ui/common/TestTags.kt)), so the tests depend on wording only where the wording is what they check. As the course requires, each test starts on the home screen with a signed-in user and runs against the real back-end, without mocks. Each test creates any trip it needs, so it does not depend on what the account already holds. Dates are computed from the day the tests run.
+The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../frontend/app/src/main/java/com/example/cpen321application/ui/common/TestTags.kt)), so they depend on wording only where they check it. As the course requires, each test starts on the home screen signed in and runs against the real back-end without mocks. Each test creates the trips it needs, and dates are computed from the day it runs.
 
-**How to run them**: start the back-end and the emulator, then run `./scripts/run-frontend-e2e-tests.sh` (or `.\scripts\run-frontend-e2e-tests.ps1` on Windows) from the repository root, sign in inside the app when prompted, and press Enter. The script runs `:app:connectedDebugAndroidTest` for every class in the `e2e` folder. One test can also be run from Android Studio, or, with the app and test APKs installed, with `adb shell am instrument -w -e class com.example.cpen321application.e2e.<TestClass> com.example.cpen321application.test/androidx.test.runner.AndroidJUnitRunner`, which is how the logs below were captured (on a Pixel 9 emulator, Android 16).
+**How to run them**: start the back-end and the emulator, run `./scripts/run-frontend-e2e-tests.sh` (or `.\scripts\run-frontend-e2e-tests.ps1` on Windows) from the repository root, sign in when prompted, and press Enter. The script runs `:app:connectedDebugAndroidTest` for every class in `e2e`. To run one test, use Android Studio or, with both APKs installed, `adb shell am instrument -w -e class com.example.cpen321application.e2e.<TestClass> com.example.cpen321application.test/androidx.test.runner.AndroidJUnitRunner`, which captured the logs below (Pixel 9 emulator, Android 16).
 
 ### 4.2. Tests
 
@@ -386,24 +387,24 @@ The app tags the elements these tests use with stable test tags ([`ui/common/Tes
     | **Scenario Steps** | **Test Case Steps** |
     | ------------------ | ------------------- |
     | 1. The organizer taps "Plan a trip" on the home screen. | Click the node tagged `homePlanTrip`. |
-    | 2. The app shows the Trip Builder, with the destination prefilled from the home city and the interests from the profile. | Check the node tagged `tripCityField` is displayed. Check the button tagged `generateButton` with text "Generate itinerary" is displayed. |
+    | 2. The app shows the Trip Builder, with the destination and interests prefilled from the organizer's profile. | Check the node tagged `tripCityField` is displayed. Check the button tagged `generateButton` with text "Generate itinerary" is displayed. |
     | 3a. The destination is empty. | Clear `tripCityField`. Click `generateButton`. |
     | 3a1. The app shows "Enter a destination city." and does not generate. | Check `tripError` has text "Enter a destination city.". Check the Trip Builder is still displayed. |
     | 3b. No dates are chosen. | Type "Vancouver" in `tripCityField`. Click `generateButton`. |
     | 3b1. The app shows "Choose your trip dates." and does not generate. | Check `tripError` has text "Choose your trip dates.". |
-    | 3c. The trip is longer than 7 days. | Click `tripDatesButton`. In the date picker, choose a start date and an end date 8 days later (dates are computed from today). Click "Done". Click `generateButton`. |
+    | 3c. The trip is longer than 7 days. | Click `tripDatesButton`. Choose a start date and an end date 8 days later. Click "Done". Click `generateButton`. |
     | 3c1. The app shows "Trips can be at most 7 days." and does not generate. | Check `tripError` has text "Trips can be at most 7 days.". |
-    | 3. The organizer enters the destination city and chooses the trip dates. | Click `tripDatesButton`. Choose a start date 7 days from today and an end date 9 days from today. Click "Done". Check `tripDatesButton` shows "3 days". |
+    | 3. The organizer enters the destination city and chooses the trip's first and last day. | Click `tripDatesButton`. Choose a start date 7 days from today and an end date 9 days from today. Click "Done". Check `tripDatesButton` shows "3 days". |
     | 4a. The day ends less than 2 hours after it starts. | Open the "Start" dropdown and choose 17:00. Click `generateButton`. |
     | 4a1. The app shows "Your day must end at least 2 hours after it starts." and does not generate. | Check `tripError` has text "Your day must end at least 2 hours after it starts.". Open the "Start" dropdown and choose 09:00. |
-    | 4. The organizer optionally changes the day times, arrival and departure, lodging, interests and pace. | Open the "Arrive" dropdown and choose 13:00. Click the "Museums" chip. Click the "Relaxed" segment. |
-    | 5. The organizer taps "Generate itinerary". | Click `generateButton`. |
-    | 6. The system ranks and schedules the city's activities into each day. | Wait until a node tagged `itineraryDay` is displayed (up to 10 s). |
-    | 7. The app shows the itinerary as a day-by-day timeline. | Wait until a stop's "HH:MM to HH:MM" line (inside a node tagged `itineraryStop`) is displayed. Check the first day's first stop starts at or after 13:00. Scroll the timeline to the text "Back at lodging by", then to the headings "Day 1 of 3", "Day 2 of 3" and "Day 3 of 3". |
-    | 6b. The lodging cannot be found. | Go back to home, click `homePlanTrip`, replace the text in `tripCityField` with "Vancouver", choose the same dates, type "no such place zzzz" in `tripLodgingField`, click `generateButton`. |
-    | 6b1-6b2. The system plans from the city centre and the itinerary shows a warning. | Wait until a node tagged `itineraryWarning` is displayed. Check the text inside it contains "Could not find". Check the text "From Vancouver centre" is displayed. |
+    | 4. The organizer optionally changes the daily times, arrival and departure, lodging, interests and pace. | Open the "Arrive" dropdown and choose 13:00. Click the "Museums" chip. Click the "Relaxed" segment. |
+    | 6. The organizer taps "Generate itinerary". | Click `generateButton`. |
+    | 7. The system ranks and schedules the city's activities into each day. | Wait until a node tagged `itineraryDay` is displayed (up to 10 s). |
+    | 8. The app shows a day-by-day timeline. | Wait until a stop's "HH:MM to HH:MM" line (inside a node tagged `itineraryStop`) is displayed. Check the first day's first stop starts at or after 13:00. Scroll the timeline to the text "Back at lodging by", then to the headings "Day 1 of 3", "Day 2 of 3" and "Day 3 of 3". |
+    | 7b. The lodging cannot be found. | Go back to home, click `homePlanTrip`, replace the text in `tripCityField` with "Vancouver", choose the same dates, type "no such place zzzz" in `tripLodgingField`, click `generateButton`. |
+    | 7b1-7b2. The system plans from the city centre and the itinerary shows a warning. | Wait until a node tagged `itineraryWarning` is displayed. Check the text inside it contains "Could not find". Check the text "From Vancouver centre" is displayed. |
 
-    Failure scenario 6a (no activities for the city) needs a city the back-end cannot find activities for, and 6d (TimeTravel unreachable) needs the back-end to be stopped; both are verified manually, because the front-end tests run against the real deployed back-end without mocks.
+    Failure scenarios 7a (no activities for the city) and 7f (TimeTravel unreachable) need a city without activities or a stopped back-end, so they are verified manually; the front-end tests run against the real deployed back-end without mocks.
 
   - **Test Logs:**
     ```
@@ -423,17 +424,17 @@ The app tags the elements these tests use with stable test tags ([`ui/common/Tes
     | **Scenario Steps** | **Test Case Steps** |
     | ------------------ | ------------------- |
     | 1. On an activity's card in Explore & review, the traveller taps Rate. | Click the tab tagged `tabExplore`. Replace the text in `exploreCityField` with "Vancouver" and click `exploreSearchButton`. Wait until a node tagged `activityCard` is displayed (up to 10 s) and read the first card's activity name. Click the first `rateButton`. |
-    | 2. The app opens a rating dialog with five stars, a review field and optional tag choices. Submit is disabled. | Check the text "Rate <activity>" is displayed. Check `submitRatingButton` is not enabled. |
+    | 2. The app opens a rating dialog with five stars, a review field and optional tags. Submit is disabled. | Check the text "Rate &lt;activity&gt;" is displayed. Check `submitRatingButton` is not enabled. |
     | 4b. The traveller taps Cancel. | Click "Cancel". |
     | 4b1. The dialog closes and nothing is saved. | Wait until `submitRatingButton` no longer exists. Click the first `rateButton` again. |
     | 3. The traveller selects a star rating. Submit becomes enabled. | Click `ratingStar4`. Check `submitRatingButton` is enabled. |
     | 4a. The traveller types more than 500 characters. | Type 520 characters into `reviewField`. |
     | 4a1. The review field stops accepting characters at 500. | Check `reviewField` holds exactly 500 characters. |
     | 4. The traveller optionally writes a review and selects tags, then taps Submit. | Replace the text in `reviewField` with "Great views, worth the walk.". Click the "Morning" and "Outdoor" chips. Click `submitRatingButton`. |
-    | 5. The system saves the review and recomputes the activity's community score and tags. | Wait until the text "Thanks! Your review of <activity> was saved." is displayed (up to 25 s, which allows the app to read the device's location first). |
-    | 6. The app closes the dialog, updates the activity's card and shows the confirmation. | Wait until `submitRatingButton` no longer exists. Click the `reviewsButton` on the card of <activity>. Check "Reviews of <activity>" and "Great views, worth the walk." are displayed. Click "Close". |
+    | 5. The system saves the review and recomputes the activity's score and tags. | Wait until the text "Thanks! Your review of &lt;activity&gt; was saved." is displayed (up to 25 s, so the app can read the device's location first). |
+    | 6. The app closes the dialog, updates the card and shows the confirmation. | Wait until `submitRatingButton` no longer exists. Click the `reviewsButton` on the card of &lt;activity&gt;. Check "Reviews of &lt;activity&gt;" and "Great views, worth the walk." are displayed. Click "Close". |
 
-    Failure scenarios 5a (the activity no longer exists) and 5b (TimeTravel cannot be reached) need the activity deleted while the dialog is open, or the back-end stopped. The front-end tests run against the real back-end without mocks, so they cannot cause these; the back-end interface tests cover them (404 for a missing activity, and database failures with mocks).
+    Failure scenarios 5a (the activity no longer exists) and 5b (TimeTravel cannot be reached) need the activity deleted mid-dialog or the back-end stopped, which tests against the real back-end cannot cause. The back-end interface tests cover them (404 for a missing activity, and database failures with mocks).
 
   - **Test Logs:**
     ```
@@ -454,17 +455,17 @@ The app tags the elements these tests use with stable test tags ([`ui/common/Tes
     | ------------------ | ------------------- |
     | (Set-up: a trip to adjust.) | Click `homePlanTrip`. Replace the text in `tripCityField` with "Vancouver". Choose a start date 10 days from today and an end date a day later. Open the "Start" dropdown and choose 11:00. Click `generateButton`, wait until a node tagged `itineraryDay` is displayed, and go back to home. |
     | 1. The traveller opens a trip from the home screen's recent trips. | Click the first node tagged `recentTrip` (the newest trip). |
-    | 2. The app shows the itinerary timeline, connects to the trip's live updates and shows "Live". | Wait until `liveStatus` contains "LIVE:" and a stop's "HH:MM to HH:MM" line is displayed. Read the first two stops' names (from their menu buttons, "Options for <stop>") and the first stop's times. |
+    | 2. The app shows the itinerary timeline, connects to live updates and shows "Live". | Wait until `liveStatus` contains "LIVE:" and a stop's "HH:MM to HH:MM" line is displayed. Read the first two stops' names (from their menu buttons, "Options for &lt;stop&gt;") and the first stop's times. |
     | 3. The traveller opens a stop's menu and locks it. | Click the first `stopActionsButton`, then `stopActionLock`. |
     | 4-5. The system re-plans; locked stops keep their times, and the traveller's app shows the change. | Wait until a node tagged `stopLocked` is displayed. Check the first stop's times are unchanged. |
     | 4a. No feasible plan keeps the requested change. | Click the second `stopActionsButton`, then `stopActionMoveEarlier`. (The second stop would have to fit before the locked first stop, which starts as soon as the day does.) |
-    | 4a1. The app explains why and keeps the previous plan. | Wait until the text "<second stop> cannot go there" is displayed. Check the first two stops are still <first stop> and <second stop>. |
+    | 4a1. The app explains why and keeps the previous plan. | Wait until the text "&lt;second stop&gt; cannot go there" is displayed. Check the first two stops are still &lt;first stop&gt; and &lt;second stop&gt;. |
     | 3. The traveller removes a stop. | Click the second `stopActionsButton`, then `stopActionRemove`. |
-    | 4-5. The removed stop's time goes to another activity; locked stops keep their times. | Wait until no button "Options for <second stop>" exists. Check the first stop is still <first stop>, with the same times. |
+    | 4-5. The removed stop's time goes to another activity; locked stops keep their times. | Wait until no button "Options for &lt;second stop&gt;" exists. Check the first stop is still &lt;first stop&gt;, with the same times. |
     | 3. The traveller unlocks a stop. | Click the first `stopActionsButton`, then `stopActionLock` (now "Unlock"). |
     | 4-5. The stop is no longer locked. | Wait until no node tagged `stopLocked` exists. |
 
-    Step 5 for the other members (their apps show the change within 2 seconds) needs a second device; the back-end Socket.io interface tests and the NFR 2 test cover it. Failure scenarios 2a (the itinerary is missing or the traveller is not in its group), 2b (the live connection is lost) and 4b (another member changed the trip first) need a second account, a lost network or a concurrent edit; the back-end interface tests cover their server side (404, the live connection, and 409 for an out-of-date version).
+    Step 5 for the other members needs a second device; the Socket.io interface tests and the NFR 2 test cover it. Failure scenarios 2a (missing itinerary or not a member), 2b (lost connection) and 4b (another member changed the trip first) need a second account, a lost network or a concurrent edit; the back-end interface tests cover their server side (404, the live connection, and 409 for an out-of-date version).
 
   - **Test Logs:**
     ```

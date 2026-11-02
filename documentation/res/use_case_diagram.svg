@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1960" height="1430" viewBox="0 0 1960 1430">
+<svg xmlns="http://www.w3.org/2000/svg" width="1960" height="1345" viewBox="0 0 1960 1345">
 <defs>
 <marker id="open-include" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#2F5D46" stroke-width="1.8"/></marker>
 <marker id="open-extend" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#B0742A" stroke-width="1.8"/></marker>
 <marker id="general" viewBox="0 0 16 16" refX="15" refY="8" markerWidth="16" markerHeight="16" orient="auto"><path d="M 1 1 L 15 8 L 1 15 Z" fill="#F8F4E8" stroke="#2F5D46" stroke-width="1.8"/></marker>
 </defs>
-<rect width="1960" height="1430" fill="#F8F4E8"/>
+<rect width="1960" height="1345" fill="#F8F4E8"/>
 <rect x="252" y="40" width="1320" height="1280" fill="#F6F1E2" stroke="#1C382C" stroke-width="2.4"/>
 <text x="272.0" y="72.0" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">TimeTravel</text>
 <path d="M 272 120 L 272 98 L 359 98 L 367 120 Z" fill="#EEE8D6" stroke="#9AA093" stroke-width="1.2"/>
@@ -235,12 +235,4 @@
 <text x="879.9" y="777.9" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="middle">«include»</text>
 <rect x="1241.0" y="755.0" width="68" height="17" rx="3" fill="#F8F4E8" opacity="0.92"/>
 <text x="1275.0" y="768.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="600" font-style="normal" fill="#B0742A" text-anchor="middle">«extend»</text>
-<path d="M 300.0 1370.0 L 340.0 1370.0" fill="none" stroke="#7E937F" stroke-width="1.8" stroke-linejoin="round"/>
-<text x="350.0" y="1375.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="normal" fill="#3F4F45" text-anchor="start">association (each branch of an actor's line ends at one of its use cases)</text>
-<path d="M 930.0 1370.0 L 970.0 1370.0" fill="none" stroke="#2F5D46" stroke-width="1.8" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#open-include)"/>
-<text x="980.0" y="1375.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="normal" fill="#3F4F45" text-anchor="start">«include»</text>
-<path d="M 1070.0 1370.0 L 1110.0 1370.0" fill="none" stroke="#B0742A" stroke-width="1.8" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#open-extend)"/>
-<text x="1120.0" y="1375.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="normal" fill="#3F4F45" text-anchor="start">«extend»</text>
-<ellipse cx="1260" cy="1370" rx="26" ry="11" fill="#E4ECE0" stroke="#2F5D46" stroke-width="1.6"/>
-<text x="1294.0" y="1375.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="normal" font-style="normal" fill="#3F4F45" text-anchor="start">started by the system or included</text>
 </svg>
