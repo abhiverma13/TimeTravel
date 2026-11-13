@@ -1,7 +1,7 @@
-import { MUST_SEE_BONUS, pruneCandidates } from '../../src/itineraries/engine/candidates';
-import { estimateTravelMinutes } from '../../src/itineraries/engine/travelTime';
-import type { Candidate, PlanRequest } from '../../src/itineraries/engine/types';
-import { matrixElementLimit } from '../../src/itineraries/routesClient';
+import { MUST_SEE_BONUS, pruneCandidates } from '../../src/trips/engine/candidates';
+import { estimateTravelMinutes } from '../../src/trips/engine/travelTime';
+import type { Candidate, PlanRequest } from '../../src/trips/engine/types';
+import { matrixElementLimit } from '../../src/trips/routesClient';
 
 // About 1 km and about 5 km apart along a meridian.
 const start = { lat: 49.28, lng: -123.12 };

@@ -74,7 +74,7 @@ abstract class E2eTest {
         tagged(tag).performTextInput(text)
     }
 
-    /** Scrolls the screen's list (the itinerary, the activities, ...) until a matching item is composed. */
+    /** Scrolls the screen's list (the trip, the activities, ...) until a matching item is composed. */
     fun scrollListTo(matcher: SemanticsMatcher) {
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(matcher)
     }
@@ -100,7 +100,7 @@ abstract class E2eTest {
 
     fun stopTime() = SemanticsMatcher("is a stop's time") { node ->
         node.config.getOrNull(SemanticsProperties.Text).orEmpty().any { STOP_TIME.matches(it.text) }
-    } and hasAnyAncestor(hasTestTag(TestTags.ITINERARY_STOP))
+    } and hasAnyAncestor(hasTestTag(TestTags.TRIP_STOP))
 
     private fun pickDay(date: LocalDate) {
         val day = hasText(date.format(PICKER_DAY), substring = true) and hasClickAction()

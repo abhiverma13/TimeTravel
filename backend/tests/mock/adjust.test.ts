@@ -1,7 +1,7 @@
 import request from 'supertest';
 
-import { ItineraryModel } from '../../src/itineraries/itineraryModel';
-import type { ItineraryDto } from '../../src/itineraries/itineraryService';
+import { TripModel } from '../../src/trips/tripModel';
+import type { TripDto } from '../../src/trips/tripService';
 import { createTestApp, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
 import { seedTestville, storeTestvilleTrip } from '../helpers/testville';
@@ -10,12 +10,12 @@ async function lockParkRequest() {
   const testApp = createTestApp();
   const owner = await signedInUser(testApp.authService);
   await seedTestville(testApp.activityService);
-  const itineraryId = await storeTestvilleTrip(owner.userId, ['Morning Bakery', 'Harbour Park']);
-  const itinerary = (await request(testApp.app).get(`/api/itineraries/${itineraryId}`).set(owner.authorization)).body as ItineraryDto;
-  const parkId = itinerary.days.at(0)?.stops.at(1)?.activityId;
+  const tripId = await storeTestvilleTrip(owner.userId, ['Morning Bakery', 'Harbour Park']);
+  const trip = (await request(testApp.app).get(`/api/trips/${tripId}`).set(owner.authorization)).body as TripDto;
+  const parkId = trip.days.at(0)?.stops.at(1)?.activityId;
   const send = () =>
     request(testApp.app)
-      .post(`/api/itineraries/${itineraryId}/adjust`)
+      .post(`/api/trips/${tripId}/adjust`)
       .set(owner.authorization)
       .send({ action: 'lock', version: 0, dayIndex: 0, activityId: parkId });
   return { ...testApp, send };
@@ -28,34 +28,34 @@ afterEach(async () => {
 });
 afterAll(stopTestDatabase);
 
-// Interface POST /api/itineraries/:itineraryId/adjust
-describe('Mocked: POST /api/itineraries/:itineraryId/adjust', () => {
+// Interface POST /api/trips/:tripId/adjust
+describe('Mocked: POST /api/trips/:tripId/adjust', () => {
   // Mocked behavior: another member's change is saved between this request's read and its write
   // Input: lock a stop with the version that was current when the request started
   // Expected status code: 409
   // Expected behavior: the conditional write matches nothing, so the other change is not overwritten
-  // Expected output: { error: "This itinerary changed since you loaded it; reload it and try again" }
+  // Expected output: { error: "This trip changed since you loaded it; reload it and try again" }
   test('A concurrent change lands first', async () => {
     const { send } = await lockParkRequest();
-    jest.spyOn(ItineraryModel, 'findOneAndUpdate').mockResolvedValue(null);
+    jest.spyOn(TripModel, 'findOneAndUpdate').mockResolvedValue(null);
 
     const response = await send();
 
     expect(response.status).toBe(409);
-    expect(response.body).toEqual({ error: 'This itinerary changed since you loaded it; reload it and try again' });
+    expect(response.body).toEqual({ error: 'This trip changed since you loaded it; reload it and try again' });
   });
 
-  // Mocked behavior: saving the adjusted itinerary fails
+  // Mocked behavior: saving the adjusted trip fails
   // Input: lock a stop
   // Expected status code: 500
   // Expected behavior: the error is handled without crashing the server, and no update is pushed
   // Expected output: { error: "Internal server error" }
-  test('Itinerary database write fails', async () => {
+  test('Trip database write fails', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    const { send, itineraryService } = await lockParkRequest();
+    const { send, tripService } = await lockParkRequest();
     const listener = jest.fn();
-    itineraryService.onItineraryChanged(listener);
-    jest.spyOn(ItineraryModel, 'findOneAndUpdate').mockImplementation(() => {
+    tripService.onTripChanged(listener);
+    jest.spyOn(TripModel, 'findOneAndUpdate').mockImplementation(() => {
       throw new Error('Simulated database outage');
     });
 
@@ -84,18 +84,18 @@ describe('Mocked: POST /api/itineraries/:itineraryId/adjust', () => {
   // Input: lock a stop
   // Expected status code: 200
   // Expected behavior: the change is saved anyway; devices catch up when they reload
-  // Expected output: the itinerary at version 1
+  // Expected output: the trip at version 1
   test('Live update push fails', async () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    const { send, itineraryService } = await lockParkRequest();
-    itineraryService.onItineraryChanged(() => {
+    const { send, tripService } = await lockParkRequest();
+    tripService.onTripChanged(() => {
       throw new Error('Simulated push failure');
     });
 
     const response = await send();
 
     expect(response.status).toBe(200);
-    expect((response.body as ItineraryDto).version).toBe(1);
-    expect(consoleError).toHaveBeenCalledWith('Failed to push an itinerary change', expect.any(Error));
+    expect((response.body as TripDto).version).toBe(1);
+    expect(consoleError).toHaveBeenCalledWith('Failed to push a trip change', expect.any(Error));
   });
 });

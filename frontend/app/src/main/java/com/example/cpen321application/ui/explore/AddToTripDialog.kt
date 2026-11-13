@@ -16,8 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import com.example.cpen321application.data.Itinerary
-import com.example.cpen321application.data.ItinerarySummary
+import com.example.cpen321application.data.Trip
+import com.example.cpen321application.data.TripSummary
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.countText
 import com.example.cpen321application.ui.common.tripDatesText
@@ -28,7 +28,7 @@ private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, M
 
 /** Choosing where a place goes: one of the traveller's trips in this city, then one of its days. */
 @Composable
-fun AddToTripDialog(adding: AddToTripState, onChooseTrip: (ItinerarySummary) -> Unit, onChooseDay: (Int) -> Unit, onDismiss: () -> Unit) {
+fun AddToTripDialog(adding: AddToTripState, onChooseTrip: (TripSummary) -> Unit, onChooseDay: (Int) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add ${adding.activity.name}") },
@@ -51,7 +51,7 @@ fun AddToTripDialog(adding: AddToTripState, onChooseTrip: (ItinerarySummary) -> 
 }
 
 @Composable
-private fun TripChoices(trips: List<ItinerarySummary>, onChooseTrip: (ItinerarySummary) -> Unit) {
+private fun TripChoices(trips: List<TripSummary>, onChooseTrip: (TripSummary) -> Unit) {
     Text("Which trip?", style = MaterialTheme.typography.bodyMedium)
     trips.forEach { trip ->
         OutlinedButton(
@@ -65,7 +65,7 @@ private fun TripChoices(trips: List<ItinerarySummary>, onChooseTrip: (ItineraryS
 }
 
 @Composable
-private fun DayChoices(trip: Itinerary, onChooseDay: (Int) -> Unit) {
+private fun DayChoices(trip: Trip, onChooseDay: (Int) -> Unit) {
     Text(
         "Which day? It goes where it adds the least travel. On a full day, the lowest-ranked unlocked stops make room.",
         style = MaterialTheme.typography.bodyMedium,

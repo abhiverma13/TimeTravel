@@ -8,14 +8,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.cpen321application.data.ItinerarySummary
+import com.example.cpen321application.data.TripSummary
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 private val TRIP_DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d")
 
 /** "Oct 30 to Oct 31", or one date for a one-day trip. */
-fun tripDatesText(trip: ItinerarySummary): String = tripDatesText(trip.startDate, trip.endDate)
+fun tripDatesText(trip: TripSummary): String = tripDatesText(trip.startDate, trip.endDate)
 
 /** "Oct 30 to Oct 31" for dates written YYYY-MM-DD, or one date when they are the same. */
 fun tripDatesText(startDate: String, endDate: String): String {
@@ -26,7 +26,7 @@ fun tripDatesText(startDate: String, endDate: String): String {
 
 /** A saved trip in a list: city, dates and number of stops, marked when it is a group trip. */
 @Composable
-fun TripCard(trip: ItinerarySummary, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun TripCard(trip: TripSummary, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val dates = tripDatesText(trip)
     val group = if (trip.groupId != null) " · Group trip" else ""
     BrandCard(onClick = onClick, modifier = modifier.fillMaxWidth()) {

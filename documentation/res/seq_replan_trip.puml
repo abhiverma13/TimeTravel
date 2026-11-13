@@ -1,0 +1,60 @@
+@startuml seq_replan_trip
+!include style.iuml
+title Re-plan Trip: disruption suggestions
+
+actor Time
+participant "Trip Sync &\nDisruption Service" as Sync
+participant "OpenWeather API" as Weather
+participant "Google Places API" as Places
+participant "Trip\nEngine" as Engine
+database MongoDB
+participant "Members'\nAndroid Apps" as Apps
+
+Time -> Sync : checkActiveTrips() every 30 minutes
+Sync -> MongoDB : findTrips(under way from yesterday to the day after tomorrow): Trip[]
+loop for each trip (one trip's failure does not stop the others)
+  opt an OpenWeather key is set
+    Sync -> Weather : GET forecast(lodging lat, lng): utcOffsetSeconds, 3-hour slots
+    alt forecast unavailable
+      Sync -> Sync : checks closed venues only this time
+    end
+  end
+  loop for each stop starting in the next 36 hours
+    opt venue status older than 6 hours
+      Sync -> Places : GET places/{placeId} (businessStatus)
+      Sync -> MongoDB : saveActivity(businessStatus, statusCheckedAt)
+    end
+    alt rain likely (60% or more) during an outdoor stop, or the venue is closed
+      Sync -> MongoDB : countWaitingSuggestions(tripId, activityId)
+      opt none waiting
+        Sync -> Engine : proposeReplacement(tripId, dayIndex, activityId, indoor only if rain): ProposedDay | null
+        Engine -> MongoDB : findTrip, listActivities(city), cached travel times
+        Engine --> Sync : the day without the stop, its time given to another activity (not saved)
+        Sync -> MongoDB : saveSuggestion(proposed day, based on version, expires in 12 hours)
+        Sync -> Apps : Socket.io suggestionAdded { suggestion } to the trip's room
+        Apps --> Apps : suggestion card: "Rain is likely at 10:52 during VanDusen Botanical Garden. Swap it for Canada Place?"
+      end
+    end
+  end
+end
+
+alt a member taps Accept
+  Apps -> Sync : POST /api/suggestions/{suggestionId}/accept
+  Sync -> Engine : applyProposedDay(userId, tripId, proposal, dayIndex, summary): TripDto
+  alt the trip changed since the suggestion, or it expired
+    Engine --> Sync : 409
+    Sync -> MongoDB : markSuggestion(expired)
+    Sync --> Apps : 409 { error: "The trip changed since this suggestion; it no longer applies" }
+  else
+    Engine -> MongoDB : saveDay(if version unchanged), version + 1
+    Engine -> Sync : trip changed (trip, actorId, summary)
+    Sync -> Apps : Socket.io tripUpdated { trip, actorId, summary }
+    Sync -> MongoDB : markSuggestion(accepted)
+    Sync --> Apps : 200 TripDto
+  end
+else a member taps Dismiss
+  Apps -> Sync : POST /api/suggestions/{suggestionId}/dismiss
+  Sync -> MongoDB : markSuggestion(dismissed)
+  Sync --> Apps : 204; the trip stays as it is
+end
+@enduml

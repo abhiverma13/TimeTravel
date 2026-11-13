@@ -43,5 +43,5 @@ interface PostApi {
     suspend fun deleteComment(@Path("postId") postId: String, @Path("commentId") commentId: String)
 
     @POST("api/posts/{postId}/copy")
-    suspend fun copyPost(@Path("postId") postId: String, @Body body: CopyPostRequest): Itinerary
+    suspend fun copyPost(@Path("postId") postId: String, @Body body: CopyPostRequest): Trip
 }

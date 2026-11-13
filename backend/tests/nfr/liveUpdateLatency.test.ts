@@ -1,7 +1,7 @@
 import request from 'supertest';
 
 import type { GroupDto } from '../../src/groups/groupService';
-import type { ItineraryDto } from '../../src/itineraries/itineraryService';
+import type { TripDto } from '../../src/trips/tripService';
 import { connectClient, nextUpdate, startLiveServer, subscribeTo } from '../helpers/liveServer';
 import { createTestApp, seedVancouver, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
@@ -9,7 +9,7 @@ import { DATABASE_STARTUP_TIMEOUT_MS, startTestDatabase, stopTestDatabase } from
 /*
  * NFR 2, live update latency: when a group trip changes, every member's connected device shows the new plan within
  * 2 s. Measured end to end, from the moment one member sends an adjustment to the moment the other members' devices
- * receive the updated itinerary, so it includes the re-plan, the database write and the push.
+ * receive the updated trip, so it includes the re-plan, the database write and the push.
  */
 const LIMIT_MS = 2000;
 const RUNS = 20;
@@ -37,31 +37,31 @@ describe('NFR: live update latency', () => {
     for (const member of others) {
       await request(app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
     }
-    let itinerary = (
+    let trip = (
       await request(app)
-        .post('/api/itineraries/generate')
+        .post('/api/trips/generate')
         .set(owner.authorization)
         .send({ city: 'Vancouver', startDate: '2026-10-24', endDate: '2026-10-26', pace: 'packed', groupId: group.id })
-    ).body as ItineraryDto;
+    ).body as TripDto;
     const live = await startLiveServer(testApp);
     const sockets = await Promise.all(others.map(async (member) => connectClient(live.url, member.authorization)));
     for (const socket of sockets) {
-      await subscribeTo(socket, itinerary.id);
+      await subscribeTo(socket, trip.id);
     }
 
     const latencies: number[] = [];
     for (let run = 0; run < RUNS; run += 1) {
-      const stop = itinerary.days.at(0)?.stops.at(0);
+      const stop = trip.days.at(0)?.stops.at(0);
       // Alternate the cheapest change (a lock) with the most expensive one (re-planning a whole day).
       const change =
         run % 2 === 0
-          ? { action: 'replan', version: itinerary.version, dayIndex: run % 3 }
-          : { action: stop?.locked ? 'unlock' : 'lock', version: itinerary.version, dayIndex: 0, activityId: stop?.activityId };
+          ? { action: 'replan', version: trip.version, dayIndex: run % 3 }
+          : { action: stop?.locked ? 'unlock' : 'lock', version: trip.version, dayIndex: 0, activityId: stop?.activityId };
       const received = sockets.map(async (socket) => nextUpdate(socket).then(() => performance.now()));
       const sentAt = performance.now();
-      const response = await request(app).post(`/api/itineraries/${itinerary.id}/adjust`).set(owner.authorization).send(change);
+      const response = await request(app).post(`/api/trips/${trip.id}/adjust`).set(owner.authorization).send(change);
       expect(response.status).toBe(200);
-      itinerary = response.body as ItineraryDto;
+      trip = response.body as TripDto;
       latencies.push(...(await Promise.all(received)).map((at) => at - sentAt));
     }
 

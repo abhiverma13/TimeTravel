@@ -17,6 +17,9 @@
 | 2026-10-26 | 2.1.1, 2.3-2.5, 3, 4 | Added three unmocked tests and regenerated coverage, with uncovered lines now mapped to the TypeScript source. Added the NFR 3 test, and implemented the three end-to-end tests with their logs. |
 | 2026-10-27 | 4.2 | The Generate Itinerary test's unknown lodging is now "no such place zzzz", because Google Places matched the old one to real Vancouver hotels. |
 | 2026-11-02 | All | Shortened the wording after CP1 feedback, and renumbered the Generate Itinerary test steps to match the CP2 use case. |
+| 2026-11-12 | 2.1, 2.5, 3, 4 | Renamed itineraries to trips in the interfaces, test files and end-to-end tests (`PlanTripTest`, `ViewAdjustTripTest`) to match the code. |
+| 2026-11-12 | 2.1.1 | Added the tests for losing access to a group trip (`tripAccessLost`), which fix the peer review's major fault. |
+| 2026-11-12 | 2.1.1 | Added the live event interfaces (`liveEvent`) for friends, groups, join requests, posts and suggestions. |
 
 ---
 
@@ -40,14 +43,20 @@
 | **GET /api/groups/:groupId** | [`backend/tests/no-mock/groups.test.ts#L207`](../backend/tests/no-mock/groups.test.ts#L207) | [`backend/tests/mock/groups.test.ts#L118`](../backend/tests/mock/groups.test.ts#L118) | Group DB |
 | **PUT /api/groups/:groupId/members/me** | [`backend/tests/no-mock/groups.test.ts#L245`](../backend/tests/no-mock/groups.test.ts#L245) | [`backend/tests/mock/groups.test.ts#L137`](../backend/tests/mock/groups.test.ts#L137) | Group DB (member removed during the update) |
 | **DELETE /api/groups/:groupId/members/:userId** | [`backend/tests/no-mock/groups.test.ts#L304`](../backend/tests/no-mock/groups.test.ts#L304) | [`backend/tests/mock/groups.test.ts#L157`](../backend/tests/mock/groups.test.ts#L157) | Group DB |
-| **DELETE /api/groups/:groupId** | [`backend/tests/no-mock/groups.test.ts#L377`](../backend/tests/no-mock/groups.test.ts#L377) | [`backend/tests/mock/groups.test.ts#L179`](../backend/tests/mock/groups.test.ts#L179) | Itinerary DB |
-| **POST /api/itineraries/generate** | [`backend/tests/no-mock/itineraries.test.ts#L38`](../backend/tests/no-mock/itineraries.test.ts#L38) | [`backend/tests/mock/itineraries.test.ts#L37`](../backend/tests/mock/itineraries.test.ts#L37), [`#L198`](../backend/tests/mock/itineraries.test.ts#L198) (Google Routes travel times, cache and failures), [`#L284`](../backend/tests/mock/itineraries.test.ts#L284) (through the production Google Routes client) | Google Places API (lodging lookup), Google Routes API, Itinerary DB |
-| **GET /api/itineraries/:itineraryId** | [`backend/tests/no-mock/itineraries.test.ts#L393`](../backend/tests/no-mock/itineraries.test.ts#L393) | [`backend/tests/mock/itineraries.test.ts#L136`](../backend/tests/mock/itineraries.test.ts#L136) | Itinerary DB |
-| **GET /api/itineraries** | [`backend/tests/no-mock/itineraries.test.ts#L442`](../backend/tests/no-mock/itineraries.test.ts#L442) | [`backend/tests/mock/itineraries.test.ts#L157`](../backend/tests/mock/itineraries.test.ts#L157) | Itinerary DB |
-| **POST /api/itineraries/:itineraryId/adjust** | [`backend/tests/no-mock/adjust.test.ts#L41`](../backend/tests/no-mock/adjust.test.ts#L41) | [`backend/tests/mock/adjust.test.ts#L32`](../backend/tests/mock/adjust.test.ts#L32) | Itinerary DB (a concurrent change saved first, write failure), Activity DB, live-update push |
-| **Socket.io itinerary updates** | [`backend/tests/no-mock/tripSync.test.ts#L40`](../backend/tests/no-mock/tripSync.test.ts#L40) | [`backend/tests/mock/tripSync.test.ts#L19`](../backend/tests/mock/tripSync.test.ts#L19) | Itinerary DB (access check on subscribe) |
-| **Socket.io location sharing** | [`backend/tests/no-mock/tripSync.test.ts#L144`](../backend/tests/no-mock/tripSync.test.ts#L144) | [`backend/tests/mock/tripSync.test.ts#L46`](../backend/tests/mock/tripSync.test.ts#L46) | User DB (looking up the sharer) |
-| **Socket.io suggestions** | [`backend/tests/no-mock/tripSync.test.ts#L229`](../backend/tests/no-mock/tripSync.test.ts#L229) | [`backend/tests/mock/tripSync.test.ts#L75`](../backend/tests/mock/tripSync.test.ts#L75) | Suggestion push (a device that cannot be reached) |
+| **DELETE /api/groups/:groupId** | [`backend/tests/no-mock/groups.test.ts#L377`](../backend/tests/no-mock/groups.test.ts#L377) | [`backend/tests/mock/groups.test.ts#L179`](../backend/tests/mock/groups.test.ts#L179) | Trip DB |
+| **POST /api/trips/generate** | [`backend/tests/no-mock/trips.test.ts#L38`](../backend/tests/no-mock/trips.test.ts#L38) | [`backend/tests/mock/trips.test.ts#L37`](../backend/tests/mock/trips.test.ts#L37), [`#L198`](../backend/tests/mock/trips.test.ts#L198) (Google Routes travel times, cache and failures), [`#L284`](../backend/tests/mock/trips.test.ts#L284) (through the production Google Routes client) | Google Places API (lodging lookup), Google Routes API, Trip DB |
+| **GET /api/trips/:tripId** | [`backend/tests/no-mock/trips.test.ts#L393`](../backend/tests/no-mock/trips.test.ts#L393) | [`backend/tests/mock/trips.test.ts#L136`](../backend/tests/mock/trips.test.ts#L136) | Trip DB |
+| **GET /api/trips** | [`backend/tests/no-mock/trips.test.ts#L442`](../backend/tests/no-mock/trips.test.ts#L442) | [`backend/tests/mock/trips.test.ts#L157`](../backend/tests/mock/trips.test.ts#L157) | Trip DB |
+| **POST /api/trips/:tripId/adjust** | [`backend/tests/no-mock/adjust.test.ts#L41`](../backend/tests/no-mock/adjust.test.ts#L41) | [`backend/tests/mock/adjust.test.ts#L32`](../backend/tests/mock/adjust.test.ts#L32) | Trip DB (a concurrent change saved first, write failure), Activity DB, live-update push |
+| **Socket.io trip updates** | [`backend/tests/no-mock/tripSync.test.ts#L41`](../backend/tests/no-mock/tripSync.test.ts#L41) | [`backend/tests/mock/tripSync.test.ts#L22`](../backend/tests/mock/tripSync.test.ts#L22) | Trip DB (access check on subscribe) |
+| **Socket.io location sharing** | [`backend/tests/no-mock/tripSync.test.ts#L150`](../backend/tests/no-mock/tripSync.test.ts#L150) | [`backend/tests/mock/tripSync.test.ts#L49`](../backend/tests/mock/tripSync.test.ts#L49) | User DB (looking up the sharer) |
+| **Socket.io suggestions** | [`backend/tests/no-mock/tripSync.test.ts#L321`](../backend/tests/no-mock/tripSync.test.ts#L321) | [`backend/tests/mock/tripSync.test.ts#L78`](../backend/tests/mock/tripSync.test.ts#L78) | Suggestion push (a device that cannot be reached) |
+| **Socket.io losing access to a group trip** | [`backend/tests/no-mock/tripSync.test.ts#L236`](../backend/tests/no-mock/tripSync.test.ts#L236) | [`backend/tests/mock/tripSync.test.ts#L104`](../backend/tests/mock/tripSync.test.ts#L104) | Trip access check (a traveller removed but still subscribed), membership push (a device that cannot be reached) |
+| **Socket.io live events for friends** | [`backend/tests/no-mock/liveEvents.test.ts#L58`](../backend/tests/no-mock/liveEvents.test.ts#L58) | [`backend/tests/mock/liveEvents.test.ts#L17`](../backend/tests/mock/liveEvents.test.ts#L17) | Live event push (a device that cannot be reached), name lookup (the User DB fails) |
+| **Socket.io live events for groups** | [`backend/tests/no-mock/liveEvents.test.ts#L107`](../backend/tests/no-mock/liveEvents.test.ts#L107) | Covered by the mocked tests for friends | None |
+| **Socket.io live events for join requests** | [`backend/tests/no-mock/liveEvents.test.ts#L150`](../backend/tests/no-mock/liveEvents.test.ts#L150) | Covered by the mocked tests for friends | None |
+| **Socket.io live events for posts** | [`backend/tests/no-mock/liveEvents.test.ts#L189`](../backend/tests/no-mock/liveEvents.test.ts#L189) | Covered by the mocked tests for friends | None |
+| **Socket.io live events for suggestions** | [`backend/tests/no-mock/liveEvents.test.ts#L222`](../backend/tests/no-mock/liveEvents.test.ts#L222) | Covered by the mocked tests for friends | None |
 | **GET /api/travellers** | [`backend/tests/no-mock/friends.test.ts#L37`](../backend/tests/no-mock/friends.test.ts#L37) | [`backend/tests/mock/friends.test.ts#L33`](../backend/tests/mock/friends.test.ts#L33) | User DB |
 | **GET /api/travellers/:userId** | [`backend/tests/no-mock/friends.test.ts#L133`](../backend/tests/no-mock/friends.test.ts#L133) | [`backend/tests/mock/friends.test.ts#L51`](../backend/tests/mock/friends.test.ts#L51) | Friendship DB |
 | **GET /api/friends** | [`backend/tests/no-mock/friends.test.ts#L186`](../backend/tests/no-mock/friends.test.ts#L186) | [`backend/tests/mock/friends.test.ts#L69`](../backend/tests/mock/friends.test.ts#L69) | Friendship DB |
@@ -64,15 +73,15 @@
 | **GET /api/posts/:postId/comments** | [`backend/tests/no-mock/posts.test.ts#L365`](../backend/tests/no-mock/posts.test.ts#L365) | [`backend/tests/mock/posts.test.ts#L160`](../backend/tests/mock/posts.test.ts#L160) | Comment DB |
 | **POST /api/posts/:postId/comments** | [`backend/tests/no-mock/posts.test.ts#L403`](../backend/tests/no-mock/posts.test.ts#L403) | [`backend/tests/mock/posts.test.ts#L177`](../backend/tests/mock/posts.test.ts#L177) | Comment DB |
 | **DELETE /api/posts/:postId/comments/:commentId** | [`backend/tests/no-mock/posts.test.ts#L434`](../backend/tests/no-mock/posts.test.ts#L434) | [`backend/tests/mock/posts.test.ts#L194`](../backend/tests/mock/posts.test.ts#L194) | Comment DB |
-| **POST /api/posts/:postId/copy** | [`backend/tests/no-mock/posts.test.ts#L472`](../backend/tests/no-mock/posts.test.ts#L472) | [`backend/tests/mock/posts.test.ts#L213`](../backend/tests/mock/posts.test.ts#L213) | Google Routes API, Itinerary DB |
-| **PUT /api/nearby/trips/:itineraryId** | [`backend/tests/no-mock/nearby.test.ts#L52`](../backend/tests/no-mock/nearby.test.ts#L52) | [`backend/tests/mock/nearby.test.ts#L75`](../backend/tests/mock/nearby.test.ts#L75) | Itinerary DB |
-| **GET /api/nearby/trips** | [`backend/tests/no-mock/nearby.test.ts#L110`](../backend/tests/no-mock/nearby.test.ts#L110) | [`backend/tests/mock/nearby.test.ts#L41`](../backend/tests/mock/nearby.test.ts#L41) | Itinerary DB, Group DB (a group deleted while listing) |
-| **POST /api/nearby/trips/:itineraryId/requests** | [`backend/tests/no-mock/nearby.test.ts#L194`](../backend/tests/no-mock/nearby.test.ts#L194) | [`backend/tests/mock/nearby.test.ts#L92`](../backend/tests/mock/nearby.test.ts#L92) | Join request DB |
+| **POST /api/posts/:postId/copy** | [`backend/tests/no-mock/posts.test.ts#L472`](../backend/tests/no-mock/posts.test.ts#L472) | [`backend/tests/mock/posts.test.ts#L213`](../backend/tests/mock/posts.test.ts#L213) | Google Routes API, Trip DB |
+| **PUT /api/nearby/trips/:tripId** | [`backend/tests/no-mock/nearby.test.ts#L52`](../backend/tests/no-mock/nearby.test.ts#L52) | [`backend/tests/mock/nearby.test.ts#L75`](../backend/tests/mock/nearby.test.ts#L75) | Trip DB |
+| **GET /api/nearby/trips** | [`backend/tests/no-mock/nearby.test.ts#L110`](../backend/tests/no-mock/nearby.test.ts#L110) | [`backend/tests/mock/nearby.test.ts#L41`](../backend/tests/mock/nearby.test.ts#L41) | Trip DB, Group DB (a group deleted while listing) |
+| **POST /api/nearby/trips/:tripId/requests** | [`backend/tests/no-mock/nearby.test.ts#L194`](../backend/tests/no-mock/nearby.test.ts#L194) | [`backend/tests/mock/nearby.test.ts#L92`](../backend/tests/mock/nearby.test.ts#L92) | Join request DB |
 | **GET /api/nearby/requests** | [`backend/tests/no-mock/nearby.test.ts#L247`](../backend/tests/no-mock/nearby.test.ts#L247) | [`backend/tests/mock/nearby.test.ts#L109`](../backend/tests/mock/nearby.test.ts#L109) | Join request DB |
 | **POST /api/nearby/requests/:requestId/accept** | [`backend/tests/no-mock/nearby.test.ts#L287`](../backend/tests/no-mock/nearby.test.ts#L287) | [`backend/tests/mock/nearby.test.ts#L126`](../backend/tests/mock/nearby.test.ts#L126) | Group DB (the group fills up first) |
 | **POST /api/nearby/requests/:requestId/decline** | [`backend/tests/no-mock/nearby.test.ts#L345`](../backend/tests/no-mock/nearby.test.ts#L345) | [`backend/tests/mock/nearby.test.ts#L146`](../backend/tests/mock/nearby.test.ts#L146) | Join request DB |
 | **GET /api/suggestions** | [`backend/tests/no-mock/suggestions.test.ts#L43`](../backend/tests/no-mock/suggestions.test.ts#L43) | [`backend/tests/mock/suggestions.test.ts#L151`](../backend/tests/mock/suggestions.test.ts#L151) | Suggestion DB |
-| **POST /api/suggestions/:suggestionId/accept** | [`backend/tests/no-mock/suggestions.test.ts#L106`](../backend/tests/no-mock/suggestions.test.ts#L106) | [`backend/tests/mock/suggestions.test.ts#L181`](../backend/tests/mock/suggestions.test.ts#L181) | Itinerary DB (a change saved at the same moment), Suggestion DB |
+| **POST /api/suggestions/:suggestionId/accept** | [`backend/tests/no-mock/suggestions.test.ts#L106`](../backend/tests/no-mock/suggestions.test.ts#L106) | [`backend/tests/mock/suggestions.test.ts#L181`](../backend/tests/mock/suggestions.test.ts#L181) | Trip DB (a change saved at the same moment), Suggestion DB |
 | **POST /api/suggestions/:suggestionId/dismiss** | [`backend/tests/no-mock/suggestions.test.ts#L169`](../backend/tests/no-mock/suggestions.test.ts#L169) | [`backend/tests/mock/suggestions.test.ts#L217`](../backend/tests/mock/suggestions.test.ts#L217) | Suggestion DB |
 | **Disruption timer: checkActiveTrips()** | [`backend/tests/no-mock/suggestions.test.ts#L191`](../backend/tests/no-mock/suggestions.test.ts#L191) | [`backend/tests/mock/suggestions.test.ts#L63`](../backend/tests/mock/suggestions.test.ts#L63), [`#L254`](../backend/tests/mock/suggestions.test.ts#L254) (through the production OpenWeather and Places clients) | OpenWeather API, Google Places API (business status), Suggestion DB |
 | **GET /health** | [`backend/tests/no-mock/health.test.ts#L10`](../backend/tests/no-mock/health.test.ts#L10) | [`backend/tests/mock/health.test.ts#L11`](../backend/tests/mock/health.test.ts#L11) | MongoDB connection state |
@@ -300,10 +309,10 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
 **Why the combined coverage is below 100%:**
 
 - **`src/config/env.ts` (0%)**: reads the environment variables once at start-up and is imported only by `src/index.ts`, which is excluded from coverage. The tests build the app with explicit configuration (`backend/tests/helpers/testApp.ts`) so they do not depend on a developer's `.env`.
-- **`src/itineraries/itineraryService.ts` line 295**: a guard for a planned stop whose activity is not a candidate. The engine schedules only its candidates, so this cannot happen; the guard exists because `Map.get` may return `undefined`.
-- **`src/itineraries/itineraryService.ts` lines 505 and 512, and `src/itineraries/dayRepair.ts` line 154**: a disruption proposal is dropped if the stop left the day between the timer's check and the proposal (a simultaneous edit), or if the rest of the day no longer fits without it (line 154, surfaced as line 512). Removing a stop from a feasible day keeps it feasible whenever travel times obey the triangle inequality, which our estimates always do; only Google Routes times could break it. Both are race or data guards that cannot be produced reliably through the API.
-- **`src/itineraries/dayRepair.ts` line 214**: the tie-break when two ways of making room on a full day drop stops of exactly the same value; the one with less travel wins. A tie needs two places with the same rating, rating count and interests.
-- **`src/itineraries/engine/adjust.ts` line 18**: during a re-plan, a reordering ends the day sooner and the freed time goes to another activity. Greedy insertion already places each stop at the least travel, so the short test days never improve by reordering; the engine's unit tests cover the reorder step ([`backend/tests/unit/localSearch.test.ts`](../backend/tests/unit/localSearch.test.ts) and [`dayRepair.test.ts`](../backend/tests/unit/dayRepair.test.ts)).
+- **`src/trips/tripService.ts` line 295**: a guard for a planned stop whose activity is not a candidate. The engine schedules only its candidates, so this cannot happen; the guard exists because `Map.get` may return `undefined`.
+- **`src/trips/tripService.ts` lines 505 and 512, and `src/trips/dayRepair.ts` line 154**: a disruption proposal is dropped if the stop left the day between the timer's check and the proposal (a simultaneous edit), or if the rest of the day no longer fits without it (line 154, surfaced as line 512). Removing a stop from a feasible day keeps it feasible whenever travel times obey the triangle inequality, which our estimates always do; only Google Routes times could break it. Both are race or data guards that cannot be produced reliably through the API.
+- **`src/trips/dayRepair.ts` line 214**: the tie-break when two ways of making room on a full day drop stops of exactly the same value; the one with less travel wins. A tie needs two places with the same rating, rating count and interests.
+- **`src/trips/engine/adjust.ts` line 18**: during a re-plan, a reordering ends the day sooner and the freed time goes to another activity. Greedy insertion already places each stop at the least travel, so the short test days never improve by reordering; the engine's unit tests cover the reorder step ([`backend/tests/unit/localSearch.test.ts`](../backend/tests/unit/localSearch.test.ts) and [`dayRepair.test.ts`](../backend/tests/unit/dayRepair.test.ts)).
 - **`src/sync/tripSync.ts` lines 136, 144 and 150**: `.catch` handlers on Socket.io events. Subscribing and sharing catch their own errors (tested with mocks), and leaving a room cannot fail with the in-memory adapter, so these only log an unexpected bug instead of letting an unhandled rejection stop the server.
 - **`src/nearby/nearbyService.ts` (99% of statements)**: the constructor's default clock. The tests inject their own clock (`backend/tests/helpers/testApp.ts`) so dates are predictable.
 - **`src/middleware/errorHandler.ts` lines 26-27**: passes an error to Express's default handler if a response was partly sent. No route writes before failing, so this is unreachable through the API; it follows the Express documentation's error-handling pattern.
@@ -318,15 +327,15 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
 
 | **Non-Functional Requirement** | **Location in Git** |
 | --- | --- |
-| **NFR 1: Itinerary generation time** | [`backend/tests/nfr/itineraryGenerationTime.test.ts`](../backend/tests/nfr/itineraryGenerationTime.test.ts) |
+| **NFR 1: Trip generation time** | [`backend/tests/nfr/tripGenerationTime.test.ts`](../backend/tests/nfr/tripGenerationTime.test.ts) |
 | **NFR 2: Live update latency** | [`backend/tests/nfr/liveUpdateLatency.test.ts`](../backend/tests/nfr/liveUpdateLatency.test.ts) |
 | **NFR 3: Bounded Google Places usage** | [`backend/tests/nfr/placesUsage.test.ts`](../backend/tests/nfr/placesUsage.test.ts) |
 
 ### 3.2. Test Verification and Logs
 
-- **NFR 1: Itinerary generation time**
+- **NFR 1: Trip generation time**
 
-  - **Verification:** The test loads the 30-activity Vancouver catalogue plus 30 synthetic downtown activities, so pruning keeps the maximum of 40 candidates. It sends 20 consecutive `POST /api/itineraries/generate` requests for a 5-day trip (08:00 to 21:00, packed pace, all interests) through the real Express app and an in-memory MongoDB, times each from send to response, and asserts that the 95th percentile is under 3,000 ms. It also checks that every response is 201 with 5 days and that the engine saw 40 candidates.
+  - **Verification:** The test loads the 30-activity Vancouver catalogue plus 30 synthetic downtown activities, so pruning keeps the maximum of 40 candidates. It sends 20 consecutive `POST /api/trips/generate` requests for a 5-day trip (08:00 to 21:00, packed pace, all interests) through the real Express app and an in-memory MongoDB, times each from send to response, and asserts that the 95th percentile is under 3,000 ms. It also checks that every response is 201 with 5 days and that the engine saw 40 candidates.
   - **Log Output**
     ```
     ==> Running backend NFR tests (tests/nfr/) ...
@@ -341,7 +350,7 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
 
 - **NFR 2: Live update latency**
 
-  - **Verification:** The test creates a 4-member group with a 3-day packed Vancouver trip, serves the app and its Socket.io hub on a local port, and subscribes the other three members. The owner sends 20 adjustments, alternating the cheapest (lock or unlock a stop) and the most expensive (re-plan a day). For each, it times every member from the request to receiving `itineraryUpdated`, which includes the re-plan, the database write and the push. All 60 deliveries must take under 2,000 ms.
+  - **Verification:** The test creates a 4-member group with a 3-day packed Vancouver trip, serves the app and its Socket.io hub on a local port, and subscribes the other three members. The owner sends 20 adjustments, alternating the cheapest (lock or unlock a stop) and the most expensive (re-plan a day). For each, it times every member from the request to receiving `tripUpdated`, which includes the re-plan, the database write and the push. All 60 deliveries must take under 2,000 ms.
   - **Log Output**
     ```
     ==> Running backend NFR tests (tests/nfr/) ...
@@ -352,7 +361,7 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
 
 - **NFR 3: Bounded Google Places usage**
 
-  - **Verification:** The test runs the real Express app and an in-memory MongoDB with a fake Google Places client that counts every call, and a clock the test moves forward. For 6 days, two travellers search Vancouver four times a day and generate a 2-day itinerary once a day. The clock then passes 7 days for one more search, and a final itinerary is generated with a lodging. The test asserts 7 text searches (one per interest tag) for the first search, none over the 6 days, 7 for the refresh after 7 days, and exactly 1 for the lodging, and that every request succeeds.
+  - **Verification:** The test runs the real Express app and an in-memory MongoDB with a fake Google Places client that counts every call, and a clock the test moves forward. For 6 days, two travellers search Vancouver four times a day and generate a 2-day trip once a day. The clock then passes 7 days for one more search, and a final trip is generated with a lodging. The test asserts 7 text searches (one per interest tag) for the first search, none over the 6 days, 7 for the refresh after 7 days, and exactly 1 for the lodging, and that every request succeeds.
   - **Log Output**
     ```
     ==> Running backend NFR tests (tests/nfr/) ...
@@ -380,14 +389,14 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
 
 ### 4.2. Tests
 
-- **Use Case: Generate Itinerary** ([formal specification](Requirements_and_Design.md#uc3)): [`GenerateItineraryTest.kt`](../frontend/app/src/androidTest/java/com/example/cpen321application/e2e/GenerateItineraryTest.kt)
+- **Use Case: Plan Trip** ([formal specification](Requirements_and_Design.md#uc3)): [`PlanTripTest.kt`](../frontend/app/src/androidTest/java/com/example/cpen321application/e2e/PlanTripTest.kt)
 
   - **Expected Behaviors:**
 
     | **Scenario Steps** | **Test Case Steps** |
     | ------------------ | ------------------- |
     | 1. The organizer taps "Plan a trip" on the home screen. | Click the node tagged `homePlanTrip`. |
-    | 2. The app shows the Trip Builder, with the destination and interests prefilled from the organizer's profile. | Check the node tagged `tripCityField` is displayed. Check the button tagged `generateButton` with text "Generate itinerary" is displayed. |
+    | 2. The app shows the Trip Builder, with the destination and interests prefilled from the organizer's profile. | Check the node tagged `tripCityField` is displayed. Check the button tagged `generateButton` with text "Generate trip" is displayed. |
     | 3a. The destination is empty. | Clear `tripCityField`. Click `generateButton`. |
     | 3a1. The app shows "Enter a destination city." and does not generate. | Check `tripError` has text "Enter a destination city.". Check the Trip Builder is still displayed. |
     | 3b. No dates are chosen. | Type "Vancouver" in `tripCityField`. Click `generateButton`. |
@@ -398,11 +407,11 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
     | 4a. The day ends less than 2 hours after it starts. | Open the "Start" dropdown and choose 17:00. Click `generateButton`. |
     | 4a1. The app shows "Your day must end at least 2 hours after it starts." and does not generate. | Check `tripError` has text "Your day must end at least 2 hours after it starts.". Open the "Start" dropdown and choose 09:00. |
     | 4. The organizer optionally changes the daily times, arrival and departure, lodging, interests and pace. | Open the "Arrive" dropdown and choose 13:00. Click the "Museums" chip. Click the "Relaxed" segment. |
-    | 6. The organizer taps "Generate itinerary". | Click `generateButton`. |
-    | 7. The system ranks and schedules the city's activities into each day. | Wait until a node tagged `itineraryDay` is displayed (up to 10 s). |
-    | 8. The app shows a day-by-day timeline. | Wait until a stop's "HH:MM to HH:MM" line (inside a node tagged `itineraryStop`) is displayed. Check the first day's first stop starts at or after 13:00. Scroll the timeline to the text "Back at lodging by", then to the headings "Day 1 of 3", "Day 2 of 3" and "Day 3 of 3". |
+    | 6. The organizer taps "Generate trip". | Click `generateButton`. |
+    | 7. The system ranks and schedules the city's activities into each day. | Wait until a node tagged `tripDay` is displayed (up to 10 s). |
+    | 8. The app shows a day-by-day timeline. | Wait until a stop's "HH:MM to HH:MM" line (inside a node tagged `tripStop`) is displayed. Check the first day's first stop starts at or after 13:00. Scroll the timeline to the text "Back at lodging by", then to the headings "Day 1 of 3", "Day 2 of 3" and "Day 3 of 3". |
     | 7b. The lodging cannot be found. | Go back to home, click `homePlanTrip`, replace the text in `tripCityField` with "Vancouver", choose the same dates, type "no such place zzzz" in `tripLodgingField`, click `generateButton`. |
-    | 7b1-7b2. The system plans from the city centre and the itinerary shows a warning. | Wait until a node tagged `itineraryWarning` is displayed. Check the text inside it contains "Could not find". Check the text "From Vancouver centre" is displayed. |
+    | 7b1-7b2. The system plans from the city centre and the trip shows a warning. | Wait until a node tagged `tripWarning` is displayed. Check the text inside it contains "Could not find". Check the text "From Vancouver centre" is displayed. |
 
     Failure scenarios 7a (no activities for the city) and 7f (TimeTravel unreachable) need a city without activities or a stopped back-end, so they are verified manually; the front-end tests run against the real deployed back-end without mocks.
 
@@ -447,15 +456,15 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
     OK (1 test)
     ```
 
-- **Use Case: View & Adjust Itinerary** ([formal specification](Requirements_and_Design.md#uc4)): [`ViewAdjustItineraryTest.kt`](../frontend/app/src/androidTest/java/com/example/cpen321application/e2e/ViewAdjustItineraryTest.kt)
+- **Use Case: View & Adjust Trip** ([formal specification](Requirements_and_Design.md#uc4)): [`ViewAdjustTripTest.kt`](../frontend/app/src/androidTest/java/com/example/cpen321application/e2e/ViewAdjustTripTest.kt)
 
   - **Expected Behaviors:**
 
     | **Scenario Steps** | **Test Case Steps** |
     | ------------------ | ------------------- |
-    | (Set-up: a trip to adjust.) | Click `homePlanTrip`. Replace the text in `tripCityField` with "Vancouver". Choose a start date 10 days from today and an end date a day later. Open the "Start" dropdown and choose 11:00. Click `generateButton`, wait until a node tagged `itineraryDay` is displayed, and go back to home. |
+    | (Set-up: a trip to adjust.) | Click `homePlanTrip`. Replace the text in `tripCityField` with "Vancouver". Choose a start date 10 days from today and an end date a day later. Open the "Start" dropdown and choose 11:00. Click `generateButton`, wait until a node tagged `tripDay` is displayed, and go back to home. |
     | 1. The traveller opens a trip from the home screen's recent trips. | Click the first node tagged `recentTrip` (the newest trip). |
-    | 2. The app shows the itinerary timeline, connects to live updates and shows "Live". | Wait until `liveStatus` contains "LIVE:" and a stop's "HH:MM to HH:MM" line is displayed. Read the first two stops' names (from their menu buttons, "Options for &lt;stop&gt;") and the first stop's times. |
+    | 2. The app shows the trip timeline, connects to live updates and shows "Live". | Wait until `liveStatus` contains "LIVE:" and a stop's "HH:MM to HH:MM" line is displayed. Read the first two stops' names (from their menu buttons, "Options for &lt;stop&gt;") and the first stop's times. |
     | 3. The traveller opens a stop's menu and locks it. | Click the first `stopActionsButton`, then `stopActionLock`. |
     | 4-5. The system re-plans; locked stops keep their times, and the traveller's app shows the change. | Wait until a node tagged `stopLocked` is displayed. Check the first stop's times are unchanged. |
     | 4a. No feasible plan keeps the requested change. | Click the second `stopActionsButton`, then `stopActionMoveEarlier`. (The second stop would have to fit before the locked first stop, which starts as soon as the day does.) |
@@ -465,7 +474,7 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
     | 3. The traveller unlocks a stop. | Click the first `stopActionsButton`, then `stopActionLock` (now "Unlock"). |
     | 4-5. The stop is no longer locked. | Wait until no node tagged `stopLocked` exists. |
 
-    Step 5 for the other members needs a second device; the Socket.io interface tests and the NFR 2 test cover it. Failure scenarios 2a (missing itinerary or not a member), 2b (lost connection) and 4b (another member changed the trip first) need a second account, a lost network or a concurrent edit; the back-end interface tests cover their server side (404, the live connection, and 409 for an out-of-date version).
+    Step 5 for the other members needs a second device; the Socket.io interface tests and the NFR 2 test cover it. Failure scenarios 2a (missing trip or not a member), 2b (lost connection) and 4b (another member changed the trip first) need a second account, a lost network or a concurrent edit; the back-end interface tests cover their server side (404, the live connection, and 409 for an out-of-date version).
 
   - **Test Logs:**
     ```

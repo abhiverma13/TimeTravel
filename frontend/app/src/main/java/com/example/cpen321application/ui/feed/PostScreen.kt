@@ -37,16 +37,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.cpen321application.data.GeoPoint
-import com.example.cpen321application.data.ItineraryStop
+import com.example.cpen321application.data.TripStop
 import com.example.cpen321application.data.PostComment
 import com.example.cpen321application.data.PostDay
 import com.example.cpen321application.data.PostDetail
 import com.example.cpen321application.data.PostTrip
 import com.example.cpen321application.ui.common.SectionLabel
 import com.example.cpen321application.ui.common.TestTags
-import com.example.cpen321application.ui.itinerary.StopRow
-import com.example.cpen321application.ui.itinerary.TransitRow
-import com.example.cpen321application.ui.trip.StartDateDialog
+import com.example.cpen321application.ui.trip.StopRow
+import com.example.cpen321application.ui.trip.TransitRow
+import com.example.cpen321application.ui.builder.StartDateDialog
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -54,7 +54,7 @@ private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, M
 private const val MAX_COMMENT_LENGTH = 300
 
 /** Where a post screen can send the traveller. */
-class PostNavigation(val onBack: () -> Unit, val onOpenTraveller: (String) -> Unit, val onOpenItinerary: (String) -> Unit)
+class PostNavigation(val onBack: () -> Unit, val onOpenTraveller: (String) -> Unit, val onOpenTrip: (String) -> Unit)
 
 /** One shared trip: the plan, its likes and comments, and copying it into your own trips. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,10 +63,10 @@ fun PostScreen(viewModel: PostViewModel, navigation: PostNavigation) {
     val state by viewModel.state.collectAsState()
     var pickingDate by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
-    LaunchedEffect(state.copiedItineraryId) {
-        state.copiedItineraryId?.let { itineraryId ->
+    LaunchedEffect(state.copiedTripId) {
+        state.copiedTripId?.let { tripId ->
             viewModel.copyOpened()
-            navigation.onOpenItinerary(itineraryId)
+            navigation.onOpenTrip(tripId)
         }
     }
     LaunchedEffect(state.deleted) { if (state.deleted) navigation.onBack() }
@@ -103,7 +103,7 @@ fun PostScreen(viewModel: PostViewModel, navigation: PostNavigation) {
         AlertDialog(
             onDismissRequest = { confirmingDelete = false },
             title = { Text("Delete this post?") },
-            text = { Text("It and its comments disappear from the feed. Your itinerary is not affected.") },
+            text = { Text("It and its comments disappear from the feed. Your trip is not affected.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirmingDelete = false
@@ -150,7 +150,7 @@ private fun PostContent(
     }
 }
 
-// A read-only day of the shared plan, drawn like the itinerary's timeline.
+// A read-only day of the shared plan, drawn like the trip's timeline.
 private fun LazyListScope.postDay(index: Int, trip: PostTrip, day: PostDay) {
     item(key = "day-${day.date}") {
         SectionLabel("Day ${index + 1} of ${trip.days.size} · ${LocalDate.parse(day.date).format(DAY_FORMAT)}", modifier = Modifier.padding(top = 12.dp))
@@ -163,7 +163,7 @@ private fun LazyListScope.postDay(index: Int, trip: PostTrip, day: PostDay) {
         }
         TransitRow(travel)
         StopRow(
-            ItineraryStop(
+            TripStop(
                 activityId = stop.activityId,
                 name = stop.name,
                 address = "",

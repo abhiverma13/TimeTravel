@@ -86,8 +86,8 @@ data class ReviewsResponse(val reviews: List<ReviewListItem>)
 
 data class ReviewResponse(val review: Review, val activity: TravelActivity)
 
-/** A trip for the Itinerary Engine. Times are HH:MM; null optional fields are left out of the request. */
-data class GenerateItineraryRequest(
+/** A trip for the Trip Engine. Times are HH:MM; null optional fields are left out of the request. */
+data class GenerateTripRequest(
     val city: String,
     val startDate: String,
     val endDate: String,
@@ -111,7 +111,7 @@ data class GenerateItineraryRequest(
 /** Where each day starts and ends; source is "places" or "city-centre". */
 data class Lodging(val label: String, val lat: Double, val lng: Double, val source: String)
 
-data class ItineraryStop(
+data class TripStop(
     val activityId: String,
     val name: String,
     val address: String,
@@ -128,9 +128,9 @@ data class ItineraryStop(
     val visited: Boolean = false,
 )
 
-data class ItineraryDay(val date: String, val weekday: Int, val stops: List<ItineraryStop>, val returnTravelMinutes: Int)
+data class TripDay(val date: String, val weekday: Int, val stops: List<TripStop>, val returnTravelMinutes: Int)
 
-data class Itinerary(
+data class Trip(
     val id: String,
     /** The group the trip belongs to, or null for a personal trip. */
     val groupId: String?,
@@ -150,7 +150,7 @@ data class Itinerary(
     /** google-routes or estimate. */
     val travelTimeSource: String,
     val lodging: Lodging,
-    val days: List<ItineraryDay>,
+    val days: List<TripDay>,
     val candidateCount: Int,
     val unscheduledCount: Int,
     val warnings: List<String>,
@@ -175,12 +175,12 @@ data class AdjustRequest(
 )
 
 /** A live update pushed by the back-end after anyone in the trip adjusts it. */
-data class ItineraryChange(val itinerary: Itinerary, val actorId: String, val summary: String)
+data class TripChange(val trip: Trip, val actorId: String, val summary: String)
 
 /** A change proposed after a disruption (rain on an outdoor stop, or a closed venue); nothing changes until accepted. */
 data class Suggestion(
     val id: String,
-    val itineraryId: String,
+    val tripId: String,
     val dayIndex: Int,
     val date: String,
     val activityId: String,
@@ -196,7 +196,7 @@ data class Suggestion(
 
 data class SuggestionsResponse(val suggestions: List<Suggestion>)
 
-data class ItinerarySummary(
+data class TripSummary(
     val id: String,
     val groupId: String?,
     val city: String,
@@ -209,4 +209,4 @@ data class ItinerarySummary(
     val openToJoin: Boolean = false,
 )
 
-data class ItinerariesResponse(val itineraries: List<ItinerarySummary>)
+data class TripsResponse(val trips: List<TripSummary>)

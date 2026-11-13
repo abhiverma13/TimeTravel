@@ -21,8 +21,8 @@ const requestsQuery = z.object({ groupId: z.string().refine((id) => isValidObjec
 
 /**
  * GET  /api/nearby/trips?lat=<lat>&lng=<lng>
- * PUT  /api/nearby/trips/:itineraryId
- * POST /api/nearby/trips/:itineraryId/requests
+ * PUT  /api/nearby/trips/:tripId
+ * POST /api/nearby/trips/:tripId/requests
  * GET  /api/nearby/requests?groupId=<id>
  * POST /api/nearby/requests/:requestId/accept
  * POST /api/nearby/requests/:requestId/decline
@@ -36,14 +36,14 @@ export function createNearbyRouter(authService: AuthService, nearbyService: Near
     response.json({ trips: await nearbyService.findNearby(authenticatedUserId(response), point) });
   });
 
-  router.put('/trips/:itineraryId', async (request, response) => {
+  router.put('/trips/:tripId', async (request, response) => {
     const { openToJoin } = openBody.parse(request.body);
-    response.json(await nearbyService.setOpen(authenticatedUserId(response), request.params.itineraryId, openToJoin));
+    response.json(await nearbyService.setOpen(authenticatedUserId(response), request.params.tripId, openToJoin));
   });
 
-  router.post('/trips/:itineraryId/requests', async (request, response) => {
+  router.post('/trips/:tripId/requests', async (request, response) => {
     const { note } = requestBody.parse(request.body);
-    response.status(201).json(await nearbyService.requestToJoin(authenticatedUserId(response), request.params.itineraryId, note));
+    response.status(201).json(await nearbyService.requestToJoin(authenticatedUserId(response), request.params.tripId, note));
   });
 
   router.get('/requests', async (request, response) => {

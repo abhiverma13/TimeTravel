@@ -2,7 +2,7 @@ import request from 'supertest';
 
 import { GroupModel } from '../../src/groups/groupModel';
 import type { GroupDto } from '../../src/groups/groupService';
-import { ItineraryModel } from '../../src/itineraries/itineraryModel';
+import { TripModel } from '../../src/trips/tripModel';
 import { JoinRequestModel } from '../../src/nearby/joinRequestModel';
 import type { JoinRequestDto, NearbyTripDto } from '../../src/nearby/nearbyService';
 import { createTestApp, signedInUser } from '../helpers/testApp';
@@ -23,11 +23,11 @@ async function openTrip() {
   const olivia = await signedInUser(authService, 'Olivia Owner');
   const vera = await signedInUser(authService, 'Vera Visitor');
   const group = (await request(app).post('/api/groups').set(olivia.authorization).send({ name: 'Testville crew' })).body as GroupDto;
-  const itineraryId = await storeTestvilleTrip(olivia.userId, ['Harbour Park'], { groupId: group.id });
-  await request(app).put(`/api/nearby/trips/${itineraryId}`).set(olivia.authorization).send({ openToJoin: true });
+  const tripId = await storeTestvilleTrip(olivia.userId, ['Harbour Park'], { groupId: group.id });
+  await request(app).put(`/api/nearby/trips/${tripId}`).set(olivia.authorization).send({ openToJoin: true });
   const ask = async () =>
-    (await request(app).post(`/api/nearby/trips/${itineraryId}/requests`).set(vera.authorization).send({ note: 'Hi!' })).body as JoinRequestDto;
-  return { app, olivia, vera, group, itineraryId, ask };
+    (await request(app).post(`/api/nearby/trips/${tripId}/requests`).set(vera.authorization).send({ note: 'Hi!' })).body as JoinRequestDto;
+  return { app, olivia, vera, group, tripId, ask };
 }
 
 beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
@@ -60,9 +60,9 @@ describe('Mocked: GET /api/nearby/trips', () => {
   // Expected status code: 500
   // Expected behavior: the error is handled without crashing the server
   // Expected output: { error: "Internal server error" }
-  test('Itinerary database fails', async () => {
+  test('Trip database fails', async () => {
     const { app, vera } = await openTrip();
-    jest.spyOn(ItineraryModel, 'find').mockImplementation(simulatedOutage);
+    jest.spyOn(TripModel, 'find').mockImplementation(simulatedOutage);
 
     const response = await request(app).get(`/api/nearby/trips?${IN_TESTVILLE}`).set(vera.authorization);
 
@@ -71,35 +71,35 @@ describe('Mocked: GET /api/nearby/trips', () => {
   });
 });
 
-// Interface PUT /api/nearby/trips/:itineraryId
-describe('Mocked: PUT /api/nearby/trips/:itineraryId', () => {
+// Interface PUT /api/nearby/trips/:tripId
+describe('Mocked: PUT /api/nearby/trips/:tripId', () => {
   // Mocked behavior: saving the setting fails
   // Input: Olivia closes her trip
   // Expected status code: 500
   // Expected behavior: the error is handled without crashing the server
   // Expected output: { error: "Internal server error" }
-  test('Itinerary database write fails', async () => {
-    const { app, olivia, itineraryId } = await openTrip();
-    jest.spyOn(ItineraryModel, 'updateOne').mockImplementation(simulatedOutage);
+  test('Trip database write fails', async () => {
+    const { app, olivia, tripId } = await openTrip();
+    jest.spyOn(TripModel, 'updateOne').mockImplementation(simulatedOutage);
 
-    const response = await request(app).put(`/api/nearby/trips/${itineraryId}`).set(olivia.authorization).send({ openToJoin: false });
+    const response = await request(app).put(`/api/nearby/trips/${tripId}`).set(olivia.authorization).send({ openToJoin: false });
 
     expect(response.status).toBe(500);
   });
 });
 
-// Interface POST /api/nearby/trips/:itineraryId/requests
-describe('Mocked: POST /api/nearby/trips/:itineraryId/requests', () => {
+// Interface POST /api/nearby/trips/:tripId/requests
+describe('Mocked: POST /api/nearby/trips/:tripId/requests', () => {
   // Mocked behavior: saving the request fails
   // Input: Vera asks to join
   // Expected status code: 500
   // Expected behavior: the error is handled without crashing the server
   // Expected output: { error: "Internal server error" }
   test('Join request database write fails', async () => {
-    const { app, vera, itineraryId } = await openTrip();
+    const { app, vera, tripId } = await openTrip();
     jest.spyOn(JoinRequestModel, 'create').mockImplementation(simulatedOutage);
 
-    const response = await request(app).post(`/api/nearby/trips/${itineraryId}/requests`).set(vera.authorization).send({});
+    const response = await request(app).post(`/api/nearby/trips/${tripId}/requests`).set(vera.authorization).send({});
 
     expect(response.status).toBe(500);
   });

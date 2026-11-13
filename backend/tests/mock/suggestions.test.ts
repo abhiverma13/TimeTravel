@@ -6,7 +6,7 @@ import { type BusinessStatus, GooglePlacesClient, type PlacesClient } from '../.
 import type { SuggestionDto } from '../../src/disruptions/disruptionService';
 import { SuggestionModel } from '../../src/disruptions/suggestionModel';
 import { type Forecast, OpenWeatherClient, type WeatherClient } from '../../src/disruptions/weatherClient';
-import { ItineraryModel } from '../../src/itineraries/itineraryModel';
+import { TripModel } from '../../src/trips/tripModel';
 import { type TestAppOptions, createTestApp, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
 import { seedTestville, storeTestvilleTrip } from '../helpers/testville';
@@ -46,10 +46,10 @@ async function tripUnderWay(options: TestAppOptions = {}) {
   const testApp = createTestApp({ now: () => SATURDAY_MORNING, ...options });
   await seedTestville(testApp.activityService);
   const pia = await signedInUser(testApp.authService, 'Pia Planner');
-  const itineraryId = await storeTestvilleTrip(pia.userId, TRIP);
+  const tripId = await storeTestvilleTrip(pia.userId, TRIP);
   const pushed: SuggestionDto[] = [];
   testApp.disruptionService.onSuggestion((suggestion) => pushed.push(suggestion));
-  return { ...testApp, pia, itineraryId, pushed };
+  return { ...testApp, pia, tripId, pushed };
 }
 
 beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
@@ -130,7 +130,7 @@ describe('Mocked: Disruption timer: checkActiveTrips()', () => {
 
     expect(made).toBe(1);
     expect(pushed).toHaveLength(1);
-    expect(error).toHaveBeenCalledWith('Disruption check failed for an itinerary', expect.any(Error));
+    expect(error).toHaveBeenCalledWith('Disruption check failed for a trip', expect.any(Error));
   });
 
   // Mocked behavior: rain is forecast, but the server clock is two weeks after the trip
@@ -156,12 +156,12 @@ describe('Mocked: GET /api/suggestions', () => {
   // Expected output: { error: "Internal server error" }
   test('Suggestion database fails', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    const { app, pia, itineraryId } = await tripUnderWay();
+    const { app, pia, tripId } = await tripUnderWay();
     jest.spyOn(SuggestionModel, 'find').mockImplementation(() => {
       throw new Error('Simulated database outage');
     });
 
-    const response = await request(app).get(`/api/suggestions?itineraryId=${itineraryId}`).set(pia.authorization);
+    const response = await request(app).get(`/api/suggestions?tripId=${tripId}`).set(pia.authorization);
 
     expect(response.status).toBe(500);
     expect(response.body).toEqual({ error: 'Internal server error' });
@@ -172,7 +172,7 @@ describe('Mocked: GET /api/suggestions', () => {
 async function harbourParkSuggestion() {
   const setup = await tripUnderWay();
   const parkId = (await ActivityModel.findOne({ name: 'Harbour Park' }))?._id.toString() ?? '';
-  await setup.disruptionService.suggest(new Types.ObjectId(setup.itineraryId), 0, parkId, 'rain');
+  await setup.disruptionService.suggest(new Types.ObjectId(setup.tripId), 0, parkId, 'rain');
   const suggestionId = setup.pushed.at(0)?.id ?? '';
   return { ...setup, suggestionId };
 }
@@ -186,7 +186,7 @@ describe('Mocked: POST /api/suggestions/:suggestionId/accept', () => {
   // Expected output: { error: "The trip changed since this suggestion; it no longer applies" }
   test('Someone else changes the trip at the same moment', async () => {
     const { app, pia, suggestionId } = await harbourParkSuggestion();
-    jest.spyOn(ItineraryModel, 'findOneAndUpdate').mockResolvedValueOnce(null);
+    jest.spyOn(TripModel, 'findOneAndUpdate').mockResolvedValueOnce(null);
 
     const response = await request(app).post(`/api/suggestions/${suggestionId}/accept`).set(pia.authorization);
 

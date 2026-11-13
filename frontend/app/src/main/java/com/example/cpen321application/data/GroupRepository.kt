@@ -13,7 +13,7 @@ class GroupRepository(private val api: GroupApi) {
     suspend fun joinGroup(inviteCode: String): Result<Group> =
         apiCall { api.joinGroup(JoinGroupRequest(inviteCode.trim().uppercase())) }
 
-    /** The interests the Itinerary Engine uses for this traveller in this group's trips. */
+    /** The interests the Trip Engine uses for this traveller in this group's trips. */
     suspend fun setInterests(groupId: String, interests: List<String>): Result<Group> =
         apiCall { api.updatePreferences(groupId, GroupPreferencesRequest(interests = interests)) }
 

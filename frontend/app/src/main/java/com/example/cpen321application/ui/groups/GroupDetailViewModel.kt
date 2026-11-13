@@ -5,13 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.Group
 import com.example.cpen321application.data.GroupMember
 import com.example.cpen321application.data.GroupRepository
-import com.example.cpen321application.data.ItinerarySummary
 import com.example.cpen321application.data.JoinRequest
+import com.example.cpen321application.data.LiveEvent
+import com.example.cpen321application.data.LiveEventTypes
 import com.example.cpen321application.data.NearbyRepository
 import com.example.cpen321application.data.TimeTravelRepository
+import com.example.cpen321application.data.TripSummary
+import com.example.cpen321application.ui.common.refreshOn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -27,7 +31,7 @@ sealed interface GroupConfirm {
 data class GroupDetailUiState(
     val loading: Boolean = true,
     val group: Group? = null,
-    val trips: List<ItinerarySummary> = emptyList(),
+    val trips: List<TripSummary> = emptyList(),
     /** Travellers nearby asking to join; only the owner sees them. */
     val requests: List<JoinRequest> = emptyList(),
     val error: String? = null,
@@ -49,14 +53,21 @@ class GroupDetailViewModel(
     private val nearby: NearbyRepository,
     private val groupId: String,
     private val myUserId: String,
+    liveEvents: Flow<LiveEvent>,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(GroupDetailUiState())
     val state: StateFlow<GroupDetailUiState> = mutableState.asStateFlow()
 
+    init {
+        // Members joining or leaving, and (for the owner) join requests, show up while the page is open.
+        val types = LiveEventTypes.GROUPS + LiveEventTypes.JOIN_REQUEST
+        refreshOn(liveEvents, types, matches = { it.groupId == groupId }) { load() }
+    }
+
     fun load() {
         viewModelScope.launch {
             val group = groups.group(groupId)
-            val trips = repository.recentItineraries(groupId).getOrDefault(emptyList())
+            val trips = repository.recentTrips(groupId).getOrDefault(emptyList())
             val requests = if (group.getOrNull()?.isOwner == true) nearby.requests(groupId).getOrDefault(emptyList()) else emptyList()
             mutableState.update { current ->
                 group.fold(
@@ -76,7 +87,7 @@ class GroupDetailViewModel(
     fun clearVetoes() = save("Vetoes cleared.") { groups.setVetoes(groupId, emptyList()) }
 
     /** Opens a group trip to travellers nearby, or closes it again. */
-    fun setOpen(trip: ItinerarySummary, open: Boolean) {
+    fun setOpen(trip: TripSummary, open: Boolean) {
         viewModelScope.launch {
             nearby.setOpen(trip.id, open).fold(
                 onSuccess = { saved -> mutableState.update { it.copy(trips = it.trips.map { old -> if (old.id == trip.id) old.copy(openToJoin = saved) else old }) } },

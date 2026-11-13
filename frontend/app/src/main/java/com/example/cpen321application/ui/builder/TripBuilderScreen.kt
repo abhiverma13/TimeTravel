@@ -1,0 +1,237 @@
+package com.example.cpen321application.ui.builder
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
+import com.example.cpen321application.ui.common.INTEREST_LABELS
+import com.example.cpen321application.ui.common.SectionLabel
+import com.example.cpen321application.ui.common.TestTags
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+
+private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE, MMM d")
+
+private fun datesText(start: LocalDate?, end: LocalDate?): String {
+    if (start == null || end == null) {
+        return "Choose dates"
+    }
+    val days = ChronoUnit.DAYS.between(start, end) + 1
+    val range = if (start == end) start.format(DATE_FORMAT) else "${start.format(DATE_FORMAT)} to ${end.format(DATE_FORMAT)}"
+    return "$range  ·  " + if (days == 1L) "1 day" else "$days days"
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TripBuilderScreen(viewModel: TripBuilderViewModel, onBack: () -> Unit, onTripReady: (String) -> Unit) {
+    val state by viewModel.state.collectAsState()
+    var choosingDates by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.generatedTripId) {
+        val tripId = state.generatedTripId
+        if (tripId != null) {
+            viewModel.tripOpened()
+            onTripReady(tripId)
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(state.group?.let { "Plan for ${it.name}" } ?: "Trip Builder") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                },
+            )
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            TripDetails(state, viewModel, onChooseDates = { choosingDates = true })
+            TripPreferences(state, viewModel)
+            TripOptions(state, viewModel)
+            if (state.error != null) {
+                Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag(TestTags.TRIP_ERROR))
+            }
+            Button(
+                onClick = viewModel::generate,
+                enabled = !state.generating,
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth().height(52.dp).testTag(TestTags.GENERATE_BUTTON),
+            ) {
+                if (state.generating) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Generate trip")
+                }
+            }
+        }
+    }
+
+    TripBuilderDialogs(state, viewModel, choosingDates, onDatesClosed = { choosingDates = false })
+}
+
+// The date-range picker and the must-see and avoid picker, when open.
+@Composable
+private fun TripBuilderDialogs(state: TripBuilderUiState, viewModel: TripBuilderViewModel, choosingDates: Boolean, onDatesClosed: () -> Unit) {
+    state.placePicker?.let { picker ->
+        PlacePickerDialog(picker, state.placeChoices, onToggle = viewModel::cyclePlace, onDone = viewModel::closePlacePicker)
+    }
+    if (choosingDates) {
+        TripDatesDialog(
+            start = state.startDate,
+            end = state.endDate,
+            onConfirm = { start, end ->
+                viewModel.onDatesChange(start, end ?: start)
+                onDatesClosed()
+            },
+            onDismiss = onDatesClosed,
+        )
+    }
+}
+
+@Composable
+private fun TripDetails(state: TripBuilderUiState, viewModel: TripBuilderViewModel, onChooseDates: () -> Unit) {
+    SectionLabel("Destination")
+    OutlinedTextField(
+        value = state.city,
+        onValueChange = viewModel::onCityChange,
+        label = { Text("City") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth().testTag(TestTags.TRIP_CITY_FIELD),
+    )
+    SectionLabel("Dates")
+    OutlinedButton(
+        onClick = onChooseDates,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.fillMaxWidth().testTag(TestTags.TRIP_DATES_BUTTON),
+    ) {
+        Text(datesText(state.startDate, state.endDate))
+    }
+    SectionLabel("Your days")
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        TimeDropdown("Start", state.dayStart, { it?.let(viewModel::onDayStartChange) }, Modifier.weight(1f))
+        TimeDropdown("End", state.dayEnd, { it?.let(viewModel::onDayEndChange) }, Modifier.weight(1f))
+    }
+    SectionLabel("Arrival and departure (optional)")
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        TimeDropdown("Arrive", state.arrivalTime, viewModel::onArrivalChange, Modifier.weight(1f), notSetLabel = "Not set")
+        TimeDropdown("Depart", state.departureTime, viewModel::onDepartureChange, Modifier.weight(1f), notSetLabel = "Not set")
+    }
+    SectionLabel("Lodging (optional)")
+    OutlinedTextField(
+        value = state.lodging,
+        onValueChange = viewModel::onLodgingChange,
+        label = { Text("Hotel name or address") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth().testTag(TestTags.TRIP_LODGING_FIELD),
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun TripPreferences(state: TripBuilderUiState, viewModel: TripBuilderViewModel) {
+    SectionLabel("Interests")
+    val group = state.group
+    if (group != null) {
+        Text(
+            "Everyone's interests and vetoes in ${group.name} shape this plan. Change yours on the group's page.",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.testTag(TestTags.TRIP_GROUP_NOTE),
+        )
+    } else {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            INTEREST_LABELS.forEach { (tag, label) ->
+                FilterChip(selected = tag in state.interests, onClick = { viewModel.onInterestToggle(tag) }, label = { Text(label) })
+            }
+        }
+    }
+    SectionLabel("Pace")
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        PACES.forEachIndexed { index, (pace, label) ->
+            SegmentedButton(
+                selected = state.pace == pace,
+                onClick = { viewModel.onPaceChange(pace) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = PACES.size),
+                label = { Text(label) },
+            )
+        }
+    }
+}
+
+// Transport mode, budget, and the places to include or leave out.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TripOptions(state: TripBuilderUiState, viewModel: TripBuilderViewModel) {
+    SectionLabel("Getting around")
+    OptionRow(TRANSPORT_MODES, state.transportMode, viewModel::onTransportModeChange, TestTags.TRIP_MODE)
+    SectionLabel("Budget per activity")
+    OptionRow(BUDGETS, state.budget, viewModel::onBudgetChange, TestTags.TRIP_BUDGET)
+    SectionLabel("Must-see and avoid (optional)")
+    val mustSee = state.placeChoices.values.count { it == PlaceChoice.MUST_SEE }
+    val avoid = state.placeChoices.values.count { it == PlaceChoice.AVOID }
+    OutlinedButton(
+        onClick = viewModel::openPlacePicker,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.fillMaxWidth().testTag(TestTags.TRIP_PLACES_BUTTON),
+    ) {
+        Text(if (mustSee + avoid == 0) "Choose places" else "$mustSee must-see · $avoid avoided")
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OptionRow(options: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit, tagPrefix: String) {
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, (value, label) ->
+            SegmentedButton(
+                selected = selected == value,
+                onClick = { onSelect(value) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                label = { Text(label) },
+                modifier = Modifier.testTag("$tagPrefix-$value"),
+            )
+        }
+    }
+}

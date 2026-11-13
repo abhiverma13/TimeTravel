@@ -4,6 +4,7 @@ package com.example.cpen321application.ui.common
 object TestTags {
     const val SIGN_IN_BUTTON = "signInButton"
     const val SIGN_OUT_BUTTON = "signOutButton"
+    const val LIVE_EVENT_NOTICE = "liveEventNotice"
 
     const val PROFILE_CARD = "profileCard"
     const val PROFILE_EDIT_BUTTON = "profileEditButton"
@@ -71,9 +72,9 @@ object TestTags {
     const val TRIP_ERROR = "tripError"
     const val GENERATE_BUTTON = "generateButton"
 
-    const val ITINERARY_DAY = "itineraryDay"
-    const val ITINERARY_STOP = "itineraryStop"
-    const val ITINERARY_WARNING = "itineraryWarning"
+    const val TRIP_DAY = "tripDay"
+    const val TRIP_STOP = "tripStop"
+    const val TRIP_WARNING = "tripWarning"
     const val STOP_ACTIONS_BUTTON = "stopActionsButton"
     const val STOP_ACTION_VETO = "stopActionVeto"
     const val STOP_ACTION_LOCK = "stopActionLock"

@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.AdjustRequest
 import com.example.cpen321application.data.GeoPoint
-import com.example.cpen321application.data.Itinerary
-import com.example.cpen321application.data.ItinerarySummary
+import com.example.cpen321application.data.Trip
+import com.example.cpen321application.data.TripSummary
 import com.example.cpen321application.data.ReviewListItem
 import com.example.cpen321application.data.ReviewTags
 import com.example.cpen321application.data.TimeTravelRepository
@@ -21,9 +21,9 @@ data class AddToTripState(
     val activity: TravelActivity,
     val loading: Boolean = true,
     /** The traveller's trips to the city being explored. */
-    val trips: List<ItinerarySummary> = emptyList(),
+    val trips: List<TripSummary> = emptyList(),
     /** The chosen trip, once picked. */
-    val trip: Itinerary? = null,
+    val trip: Trip? = null,
     val error: String? = null,
 )
 
@@ -140,7 +140,7 @@ class ExploreViewModel(private val repository: TimeTravelRepository, initialCity
         val city = state.value.searchedCity.orEmpty()
         mutableState.update { it.copy(adding = AddToTripState(activity)) }
         viewModelScope.launch {
-            val result = repository.recentItineraries()
+            val result = repository.recentTrips()
             updateAdding { adding ->
                 result.fold(
                     onSuccess = { trips -> adding.copy(loading = false, trips = trips.filter { it.city.equals(city, ignoreCase = true) }) },
@@ -150,13 +150,13 @@ class ExploreViewModel(private val repository: TimeTravelRepository, initialCity
         }
     }
 
-    fun chooseTrip(trip: ItinerarySummary) {
+    fun chooseTrip(trip: TripSummary) {
         updateAdding { it.copy(loading = true, error = null) }
         viewModelScope.launch {
-            val result = repository.itinerary(trip.id)
+            val result = repository.trip(trip.id)
             updateAdding { adding ->
                 result.fold(
-                    onSuccess = { itinerary -> adding.copy(loading = false, trip = itinerary) },
+                    onSuccess = { trip -> adding.copy(loading = false, trip = trip) },
                     onFailure = { error -> adding.copy(loading = false, error = error.message) },
                 )
             }
@@ -172,7 +172,7 @@ class ExploreViewModel(private val repository: TimeTravelRepository, initialCity
         val trip = adding.trip ?: return
         updateAdding { it.copy(loading = true, error = null) }
         viewModelScope.launch {
-            repository.adjustItinerary(trip.id, AdjustRequest("add", trip.version, dayIndex, adding.activity.id)).fold(
+            repository.adjustTrip(trip.id, AdjustRequest("add", trip.version, dayIndex, adding.activity.id)).fold(
                 onSuccess = { updated ->
                     mutableState.update { it.copy(adding = null, confirmation = addedText(adding.activity.name, trip, updated, dayIndex)) }
                 },
@@ -191,7 +191,7 @@ class ExploreViewModel(private val repository: TimeTravelRepository, initialCity
 }
 
 // "Added Queen Elizabeth Park to your Vancouver trip, dropping Kitsilano Beach to make room."
-private fun addedText(placeName: String, before: Itinerary, after: Itinerary, dayIndex: Int): String {
+private fun addedText(placeName: String, before: Trip, after: Trip, dayIndex: Int): String {
     val kept = after.days.getOrNull(dayIndex)?.stops.orEmpty().map { it.activityId }.toSet()
     val dropped = before.days.getOrNull(dayIndex)?.stops.orEmpty().filter { it.activityId !in kept }.map { it.name }
     val makingRoom = if (dropped.isEmpty()) "" else ", dropping ${dropped.joinToString(" and ")} to make room"

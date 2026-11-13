@@ -5,9 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.Group
 import com.example.cpen321application.data.GroupRepository
 import com.example.cpen321application.data.GroupSummary
+import com.example.cpen321application.data.LiveEvent
+import com.example.cpen321application.data.LiveEventTypes
+import com.example.cpen321application.ui.common.refreshOn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -27,9 +31,13 @@ data class GroupsUiState(
 )
 
 /** Create Group and Join Group: lists the traveller's groups and makes or joins new ones. */
-class GroupsViewModel(private val groups: GroupRepository) : ViewModel() {
+class GroupsViewModel(private val groups: GroupRepository, liveEvents: Flow<LiveEvent>) : ViewModel() {
     private val mutableState = MutableStateFlow(GroupsUiState())
     val state: StateFlow<GroupsUiState> = mutableState.asStateFlow()
+
+    init {
+        refreshOn(liveEvents, LiveEventTypes.GROUPS) { refresh() }
+    }
 
     fun refresh() {
         viewModelScope.launch {

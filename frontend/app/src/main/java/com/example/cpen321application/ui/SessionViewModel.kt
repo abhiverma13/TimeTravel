@@ -3,11 +3,14 @@ package com.example.cpen321application.ui
 import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.cpen321application.data.LiveEvent
+import com.example.cpen321application.data.LiveEventStream
 import com.example.cpen321application.data.TimeTravelRepository
 import com.example.cpen321application.data.UserProfile
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 sealed interface SessionState {
@@ -24,17 +27,23 @@ sealed interface SessionState {
     ) : SessionState
 }
 
-/** Who is signed in. Restores a stored session at launch so travellers do not sign in every time. */
-class SessionViewModel(private val repository: TimeTravelRepository) : ViewModel() {
+/**
+ * Who is signed in. Restores a stored session at launch so travellers do not sign in every time, and keeps the
+ * traveller's live events connected while they are signed in.
+ */
+class SessionViewModel(private val repository: TimeTravelRepository, private val stream: LiveEventStream) : ViewModel() {
     private val mutableState = MutableStateFlow<SessionState>(SessionState.Checking)
     val state: StateFlow<SessionState> = mutableState.asStateFlow()
+
+    /** What other travellers do that concerns the signed-in traveller, as it happens. */
+    val liveEvents: SharedFlow<LiveEvent> = stream.events
 
     val isSignInConfigured: Boolean = repository.isSignInConfigured
 
     init {
         viewModelScope.launch {
             mutableState.value = repository.restoreSession().fold(
-                onSuccess = { user -> if (user == null) SessionState.SignedOut() else SessionState.SignedIn(user) },
+                onSuccess = { user -> if (user == null) SessionState.SignedOut() else signedIn(user) },
                 onFailure = { error -> SessionState.SignedOut(error.message) },
             )
         }
@@ -44,13 +53,14 @@ class SessionViewModel(private val repository: TimeTravelRepository) : ViewModel
         mutableState.value = SessionState.SignedOut(signingIn = true)
         viewModelScope.launch {
             mutableState.value = repository.signIn(activity).fold(
-                onSuccess = { user -> SessionState.SignedIn(user) },
+                onSuccess = { user -> signedIn(user) },
                 onFailure = { error -> SessionState.SignedOut(error.message) },
             )
         }
     }
 
     fun signOut() {
+        stream.stop()
         repository.signOut()
         mutableState.value = SessionState.SignedOut()
     }
@@ -74,6 +84,15 @@ class SessionViewModel(private val repository: TimeTravelRepository) : ViewModel
                 )
             }
         }
+    }
+
+    private fun signedIn(user: UserProfile): SessionState.SignedIn {
+        stream.start()
+        return SessionState.SignedIn(user)
+    }
+
+    override fun onCleared() {
+        stream.stop()
     }
 
     private fun updateSignedIn(change: (SessionState.SignedIn) -> SessionState.SignedIn) {

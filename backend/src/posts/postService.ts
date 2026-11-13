@@ -3,10 +3,11 @@ import { Types, isValidObjectId } from 'mongoose';
 import type { InterestTag } from '../activities/interests';
 import { UserModel } from '../auth/userModel';
 import type { Audience, FriendService } from '../friends/friendService';
-import type { Pace, TransportMode } from '../itineraries/engine/types';
-import type { ItineraryDto, ItineraryService } from '../itineraries/itineraryService';
-import type { Budget } from '../itineraries/tripOptions';
+import type { Pace, TransportMode } from '../trips/engine/types';
+import type { TripDto, TripService } from '../trips/tripService';
+import type { Budget } from '../trips/tripOptions';
 import { HttpError } from '../middleware/errorHandler';
+import { LiveEvents, firstNameOf } from '../sync/liveEvents';
 import { type CommentDocument, CommentModel, type PostDocument, PostModel } from './postModel';
 
 export const FEEDS = ['friends', 'everyone'] as const;
@@ -73,7 +74,7 @@ export interface CommentDto {
 }
 
 export interface NewPost {
-  itineraryId: string;
+  tripId: string;
   rating: number;
   caption: string;
 }
@@ -116,19 +117,20 @@ function author(id: Types.ObjectId, names: ReadonlyMap<string, string>): PostAut
 /** Feed Service: shared trips, their likes and comments, and copying a shared trip into your own trips. */
 export class PostService {
   constructor(
-    private readonly itineraryService: ItineraryService,
+    private readonly tripService: TripService,
     private readonly friendService: FriendService,
+    private readonly events: LiveEvents = new LiveEvents(),
   ) {}
 
-  /** Shares a frozen copy of one of the caller's itineraries, with a rating and a caption. */
+  /** Shares a frozen copy of one of the caller's trips, with a rating and a caption. */
   async createPost(userId: string, input: NewPost): Promise<PostDetailDto> {
-    const trip = await this.itineraryService.snapshot(userId, input.itineraryId);
+    const trip = await this.tripService.snapshot(userId, input.tripId);
     if (trip.days.every((day) => day.stops.length === 0)) {
       throw new HttpError(422, 'This trip has no stops to share');
     }
     const post = await PostModel.create({
       authorId: new Types.ObjectId(userId),
-      itineraryId: new Types.ObjectId(input.itineraryId),
+      tripId: new Types.ObjectId(input.tripId),
       cityKey: cityKey(trip.city),
       rating: input.rating,
       caption: input.caption,
@@ -177,6 +179,14 @@ export class PostService {
     if (!updated) {
       throw new HttpError(404, 'Post not found');
     }
+    if (liked && !post.likedBy.some((id) => id.equals(viewer))) {
+      this.events.publish([post.authorId], {
+        type: 'postLiked',
+        actorId: viewerId,
+        postId,
+        text: `${await firstNameOf(viewerId)} liked your ${post.trip.city} trip`,
+      });
+    }
     return { likeCount: updated.likedBy.length, likedByMe: liked };
   }
 
@@ -191,6 +201,12 @@ export class PostService {
   async addComment(viewerId: string, postId: string, text: string): Promise<CommentDto> {
     const post = await this.requireVisible(viewerId, postId);
     const comment = await CommentModel.create({ postId: post._id, authorId: new Types.ObjectId(viewerId), text });
+    this.events.publish([post.authorId], {
+      type: 'postCommented',
+      actorId: viewerId,
+      postId,
+      text: `${await firstNameOf(viewerId)} commented on your ${post.trip.city} trip`,
+    });
     return this.toCommentDto(viewerId, comment, await authorNames([comment.authorId]));
   }
 
@@ -208,11 +224,11 @@ export class PostService {
   }
 
   /** Copies the shared trip into the caller's own trips, starting on `startDate`. */
-  async copyPost(viewerId: string, postId: string, startDate: string): Promise<ItineraryDto> {
+  async copyPost(viewerId: string, postId: string, startDate: string): Promise<TripDto> {
     const post = await this.requireVisible(viewerId, postId);
     const names = await authorNames([post.authorId]);
     const note = `Copied from ${author(post.authorId, names).name}'s ${post.trip.city} trip.`;
-    return this.itineraryService.copyTrip(viewerId, post.trip, startDate, note);
+    return this.tripService.copyTrip(viewerId, post.trip, startDate, note);
   }
 
   // A post the caller may see; anything else is "not found", so private accounts' posts are not revealed.

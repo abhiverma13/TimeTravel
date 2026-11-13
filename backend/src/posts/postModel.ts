@@ -1,16 +1,16 @@
 import { type HydratedDocument, Schema, type Types, model } from 'mongoose';
 
 import { INTEREST_TAGS } from '../activities/interests';
-import { PACES, TRANSPORT_MODES } from '../itineraries/engine/types';
-import { daySchema } from '../itineraries/itineraryModel';
-import type { TripSnapshot } from '../itineraries/itineraryService';
-import { BUDGETS } from '../itineraries/tripOptions';
+import { PACES, TRANSPORT_MODES } from '../trips/engine/types';
+import { daySchema } from '../trips/tripModel';
+import type { TripSnapshot } from '../trips/tripService';
+import { BUDGETS } from '../trips/tripOptions';
 
-/** A trip a traveller shared: a frozen copy of the itinerary, their rating of it, and a caption. */
+/** A trip a traveller shared: a frozen copy of the trip, their rating of it, and a caption. */
 export interface Post {
   authorId: Types.ObjectId;
-  /** The itinerary it was shared from; later changes to it do not change the post. */
-  itineraryId: Types.ObjectId;
+  /** The trip it was shared from; later changes to it do not change the post. */
+  tripId: Types.ObjectId;
   /** The trip's city in lower case, for the feed's city filter. */
   cityKey: string;
   rating: number;
@@ -21,7 +21,7 @@ export interface Post {
   updatedAt: Date;
 }
 
-const tripSchema = new Schema<TripSnapshot>(
+const snapshotSchema = new Schema<TripSnapshot>(
   {
     city: { type: String, required: true },
     startDate: { type: String, required: true },
@@ -46,11 +46,11 @@ const tripSchema = new Schema<TripSnapshot>(
 const postSchema = new Schema<Post>(
   {
     authorId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    itineraryId: { type: Schema.Types.ObjectId, ref: 'Itinerary', required: true },
+    tripId: { type: Schema.Types.ObjectId, ref: 'Trip', required: true },
     cityKey: { type: String, required: true },
     rating: { type: Number, min: 1, max: 5, required: true },
     caption: { type: String, default: '' },
-    trip: { type: tripSchema, required: true },
+    trip: { type: snapshotSchema, required: true },
     likedBy: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
   },
   { timestamps: true },

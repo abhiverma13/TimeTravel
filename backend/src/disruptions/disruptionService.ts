@@ -3,10 +3,12 @@ import { Types, isValidObjectId } from 'mongoose';
 import { ActivityModel } from '../activities/activityModel';
 import type { ActivityDto } from '../activities/activityService';
 import type { PlacesClient } from '../activities/placesClient';
-import type { RankedCandidate } from '../itineraries/engine/candidates';
-import { type ItineraryDocument, ItineraryModel } from '../itineraries/itineraryModel';
-import type { ItineraryDto, ItineraryService } from '../itineraries/itineraryService';
+import { GroupModel } from '../groups/groupModel';
+import type { RankedCandidate } from '../trips/engine/candidates';
+import { type TripDocument, TripModel } from '../trips/tripModel';
+import type { TripDto, TripService } from '../trips/tripService';
 import { HttpError } from '../middleware/errorHandler';
+import { LiveEvents } from '../sync/liveEvents';
 import { type SuggestionDocument, SuggestionModel, type SuggestionReason } from './suggestionModel';
 import type { Forecast, WeatherClient } from './weatherClient';
 
@@ -28,7 +30,7 @@ const STALE_SUGGESTION = 'The trip changed since this suggestion; it no longer a
 
 export interface SuggestionDto {
   id: string;
-  itineraryId: string;
+  tripId: string;
   dayIndex: number;
   date: string;
   activityId: string;
@@ -61,7 +63,7 @@ function isoDay(time: number): string {
 function toDto(suggestion: SuggestionDocument): SuggestionDto {
   return {
     id: suggestion._id.toString(),
-    itineraryId: suggestion.itineraryId.toString(),
+    tripId: suggestion.tripId.toString(),
     dayIndex: suggestion.dayIndex,
     date: suggestion.day.date,
     activityId: suggestion.activityId.toString(),
@@ -89,7 +91,7 @@ export function isIndoor(candidate: RankedCandidate, activity: ActivityDto | und
 
 // The trip's stops starting within the next 36 hours. Stop times are local, so they are shifted by the forecast's UTC
 // offset when there is one.
-function upcomingStops(trip: ItineraryDocument, now: number, utcOffsetSeconds: number): UpcomingStop[] {
+function upcomingStops(trip: TripDocument, now: number, utcOffsetSeconds: number): UpcomingStop[] {
   return trip.days.flatMap((day, dayIndex) =>
     day.stops.flatMap((stop) => {
       const start = Date.parse(`${day.date}T${stop.startTime}:00Z`) - utcOffsetSeconds * MS_PER_SECOND;
@@ -111,9 +113,10 @@ export class DisruptionService {
   private readonly listeners: SuggestionListener[] = [];
 
   constructor(
-    private readonly itineraryService: ItineraryService,
+    private readonly tripService: TripService,
     private readonly weatherClient: WeatherClient | null,
     private readonly placesClient: PlacesClient | null,
+    private readonly events: LiveEvents = new LiveEvents(),
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -124,14 +127,14 @@ export class DisruptionService {
   /** Checks every trip under way (yesterday to two days ahead, to allow for time zones); returns how many suggestions it made. */
   async checkActiveTrips(): Promise<number> {
     const now = this.now().getTime();
-    const trips = await ItineraryModel.find({ endDate: { $gte: isoDay(now - MS_PER_DAY) }, startDate: { $lte: isoDay(now + 2 * MS_PER_DAY) } });
+    const trips = await TripModel.find({ endDate: { $gte: isoDay(now - MS_PER_DAY) }, startDate: { $lte: isoDay(now + 2 * MS_PER_DAY) } });
     let made = 0;
     for (const trip of trips) {
       try {
         made += await this.checkTrip(trip, now);
       } catch (error) {
         // One trip's failure must not stop the others being checked.
-        console.error('Disruption check failed for an itinerary', error);
+        console.error('Disruption check failed for a trip', error);
       }
     }
     return made;
@@ -141,11 +144,11 @@ export class DisruptionService {
    * Proposes a change for one disrupted stop and pushes it to the trip's members, unless one is already waiting for that
    * stop or no change fits. Returns whether it made one.
    */
-  async suggest(itineraryId: Types.ObjectId, dayIndex: number, activityId: string, reason: SuggestionReason): Promise<boolean> {
+  async suggest(tripId: Types.ObjectId, dayIndex: number, activityId: string, reason: SuggestionReason): Promise<boolean> {
     const now = this.now();
-    const waiting = await SuggestionModel.countDocuments({ itineraryId, activityId: new Types.ObjectId(activityId), status: 'pending', expiresAt: { $gt: now } });
-    const proposal = waiting > 0 ? null : await this.itineraryService.proposeReplacement(itineraryId, dayIndex, activityId, reason === 'rain' ? isIndoor : () => true);
-    const trip = proposal ? await ItineraryModel.findById(itineraryId) : null;
+    const waiting = await SuggestionModel.countDocuments({ tripId, activityId: new Types.ObjectId(activityId), status: 'pending', expiresAt: { $gt: now } });
+    const proposal = waiting > 0 ? null : await this.tripService.proposeReplacement(tripId, dayIndex, activityId, reason === 'rain' ? isIndoor : () => true);
+    const trip = proposal ? await TripModel.findById(tripId) : null;
     const disrupted = trip?.days.at(dayIndex)?.stops.find((stop) => stop.activityId.toString() === activityId);
     if (!proposal || !disrupted) {
       return false;
@@ -154,7 +157,7 @@ export class DisruptionService {
     const added = proposal.day.stops.map((stop) => stop.name).filter((name) => !before.has(name));
     const problem = reason === 'rain' ? `Rain is likely at ${disrupted.startTime} during ${disrupted.name}.` : `${disrupted.name} is closed.`;
     const suggestion = await SuggestionModel.create({
-      itineraryId,
+      tripId,
       dayIndex,
       activityId: disrupted.activityId,
       activityName: disrupted.name,
@@ -173,35 +176,38 @@ export class DisruptionService {
         console.error('Failed to push a suggestion', error);
       }
     }
+    const group = trip?.groupId ? await GroupModel.findById(trip.groupId) : null;
+    const members = group ? group.members.map((member) => member.userId) : [trip?.userId ?? ''];
+    this.events.publish(members, { type: 'suggestion', actorId: '', tripId: tripId.toString(), text: `${problem} There is a suggestion for your ${trip?.city ?? ''} trip.` });
     return true;
   }
 
   /** The trip's suggestions still waiting for an answer, oldest first; ones the trip has moved past are left out. */
-  async listSuggestions(userId: string, itineraryId: string): Promise<SuggestionDto[]> {
-    const itinerary = await this.itineraryService.getItinerary(userId, itineraryId);
+  async listSuggestions(userId: string, tripId: string): Promise<SuggestionDto[]> {
+    const trip = await this.tripService.getTrip(userId, tripId);
     const suggestions = await SuggestionModel.find({
-      itineraryId: new Types.ObjectId(itinerary.id),
+      tripId: new Types.ObjectId(trip.id),
       status: 'pending',
-      basedOnVersion: itinerary.version,
+      basedOnVersion: trip.version,
       expiresAt: { $gt: this.now() },
     }).sort({ createdAt: 1, _id: 1 });
     return suggestions.map(toDto);
   }
 
   /** A member accepts: the proposed day is saved (if the trip has not changed since) and every member sees it live. */
-  async accept(userId: string, suggestionId: string): Promise<ItineraryDto> {
+  async accept(userId: string, suggestionId: string): Promise<TripDto> {
     const suggestion = await this.requirePending(userId, suggestionId);
     try {
-      const itinerary = await this.itineraryService.applyProposedDay(
+      const trip = await this.tripService.applyProposedDay(
         userId,
-        suggestion.itineraryId.toString(),
+        suggestion.tripId.toString(),
         { version: suggestion.basedOnVersion, day: suggestion.toObject().day },
         suggestion.dayIndex,
         `accepted a suggestion: ${suggestion.summary}`,
       );
       suggestion.status = 'accepted';
       await suggestion.save();
-      return itinerary;
+      return trip;
     } catch (error) {
       if (error instanceof HttpError && error.status === 409) {
         suggestion.status = 'expired';
@@ -225,7 +231,7 @@ export class DisruptionService {
     if (!suggestion) {
       throw new HttpError(404, 'Suggestion not found');
     }
-    await this.itineraryService.getItinerary(userId, suggestion.itineraryId.toString()).catch(() => {
+    await this.tripService.getTrip(userId, suggestion.tripId.toString()).catch(() => {
       throw new HttpError(404, 'Suggestion not found');
     });
     if (suggestion.status !== 'pending') {
@@ -239,7 +245,7 @@ export class DisruptionService {
     return suggestion;
   }
 
-  private async checkTrip(trip: ItineraryDocument, now: number): Promise<number> {
+  private async checkTrip(trip: TripDocument, now: number): Promise<number> {
     const forecast = await this.forecastFor(trip);
     let made = 0;
     for (const stop of upcomingStops(trip, now, forecast?.utcOffsetSeconds ?? 0)) {
@@ -252,7 +258,7 @@ export class DisruptionService {
     return made;
   }
 
-  private async forecastFor(trip: ItineraryDocument): Promise<Forecast | null> {
+  private async forecastFor(trip: TripDocument): Promise<Forecast | null> {
     if (this.weatherClient === null) {
       return null;
     }

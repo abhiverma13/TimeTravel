@@ -1,6 +1,6 @@
 import { type HydratedDocument, Schema, type Types, model } from 'mongoose';
 
-import { type ItineraryDay, daySchema } from '../itineraries/itineraryModel';
+import { type TripDay, daySchema } from '../trips/tripModel';
 
 export const SUGGESTION_REASONS = ['rain', 'closed'] as const;
 export type SuggestionReason = (typeof SUGGESTION_REASONS)[number];
@@ -12,7 +12,7 @@ export type SuggestionStatus = (typeof SUGGESTION_STATUSES)[number];
  * closed venue). Nothing changes until a member accepts it.
  */
 export interface Suggestion {
-  itineraryId: Types.ObjectId;
+  tripId: Types.ObjectId;
   dayIndex: number;
   /** The disrupted stop. */
   activityId: Types.ObjectId;
@@ -22,8 +22,8 @@ export interface Suggestion {
   message: string;
   /** What the others are told if it is accepted: "swapped Harbour Park for Town Museum". */
   summary: string;
-  /** The day as it would be, and the itinerary version it was worked out from. */
-  day: ItineraryDay;
+  /** The day as it would be, and the trip version it was worked out from. */
+  day: TripDay;
   basedOnVersion: number;
   status: SuggestionStatus;
   expiresAt: Date;
@@ -33,7 +33,7 @@ export interface Suggestion {
 
 const suggestionSchema = new Schema<Suggestion>(
   {
-    itineraryId: { type: Schema.Types.ObjectId, ref: 'Itinerary', required: true },
+    tripId: { type: Schema.Types.ObjectId, ref: 'Trip', required: true },
     dayIndex: { type: Number, required: true },
     activityId: { type: Schema.Types.ObjectId, ref: 'Activity', required: true },
     activityName: { type: String, required: true },
@@ -47,7 +47,7 @@ const suggestionSchema = new Schema<Suggestion>(
   },
   { timestamps: true },
 );
-suggestionSchema.index({ itineraryId: 1, status: 1, activityId: 1 });
+suggestionSchema.index({ tripId: 1, status: 1, activityId: 1 });
 
 export type SuggestionDocument = HydratedDocument<Suggestion>;
 export const SuggestionModel = model<Suggestion>('Suggestion', suggestionSchema);

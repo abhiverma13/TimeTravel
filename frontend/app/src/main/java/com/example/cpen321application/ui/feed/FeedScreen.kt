@@ -110,9 +110,9 @@ private fun CityFilter(text: String, onChange: (String) -> Unit, onApply: () -> 
 private fun EmptyFeed(state: FeedUiState) {
     val where = if (state.city.isBlank()) "" else " in ${state.city}"
     val text = if (state.feed == FEED_FRIENDS) {
-        "Nothing from your friends$where yet. Add friends from your Profile, or share one of your trips from its itinerary."
+        "Nothing from your friends$where yet. Add friends from your Profile, or share one of your trips."
     } else {
-        "No shared trips$where yet. Share one of yours from its itinerary."
+        "No shared trips$where yet. Share one of yours from its page."
     }
     Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }

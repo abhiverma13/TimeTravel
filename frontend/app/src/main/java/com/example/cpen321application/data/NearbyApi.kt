@@ -12,11 +12,11 @@ interface NearbyApi {
     @GET("api/nearby/trips")
     suspend fun trips(@Query("lat") lat: Double, @Query("lng") lng: Double): NearbyTripsResponse
 
-    @PUT("api/nearby/trips/{itineraryId}")
-    suspend fun setOpen(@Path("itineraryId") itineraryId: String, @Body body: OpenToJoinBody): OpenToJoinBody
+    @PUT("api/nearby/trips/{tripId}")
+    suspend fun setOpen(@Path("tripId") tripId: String, @Body body: OpenToJoinBody): OpenToJoinBody
 
-    @POST("api/nearby/trips/{itineraryId}/requests")
-    suspend fun requestToJoin(@Path("itineraryId") itineraryId: String, @Body body: JoinRequestBody): JoinRequest
+    @POST("api/nearby/trips/{tripId}/requests")
+    suspend fun requestToJoin(@Path("tripId") tripId: String, @Body body: JoinRequestBody): JoinRequest
 
     @GET("api/nearby/requests")
     suspend fun requests(@Query("groupId") groupId: String): JoinRequestsResponse

@@ -1,3 +1,4 @@
+import type { Express } from 'express';
 import { Types } from 'mongoose';
 import request from 'supertest';
 import { io } from 'socket.io-client';
@@ -5,7 +6,7 @@ import { io } from 'socket.io-client';
 import { ActivityModel } from '../../src/activities/activityModel';
 import type { SuggestionDto } from '../../src/disruptions/disruptionService';
 import type { GroupDto } from '../../src/groups/groupService';
-import type { ItineraryDto } from '../../src/itineraries/itineraryService';
+import type { TripDto } from '../../src/trips/tripService';
 import type { MemberLocation } from '../../src/sync/tripSync';
 import { connectClient, nextUpdate, startLiveServer, subscribeTo } from '../helpers/liveServer';
 import { createTestApp, signedInUser } from '../helpers/testApp';
@@ -21,33 +22,33 @@ async function sharedTrip() {
   await seedTestville(testApp.activityService);
   const group = (await request(testApp.app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
   await request(testApp.app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
-  const itineraryId = await storeTestvilleTrip(owner.userId, ['Morning Bakery', 'Harbour Park'], { groupId: group.id });
-  const itinerary = (await request(testApp.app).get(`/api/itineraries/${itineraryId}`).set(owner.authorization)).body as ItineraryDto;
+  const tripId = await storeTestvilleTrip(owner.userId, ['Morning Bakery', 'Harbour Park'], { groupId: group.id });
+  const trip = (await request(testApp.app).get(`/api/trips/${tripId}`).set(owner.authorization)).body as TripDto;
   const live = await startLiveServer(testApp);
   const removePark = () =>
     request(testApp.app)
-      .post(`/api/itineraries/${itineraryId}/adjust`)
+      .post(`/api/trips/${tripId}/adjust`)
       .set(owner.authorization)
-      .send({ action: 'remove', version: 0, dayIndex: 0, activityId: itinerary.days.at(0)?.stops.at(1)?.activityId });
-  return { ...testApp, owner, member, outsider, itineraryId, live, removePark };
+      .send({ action: 'remove', version: 0, dayIndex: 0, activityId: trip.days.at(0)?.stops.at(1)?.activityId });
+  return { ...testApp, owner, member, outsider, tripId, live, removePark };
 }
 
 beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
 afterEach(clearTestDatabase);
 afterAll(stopTestDatabase);
 
-// Interface Socket.io: subscribe { itineraryId } and itineraryUpdated { itinerary, actorId, summary }
-describe('Unmocked: Socket.io itinerary updates', () => {
+// Interface Socket.io: subscribe { tripId } and tripUpdated { trip, actorId, summary }
+describe('Unmocked: Socket.io trip updates', () => {
   // Input: the owner and a member subscribe to their group trip; the owner removes Harbour Park
   // Expected status code: none (Socket.io); the subscriptions are acknowledged with { ok: true }
   // Expected behavior: both devices receive the new plan as soon as it is saved
-  // Expected output: itineraryUpdated with version 1, without Harbour Park, and the summary "Noah removed Harbour Park"
+  // Expected output: tripUpdated with version 1, without Harbour Park, and the summary "Noah removed Harbour Park"
   test('Every subscribed member receives an adjustment', async () => {
-    const { owner, member, itineraryId, live, removePark } = await sharedTrip();
+    const { owner, member, tripId, live, removePark } = await sharedTrip();
     const ownerSocket = await connectClient(live.url, owner.authorization);
     const memberSocket = await connectClient(live.url, member.authorization);
 
-    const replies = [await subscribeTo(ownerSocket, itineraryId), await subscribeTo(memberSocket, itineraryId)];
+    const replies = [await subscribeTo(ownerSocket, tripId), await subscribeTo(memberSocket, tripId)];
     const updates = Promise.all([nextUpdate(ownerSocket), nextUpdate(memberSocket)]);
     await removePark();
     const [toOwner, toMember] = await updates;
@@ -55,30 +56,30 @@ describe('Unmocked: Socket.io itinerary updates', () => {
     expect(replies).toEqual([{ ok: true }, { ok: true }]);
     expect(toMember.summary).toBe('Noah removed Harbour Park');
     expect(toMember.actorId).toBe(owner.userId);
-    expect(toMember.itinerary.version).toBe(1);
-    expect(toMember.itinerary.days.at(0)?.stops.map((stop) => stop.name)).not.toContain('Harbour Park');
+    expect(toMember.trip.version).toBe(1);
+    expect(toMember.trip.days.at(0)?.stops.map((stop) => stop.name)).not.toContain('Harbour Park');
     expect(toOwner).toEqual(toMember);
     ownerSocket.disconnect();
     memberSocket.disconnect();
     await live.close();
   });
 
-  // Input: a traveller outside the group subscribes to the group's trip, then a payload without an itinerary id
+  // Input: a traveller outside the group subscribes to the group's trip, then a payload without a trip id
   // Expected status code: none; both subscriptions are acknowledged with { ok: false }
   // Expected behavior: the outsider receives nothing when the trip changes
-  // Expected output: { ok: false, error: "Itinerary not found" } and { ok: false, error: "Send { itineraryId } to subscribe" }
+  // Expected output: { ok: false, error: "Trip not found" } and { ok: false, error: "Send { tripId } to subscribe" }
   test('Subscriptions to trips you cannot see are refused', async () => {
-    const { outsider, itineraryId, live, removePark } = await sharedTrip();
+    const { outsider, tripId, live, removePark } = await sharedTrip();
     const socket = await connectClient(live.url, outsider.authorization);
     const received = jest.fn();
-    socket.on('itineraryUpdated', received);
+    socket.on('tripUpdated', received);
 
-    const refused = await subscribeTo(socket, itineraryId);
-    const malformed = await socket.emitWithAck('subscribe', { trip: itineraryId });
+    const refused = await subscribeTo(socket, tripId);
+    const malformed = await socket.emitWithAck('subscribe', { trip: tripId });
     await removePark();
 
-    expect(refused).toEqual({ ok: false, error: 'Itinerary not found' });
-    expect(malformed).toEqual({ ok: false, error: 'Send { itineraryId } to subscribe' });
+    expect(refused).toEqual({ ok: false, error: 'Trip not found' });
+    expect(malformed).toEqual({ ok: false, error: 'Send { tripId } to subscribe' });
     expect(received).not.toHaveBeenCalled();
     socket.disconnect();
     await live.close();
@@ -87,17 +88,17 @@ describe('Unmocked: Socket.io itinerary updates', () => {
   // Input: a member subscribes, then unsubscribes, before the owner removes a stop
   // Expected status code: none
   // Expected behavior: after unsubscribing, the member's device stops receiving that trip's updates
-  // Expected output: no itineraryUpdated message for the member
+  // Expected output: no tripUpdated message for the member
   test('Unsubscribing stops the updates', async () => {
-    const { owner, member, itineraryId, live, removePark } = await sharedTrip();
+    const { owner, member, tripId, live, removePark } = await sharedTrip();
     const ownerSocket = await connectClient(live.url, owner.authorization);
     const memberSocket = await connectClient(live.url, member.authorization);
-    await subscribeTo(ownerSocket, itineraryId);
-    await subscribeTo(memberSocket, itineraryId);
+    await subscribeTo(ownerSocket, tripId);
+    await subscribeTo(memberSocket, tripId);
     const received = jest.fn();
-    memberSocket.on('itineraryUpdated', received);
+    memberSocket.on('tripUpdated', received);
 
-    memberSocket.emit('unsubscribe', { itineraryId });
+    memberSocket.emit('unsubscribe', { tripId });
     memberSocket.emit('unsubscribe', 'not an object');
     await subscribeTo(memberSocket, 'round-trip-so-the-unsubscribes-are-processed');
     const ownerUpdate = nextUpdate(ownerSocket);
@@ -115,7 +116,7 @@ describe('Unmocked: Socket.io itinerary updates', () => {
   // Expected behavior: unauthenticated devices never connect; a subscribe without an acknowledgement is still handled
   // Expected output: connect_error "Invalid or expired session token" for both
   test('Connections without a valid session are refused', async () => {
-    const { owner, itineraryId, live } = await sharedTrip();
+    const { owner, tripId, live } = await sharedTrip();
     const forged = io(live.url, { auth: { token: 'forged' }, transports: ['websocket'], reconnection: false });
     const missing = io(live.url, { transports: ['websocket'], reconnection: false });
 
@@ -123,8 +124,8 @@ describe('Unmocked: Socket.io itinerary updates', () => {
       [forged, missing].map(async (socket) => new Promise<Error>((resolve) => socket.once('connect_error', resolve))),
     );
     const valid = await connectClient(live.url, owner.authorization);
-    valid.emit('subscribe', { itineraryId });
-    const stillWorks = await subscribeTo(valid, itineraryId);
+    valid.emit('subscribe', { tripId });
+    const stillWorks = await subscribeTo(valid, tripId);
 
     expect(errors.map((error) => error.message)).toEqual(['Invalid or expired session token', 'Invalid or expired session token']);
     expect(stillWorks).toEqual({ ok: true });
@@ -133,13 +134,18 @@ describe('Unmocked: Socket.io itinerary updates', () => {
   });
 });
 
+/** The id of the group a group trip belongs to. */
+async function groupOf(app: Express, authorization: { Authorization: string }, tripId: string): Promise<string> {
+  return ((await request(app).get(`/api/trips/${tripId}`).set(authorization)).body as TripDto).groupId ?? '';
+}
+
 async function nextEvent<T>(socket: ReturnType<typeof io>, event: string): Promise<T> {
   return new Promise((resolve) => {
     socket.once(event, resolve);
   });
 }
 
-// Interface Socket.io: shareLocation { itineraryId, lat, lng }, stopSharingLocation { itineraryId }, and
+// Interface Socket.io: shareLocation { tripId, lat, lng }, stopSharingLocation { tripId }, and
 // memberLocation / memberLocationStopped
 describe('Unmocked: Socket.io location sharing', () => {
   // Input: the owner and a member subscribe to their group trip; the owner shares { lat: 49.2827, lng: -123.1207 }
@@ -147,20 +153,20 @@ describe('Unmocked: Socket.io location sharing', () => {
   // Expected behavior: the other members receive the position at once; the sharer does not get it back
   // Expected output: memberLocation with the owner's id and name, the position and the time
   test("Members see each other's shared location", async () => {
-    const { owner, member, itineraryId, live } = await sharedTrip();
+    const { owner, member, tripId, live } = await sharedTrip();
     const ownerSocket = await connectClient(live.url, owner.authorization);
     const memberSocket = await connectClient(live.url, member.authorization);
-    await subscribeTo(ownerSocket, itineraryId);
-    await subscribeTo(memberSocket, itineraryId);
+    await subscribeTo(ownerSocket, tripId);
+    await subscribeTo(memberSocket, tripId);
     const echoed = jest.fn();
     ownerSocket.on('memberLocation', echoed);
 
     const arriving = nextEvent<MemberLocation>(memberSocket, 'memberLocation');
-    const reply = await ownerSocket.emitWithAck('shareLocation', { itineraryId, lat: 49.2827, lng: -123.1207 });
+    const reply = await ownerSocket.emitWithAck('shareLocation', { tripId, lat: 49.2827, lng: -123.1207 });
     const location = await arriving;
 
     expect(reply).toEqual({ ok: true });
-    expect(location).toMatchObject({ itineraryId, userId: owner.userId, name: 'Noah Owner', lat: 49.2827, lng: -123.1207 });
+    expect(location).toMatchObject({ tripId, userId: owner.userId, name: 'Noah Owner', lat: 49.2827, lng: -123.1207 });
     expect(Number.isNaN(Date.parse(location.at))).toBe(false);
     expect(echoed).not.toHaveBeenCalled();
     ownerSocket.disconnect();
@@ -171,25 +177,25 @@ describe('Unmocked: Socket.io location sharing', () => {
   // Input: the owner shares their location, then stops; shares again, then disconnects
   // Expected status code: none
   // Expected behavior: the other members are told each time the owner's position goes away
-  // Expected output: memberLocationStopped { itineraryId, userId } twice
+  // Expected output: memberLocationStopped { tripId, userId } twice
   test('Stopping or leaving tells the other members', async () => {
-    const { owner, member, itineraryId, live } = await sharedTrip();
+    const { owner, member, tripId, live } = await sharedTrip();
     const ownerSocket = await connectClient(live.url, owner.authorization);
     const memberSocket = await connectClient(live.url, member.authorization);
-    await subscribeTo(ownerSocket, itineraryId);
-    await subscribeTo(memberSocket, itineraryId);
+    await subscribeTo(ownerSocket, tripId);
+    await subscribeTo(memberSocket, tripId);
 
-    await ownerSocket.emitWithAck('shareLocation', { itineraryId, lat: 49.28, lng: -123.12 });
+    await ownerSocket.emitWithAck('shareLocation', { tripId, lat: 49.28, lng: -123.12 });
     const stopped = nextEvent(memberSocket, 'memberLocationStopped');
-    ownerSocket.emit('stopSharingLocation', { itineraryId });
+    ownerSocket.emit('stopSharingLocation', { tripId });
     const first = await stopped;
-    await ownerSocket.emitWithAck('shareLocation', { itineraryId, lat: 49.28, lng: -123.12 });
+    await ownerSocket.emitWithAck('shareLocation', { tripId, lat: 49.28, lng: -123.12 });
     const left = nextEvent(memberSocket, 'memberLocationStopped');
     ownerSocket.disconnect();
     const second = await left;
 
-    expect(first).toEqual({ itineraryId, userId: owner.userId });
-    expect(second).toEqual({ itineraryId, userId: owner.userId });
+    expect(first).toEqual({ tripId, userId: owner.userId });
+    expect(second).toEqual({ tripId, userId: owner.userId });
     memberSocket.disconnect();
     await live.close();
   });
@@ -200,25 +206,111 @@ describe('Unmocked: Socket.io location sharing', () => {
   // Expected behavior: nothing reaches the other members
   // Expected output: the matching error for each refused share
   test('Shares that are refused', async () => {
-    const { owner, member, itineraryId, live } = await sharedTrip();
+    const { owner, member, tripId, live } = await sharedTrip();
     const ownerSocket = await connectClient(live.url, owner.authorization);
     const memberSocket = await connectClient(live.url, member.authorization);
-    await subscribeTo(memberSocket, itineraryId);
+    await subscribeTo(memberSocket, tripId);
     const received = jest.fn();
     memberSocket.on('memberLocation', received);
     memberSocket.on('memberLocationStopped', received);
 
-    const notSubscribed = await ownerSocket.emitWithAck('shareLocation', { itineraryId, lat: 49.28, lng: -123.12 });
-    await subscribeTo(ownerSocket, itineraryId);
-    const offTheMap = await ownerSocket.emitWithAck('shareLocation', { itineraryId, lat: 91, lng: -123.12 });
-    ownerSocket.emit('shareLocation', { itineraryId, lat: 'here' });
-    ownerSocket.emit('stopSharingLocation', { itineraryId });
+    const notSubscribed = await ownerSocket.emitWithAck('shareLocation', { tripId, lat: 49.28, lng: -123.12 });
+    await subscribeTo(ownerSocket, tripId);
+    const offTheMap = await ownerSocket.emitWithAck('shareLocation', { tripId, lat: 91, lng: -123.12 });
+    ownerSocket.emit('shareLocation', { tripId, lat: 'here' });
+    ownerSocket.emit('stopSharingLocation', { tripId });
     ownerSocket.emit('stopSharingLocation', 'not an object');
-    await subscribeTo(ownerSocket, itineraryId);
+    await subscribeTo(ownerSocket, tripId);
 
-    expect(notSubscribed).toEqual({ ok: false, error: 'Subscribe to the itinerary before sharing your location' });
-    expect(offTheMap).toEqual({ ok: false, error: 'Send { itineraryId, lat, lng } to share your location' });
+    expect(notSubscribed).toEqual({ ok: false, error: 'Subscribe to the trip before sharing your location' });
+    expect(offTheMap).toEqual({ ok: false, error: 'Send { tripId, lat, lng } to share your location' });
     expect(received).not.toHaveBeenCalled();
+    ownerSocket.disconnect();
+    memberSocket.disconnect();
+    await live.close();
+  });
+});
+
+// Interface Socket.io: tripAccessLost { tripId }, after DELETE /api/groups/:groupId/members/:userId and
+// DELETE /api/groups/:groupId
+describe('Unmocked: Socket.io losing access to a group trip', () => {
+  // Input: the owner and a member have the group trip's map open; the owner removes the member, then shares their
+  //        location; the removed member tries to share theirs and to subscribe again
+  // Expected status code: none (Socket.io); the removal itself returns 204
+  // Expected behavior: the removed member's device is told at once and receives nothing more from the trip; its shares
+  //                    and subscriptions are refused, as for any traveller outside the group
+  // Expected output: tripAccessLost { tripId }; no memberLocation; the share is refused because the device no longer
+  //                  follows the trip, and subscribing again with { ok: false, error: "Trip not found" }
+  test('A removed member stops receiving the trip', async () => {
+    const { app, owner, member, tripId, live } = await sharedTrip();
+    const groupId = await groupOf(app, owner.authorization, tripId);
+    const ownerSocket = await connectClient(live.url, owner.authorization);
+    const memberSocket = await connectClient(live.url, member.authorization);
+    await subscribeTo(ownerSocket, tripId);
+    await subscribeTo(memberSocket, tripId);
+    const located = jest.fn();
+    memberSocket.on('memberLocation', located);
+
+    const lost = nextEvent(memberSocket, 'tripAccessLost');
+    const removal = await request(app).delete(`/api/groups/${groupId}/members/${member.userId}`).set(owner.authorization);
+    const lostTrip = await lost;
+    await ownerSocket.emitWithAck('shareLocation', { tripId, lat: 49.2827, lng: -123.1207 });
+    const memberShare = await memberSocket.emitWithAck('shareLocation', { tripId, lat: 49.28, lng: -123.12 });
+    const resubscribe = await subscribeTo(memberSocket, tripId);
+    await ownerSocket.emitWithAck('shareLocation', { tripId, lat: 49.2828, lng: -123.1208 });
+
+    expect(removal.status).toBe(204);
+    expect(lostTrip).toEqual({ tripId });
+    expect(located).not.toHaveBeenCalled();
+    expect(memberShare).toEqual({ ok: false, error: 'Subscribe to the trip before sharing your location' });
+    expect(resubscribe).toEqual({ ok: false, error: 'Trip not found' });
+    ownerSocket.disconnect();
+    memberSocket.disconnect();
+    await live.close();
+  });
+
+  // Input: a member shares their location with the owner, then leaves the group
+  // Expected status code: none (Socket.io); leaving returns 204
+  // Expected behavior: the owner stops seeing the member's position, and the member's device is told it left the trip
+  // Expected output: memberLocationStopped { tripId, userId } to the owner; tripAccessLost { tripId } to the member
+  test("A member who leaves stops sharing their location", async () => {
+    const { app, owner, member, tripId, live } = await sharedTrip();
+    const groupId = await groupOf(app, owner.authorization, tripId);
+    const ownerSocket = await connectClient(live.url, owner.authorization);
+    const memberSocket = await connectClient(live.url, member.authorization);
+    await subscribeTo(ownerSocket, tripId);
+    await subscribeTo(memberSocket, tripId);
+    await memberSocket.emitWithAck('shareLocation', { tripId, lat: 49.28, lng: -123.12 });
+
+    const stopped = nextEvent(ownerSocket, 'memberLocationStopped');
+    const lost = nextEvent(memberSocket, 'tripAccessLost');
+    const leaving = await request(app).delete(`/api/groups/${groupId}/members/${member.userId}`).set(member.authorization);
+
+    expect(leaving.status).toBe(204);
+    expect(await stopped).toEqual({ tripId, userId: member.userId });
+    expect(await lost).toEqual({ tripId });
+    ownerSocket.disconnect();
+    memberSocket.disconnect();
+    await live.close();
+  });
+
+  // Input: the owner and a member have the group trip open; the owner deletes the group
+  // Expected status code: none (Socket.io); the deletion returns 204
+  // Expected behavior: every member's device is told the trip is gone
+  // Expected output: tripAccessLost { tripId } to both devices
+  test("Deleting the group ends every member's live updates", async () => {
+    const { app, owner, member, tripId, live } = await sharedTrip();
+    const groupId = await groupOf(app, owner.authorization, tripId);
+    const ownerSocket = await connectClient(live.url, owner.authorization);
+    const memberSocket = await connectClient(live.url, member.authorization);
+    await subscribeTo(ownerSocket, tripId);
+    await subscribeTo(memberSocket, tripId);
+
+    const lost = Promise.all([nextEvent(ownerSocket, 'tripAccessLost'), nextEvent(memberSocket, 'tripAccessLost')]);
+    const deletion = await request(app).delete(`/api/groups/${groupId}`).set(owner.authorization);
+
+    expect(deletion.status).toBe(204);
+    expect(await lost).toEqual([{ tripId }, { tripId }]);
     ownerSocket.disconnect();
     memberSocket.disconnect();
     await live.close();
@@ -233,18 +325,18 @@ describe('Unmocked: Socket.io suggestions', () => {
   // Expected behavior: every subscribed member receives the suggestion as soon as it is made
   // Expected output: suggestionAdded with the trip's id, Harbour Park and reason "rain", on both devices
   test('Members receive new suggestions', async () => {
-    const { owner, member, itineraryId, live, disruptionService } = await sharedTrip();
+    const { owner, member, tripId, live, disruptionService } = await sharedTrip();
     const ownerSocket = await connectClient(live.url, owner.authorization);
     const memberSocket = await connectClient(live.url, member.authorization);
-    await subscribeTo(ownerSocket, itineraryId);
-    await subscribeTo(memberSocket, itineraryId);
+    await subscribeTo(ownerSocket, tripId);
+    await subscribeTo(memberSocket, tripId);
     const arriving = Promise.all([nextEvent<SuggestionDto>(ownerSocket, 'suggestionAdded'), nextEvent<SuggestionDto>(memberSocket, 'suggestionAdded')]);
     const parkId = (await ActivityModel.findOne({ name: 'Harbour Park' }))?._id.toString() ?? '';
 
-    await disruptionService.suggest(new Types.ObjectId(itineraryId), 0, parkId, 'rain');
+    await disruptionService.suggest(new Types.ObjectId(tripId), 0, parkId, 'rain');
     const [toOwner, toMember] = await arriving;
 
-    expect(toMember).toMatchObject({ itineraryId, activityName: 'Harbour Park', reason: 'rain' });
+    expect(toMember).toMatchObject({ tripId, activityName: 'Harbour Park', reason: 'rain' });
     expect(toOwner).toEqual(toMember);
     ownerSocket.disconnect();
     memberSocket.disconnect();

@@ -99,7 +99,7 @@ fun NearbyScreen(viewModel: NearbyViewModel) {
                 state.loading -> item { CircularProgressIndicator() }
                 state.error != null -> item { Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.error) }
                 state.trips.isEmpty() -> item { Hint("No open trips near you right now. Check again later.") }
-                else -> items(state.trips, key = { it.itineraryId }) { trip -> NearbyTripCard(trip, onAsk = { viewModel.startAsking(trip) }) }
+                else -> items(state.trips, key = { it.tripId }) { trip -> NearbyTripCard(trip, onAsk = { viewModel.startAsking(trip) }) }
             }
         }
     }

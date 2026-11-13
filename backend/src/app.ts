@@ -11,8 +11,8 @@ import { createFriendRouter, createTravellerRouter } from './friends/friendRoute
 import type { FriendService } from './friends/friendService';
 import { createGroupRouter } from './groups/groupRoutes';
 import type { GroupService } from './groups/groupService';
-import { createItineraryRouter } from './itineraries/itineraryRoutes';
-import type { ItineraryService } from './itineraries/itineraryService';
+import { createTripRouter } from './trips/tripRoutes';
+import type { TripService } from './trips/tripService';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { createNearbyRouter } from './nearby/nearbyRoutes';
 import type { NearbyService } from './nearby/nearbyService';
@@ -23,7 +23,7 @@ export interface AppDependencies {
   authService: AuthService;
   activityService: ActivityService;
   groupService: GroupService;
-  itineraryService: ItineraryService;
+  tripService: TripService;
   friendService: FriendService;
   postService: PostService;
   nearbyService: NearbyService;
@@ -42,7 +42,7 @@ export function createApp(dependencies: AppDependencies): Express {
   app.use('/api/users', createUserRouter(dependencies.authService));
   app.use('/api/activities', createActivityRouter(dependencies.authService, dependencies.activityService));
   app.use('/api/groups', createGroupRouter(dependencies.authService, dependencies.groupService));
-  app.use('/api/itineraries', createItineraryRouter(dependencies.authService, dependencies.itineraryService));
+  app.use('/api/trips', createTripRouter(dependencies.authService, dependencies.tripService));
   app.use('/api/travellers', createTravellerRouter(dependencies.authService, dependencies.friendService));
   app.use('/api/friends', createFriendRouter(dependencies.authService, dependencies.friendService));
   app.use('/api/posts', createPostRouter(dependencies.authService, dependencies.postService));

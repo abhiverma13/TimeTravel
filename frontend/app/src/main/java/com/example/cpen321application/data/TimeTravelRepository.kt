@@ -61,27 +61,27 @@ class TimeTravelRepository(
         apiCall { api.reviewActivity(activityId, ReviewRequest(rating, comment, tags, location)) }
 
     /** Suggestions waiting for an answer on this trip. */
-    suspend fun suggestions(itineraryId: String): Result<List<Suggestion>> = apiCall { api.suggestions(itineraryId) }.map { it.suggestions }
+    suspend fun suggestions(tripId: String): Result<List<Suggestion>> = apiCall { api.suggestions(tripId) }.map { it.suggestions }
 
     /** Accepts a suggestion; the trip changes for every member. */
-    suspend fun acceptSuggestion(suggestionId: String): Result<Itinerary> = apiCall { api.acceptSuggestion(suggestionId) }
+    suspend fun acceptSuggestion(suggestionId: String): Result<Trip> = apiCall { api.acceptSuggestion(suggestionId) }
 
     suspend fun dismissSuggestion(suggestionId: String): Result<Unit> = apiCall { api.dismissSuggestion(suggestionId) }
 
     /** An activity's reviews, verified ones first. */
     suspend fun reviews(activityId: String): Result<List<ReviewListItem>> = apiCall { api.reviews(activityId) }.map { it.reviews }
 
-    /** Asks the Itinerary Engine for a day-by-day plan; the plan is stored and returned. */
-    suspend fun generateItinerary(request: GenerateItineraryRequest): Result<Itinerary> =
-        apiCall { api.generateItinerary(request) }
+    /** Asks the Trip Engine for a day-by-day plan; the plan is stored and returned. */
+    suspend fun generateTrip(request: GenerateTripRequest): Result<Trip> =
+        apiCall { api.generateTrip(request) }
 
-    /** The traveller's most recent personal and group itineraries, newest first; only one group's with `groupId`. */
-    suspend fun recentItineraries(groupId: String? = null): Result<List<ItinerarySummary>> =
-        apiCall { api.itineraries(groupId) }.map { response -> response.itineraries }
+    /** The traveller's most recent personal and group trips, newest first; only one group's with `groupId`. */
+    suspend fun recentTrips(groupId: String? = null): Result<List<TripSummary>> =
+        apiCall { api.trips(groupId) }.map { response -> response.trips }
 
-    suspend fun itinerary(itineraryId: String): Result<Itinerary> = apiCall { api.itinerary(itineraryId) }
+    suspend fun trip(tripId: String): Result<Trip> = apiCall { api.trip(tripId) }
 
-    /** View & Adjust Itinerary: locks, unlocks, removes or moves a stop, or re-plans a day; returns the new plan. */
-    suspend fun adjustItinerary(itineraryId: String, request: AdjustRequest): Result<Itinerary> =
-        apiCall { api.adjustItinerary(itineraryId, request) }
+    /** View & Adjust Trip: locks, unlocks, removes or moves a stop, or re-plans a day; returns the new plan. */
+    suspend fun adjustTrip(tripId: String, request: AdjustRequest): Result<Trip> =
+        apiCall { api.adjustTrip(tripId, request) }
 }

@@ -2,13 +2,17 @@ package com.example.cpen321application.ui.feed
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.cpen321application.data.LiveEvent
+import com.example.cpen321application.data.LiveEventTypes
 import com.example.cpen321application.data.PostComment
 import com.example.cpen321application.data.PostDetail
 import com.example.cpen321application.data.PostRepository
+import com.example.cpen321application.ui.common.refreshOn
 import java.time.LocalDate
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -21,18 +25,19 @@ data class PostUiState(
     val working: Boolean = false,
     val actionError: String? = null,
     /** Set once the trip is copied, so the screen can open the copy. */
-    val copiedItineraryId: String? = null,
+    val copiedTripId: String? = null,
     /** Set once the post is deleted, so the screen can close. */
     val deleted: Boolean = false,
 )
 
 /** One shared trip in full: its plan, likes and comments, copying it, and deleting it if it is yours. */
-class PostViewModel(private val posts: PostRepository, private val postId: String) : ViewModel() {
+class PostViewModel(private val posts: PostRepository, private val postId: String, liveEvents: Flow<LiveEvent>) : ViewModel() {
     private val mutableState = MutableStateFlow(PostUiState())
     val state: StateFlow<PostUiState> = mutableState.asStateFlow()
 
     init {
         load()
+        refreshOn(liveEvents, LiveEventTypes.POSTS, matches = { it.postId == postId }) { load() }
     }
 
     fun load() {
@@ -80,11 +85,11 @@ class PostViewModel(private val posts: PostRepository, private val postId: Strin
     )
 
     fun copy(startDate: LocalDate) =
-        work(call = { posts.copy(postId, startDate.toString()) }, onDone = { current, copy -> current.copy(copiedItineraryId = copy.id) })
+        work(call = { posts.copy(postId, startDate.toString()) }, onDone = { current, copy -> current.copy(copiedTripId = copy.id) })
 
     fun delete() = work(call = { posts.delete(postId) }, onDone = { current, _ -> current.copy(deleted = true) })
 
-    fun copyOpened() = mutableState.update { it.copy(copiedItineraryId = null) }
+    fun copyOpened() = mutableState.update { it.copy(copiedTripId = null) }
 
     private fun <T> work(call: suspend () -> Result<T>, onDone: (PostUiState, T) -> PostUiState) {
         mutableState.update { it.copy(working = true, actionError = null) }

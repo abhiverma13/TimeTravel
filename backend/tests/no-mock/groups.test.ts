@@ -3,7 +3,7 @@ import request from 'supertest';
 import { UserModel } from '../../src/auth/userModel';
 import { GroupModel } from '../../src/groups/groupModel';
 import { type GroupDto, type GroupSummaryDto, MAX_GROUP_MEMBERS } from '../../src/groups/groupService';
-import { ItineraryModel } from '../../src/itineraries/itineraryModel';
+import { TripModel } from '../../src/trips/tripModel';
 import { createTestApp, seedVancouver, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
 
@@ -302,10 +302,10 @@ describe('Unmocked: PUT /api/groups/:groupId/members/me', () => {
 
 // Interface DELETE /api/groups/:groupId/members/:userId
 describe('Unmocked: DELETE /api/groups/:groupId/members/:userId', () => {
-  // Input: a member removes themselves from a group that has a group itinerary
+  // Input: a member removes themselves from a group that has a group trip
   // Expected status code: 204
-  // Expected behavior: they leave the group and can no longer see its itinerary
-  // Expected output: an empty body; the group no longer lists them; their GET of the itinerary returns 404
+  // Expected behavior: they leave the group and can no longer see its trip
+  // Expected output: an empty body; the group no longer lists them; their GET of the trip returns 404
   test('Member leaves', async () => {
     const { app, authService, activityService } = createTestApp();
     const owner = await signedInUser(authService, 'Owner');
@@ -313,14 +313,14 @@ describe('Unmocked: DELETE /api/groups/:groupId/members/:userId', () => {
     await seedVancouver(activityService);
     const group = await createGroup(app, owner.authorization);
     await request(app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
-    const trip = await request(app).post('/api/itineraries/generate').set(owner.authorization).send({ ...TRIP, groupId: group.id });
+    const trip = await request(app).post('/api/trips/generate').set(owner.authorization).send({ ...TRIP, groupId: group.id });
 
     const response = await request(app).delete(`/api/groups/${group.id}/members/${member.userId}`).set(member.authorization);
 
     expect(response.status).toBe(204);
     expect((await GroupModel.findById(group.id))?.members).toHaveLength(1);
-    const itinerary = await request(app).get(`/api/itineraries/${String(trip.body.id)}`).set(member.authorization);
-    expect(itinerary.status).toBe(404);
+    const fetched = await request(app).get(`/api/trips/${String(trip.body.id)}`).set(member.authorization);
+    expect(fetched.status).toBe(404);
   });
 
   // Input: the owner removes a member
@@ -375,24 +375,24 @@ describe('Unmocked: DELETE /api/groups/:groupId/members/:userId', () => {
 
 // Interface DELETE /api/groups/:groupId
 describe('Unmocked: DELETE /api/groups/:groupId', () => {
-  // Input: the owner deletes a group that has one group itinerary, while they also have a personal itinerary
+  // Input: the owner deletes a group that has one group trip, while they also have a personal trip
   // Expected status code: 204
-  // Expected behavior: the group and its itinerary are deleted; the personal itinerary is kept
-  // Expected output: an empty body; no groups and one itinerary left
-  test('Owner deletes the group and its itineraries', async () => {
+  // Expected behavior: the group and its trip are deleted; the personal trip is kept
+  // Expected output: an empty body; no groups and one trip left
+  test('Owner deletes the group and its trips', async () => {
     const { app, authService, activityService } = createTestApp();
     const owner = await signedInUser(authService);
     await seedVancouver(activityService);
     const group = await createGroup(app, owner.authorization);
-    await request(app).post('/api/itineraries/generate').set(owner.authorization).send({ ...TRIP, groupId: group.id });
-    await request(app).post('/api/itineraries/generate').set(owner.authorization).send(TRIP);
+    await request(app).post('/api/trips/generate').set(owner.authorization).send({ ...TRIP, groupId: group.id });
+    await request(app).post('/api/trips/generate').set(owner.authorization).send(TRIP);
 
     const response = await request(app).delete(`/api/groups/${group.id}`).set(owner.authorization);
 
     expect(response.status).toBe(204);
     expect(await GroupModel.countDocuments()).toBe(0);
-    expect(await ItineraryModel.countDocuments()).toBe(1);
-    expect((await ItineraryModel.findOne())?.groupId).toBeUndefined();
+    expect(await TripModel.countDocuments()).toBe(1);
+    expect((await TripModel.findOne())?.groupId).toBeUndefined();
   });
 
   // Input: a member who is not the owner tries to delete the group

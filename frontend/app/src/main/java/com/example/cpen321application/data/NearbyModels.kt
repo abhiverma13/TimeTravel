@@ -6,7 +6,7 @@ const val REQUEST_DECLINED = "declined"
 
 /** An open group trip near the traveller. It never says where the group sleeps or where its members are. */
 data class NearbyTrip(
-    val itineraryId: String,
+    val tripId: String,
     val groupId: String,
     val groupName: String,
     val organizer: String,
@@ -32,7 +32,7 @@ data class JoinRequester(val id: String, val name: String)
 /** A traveller asking to join a group through one of its open trips. */
 data class JoinRequest(
     val id: String,
-    val itineraryId: String,
+    val tripId: String,
     val groupId: String,
     val requester: JoinRequester,
     val note: String,

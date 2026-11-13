@@ -4,12 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.AdjustRequest
 import com.example.cpen321application.data.GeoPoint
-import com.example.cpen321application.data.Itinerary
-import com.example.cpen321application.data.ItineraryStop
-import com.example.cpen321application.data.LiveItinerary
-import com.example.cpen321application.data.LiveItineraryClient
+import com.example.cpen321application.data.Trip
+import com.example.cpen321application.data.TripStop
+import com.example.cpen321application.data.LiveTrip
+import com.example.cpen321application.data.LiveTripClient
 import com.example.cpen321application.data.MemberLocation
 import com.example.cpen321application.data.TimeTravelRepository
+import com.example.cpen321application.ui.trip.ACCESS_LOST_MESSAGE
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +22,7 @@ import kotlinx.coroutines.launch
 const val ARRIVAL_RADIUS_M = 100.0
 
 data class MapUiState(
-    val itinerary: Itinerary? = null,
+    val trip: Trip? = null,
     val error: String? = null,
     val dayIndex: Int = 0,
     val myLocation: GeoPoint? = null,
@@ -33,7 +34,7 @@ data class MapUiState(
 )
 
 /** The day's next stop that is not visited yet, and how far away it is. */
-data class NextStop(val stop: ItineraryStop, val metresAway: Double?)
+data class NextStop(val stop: TripStop, val metresAway: Double?)
 
 /**
  * The trip map: the day's stops in order, where you are, and (on a group trip) where the members sharing their position
@@ -41,8 +42,8 @@ data class NextStop(val stop: ItineraryStop, val metresAway: Double?)
  */
 class MapViewModel(
     private val repository: TimeTravelRepository,
-    live: LiveItineraryClient,
-    private val itineraryId: String,
+    live: LiveTripClient,
+    private val tripId: String,
     private val today: LocalDate = LocalDate.now(),
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(MapUiState())
@@ -51,20 +52,22 @@ class MapViewModel(
     // Stops a visit was already sent for, so a slow reply does not send it twice.
     private val visiting = mutableSetOf<String>()
 
-    private val connection: LiveItinerary = live.open(
-        itineraryId,
+    private val connection: LiveTrip = live.open(
+        tripId,
         onStatus = {},
-        onChange = { change -> mutableState.update { it.copy(itinerary = change.itinerary) } },
+        onChange = { change -> mutableState.update { it.copy(trip = change.trip) } },
         onMemberLocation = { member -> mutableState.update { it.copy(members = it.members + (member.userId to member)) } },
         onMemberGone = { userId -> mutableState.update { it.copy(members = it.members - userId) } },
+        // Stops sharing too: positions are only sent while `sharing` is on.
+        onAccessLost = { mutableState.update { it.copy(trip = null, members = emptyMap(), sharing = false, error = ACCESS_LOST_MESSAGE) } },
     )
 
     init {
         viewModelScope.launch {
-            repository.itinerary(itineraryId).fold(
-                onSuccess = { itinerary ->
-                    val todayIndex = itinerary.days.indexOfFirst { it.date == today.toString() }
-                    mutableState.update { it.copy(itinerary = itinerary, dayIndex = todayIndex.coerceAtLeast(0)) }
+            repository.trip(tripId).fold(
+                onSuccess = { trip ->
+                    val todayIndex = trip.days.indexOfFirst { it.date == today.toString() }
+                    mutableState.update { it.copy(trip = trip, dayIndex = todayIndex.coerceAtLeast(0)) }
                 },
                 onFailure = { error -> mutableState.update { it.copy(error = error.message) } },
             )
@@ -74,10 +77,10 @@ class MapViewModel(
     fun selectDay(dayIndex: Int) = mutableState.update { it.copy(dayIndex = dayIndex) }
 
     /** True when the day on the map is today, the only day stops are ticked off by arriving. */
-    fun isToday(state: MapUiState): Boolean = state.itinerary?.days?.getOrNull(state.dayIndex)?.date == today.toString()
+    fun isToday(state: MapUiState): Boolean = state.trip?.days?.getOrNull(state.dayIndex)?.date == today.toString()
 
     fun nextStop(state: MapUiState): NextStop? {
-        val stop = state.itinerary?.days?.getOrNull(state.dayIndex)?.stops?.firstOrNull { !it.visited } ?: return null
+        val stop = state.trip?.days?.getOrNull(state.dayIndex)?.stops?.firstOrNull { !it.visited } ?: return null
         return NextStop(stop, state.myLocation?.let { distanceMetres(it, stop.location) })
     }
 
@@ -107,15 +110,15 @@ class MapViewModel(
 
     private fun tickOffArrivals(location: GeoPoint) {
         val current = state.value
-        val itinerary = current.itinerary ?: return
-        val dayIndex = itinerary.days.indexOfFirst { it.date == today.toString() }
-        val arrived = itinerary.days.getOrNull(dayIndex)?.stops?.firstOrNull { stop ->
+        val trip = current.trip ?: return
+        val dayIndex = trip.days.indexOfFirst { it.date == today.toString() }
+        val arrived = trip.days.getOrNull(dayIndex)?.stops?.firstOrNull { stop ->
             !stop.visited && stop.activityId !in visiting && distanceMetres(location, stop.location) <= ARRIVAL_RADIUS_M
         } ?: return
         visiting += arrived.activityId
         viewModelScope.launch {
-            repository.adjustItinerary(itineraryId, AdjustRequest("visit", itinerary.version, dayIndex, arrived.activityId)).fold(
-                onSuccess = { updated -> mutableState.update { it.copy(itinerary = updated, message = "You're at ${arrived.name}: ticked off as visited.") } },
+            repository.adjustTrip(tripId, AdjustRequest("visit", trip.version, dayIndex, arrived.activityId)).fold(
+                onSuccess = { updated -> mutableState.update { it.copy(trip = updated, message = "You're at ${arrived.name}: ticked off as visited.") } },
                 // Someone else changed the trip first; the next position update tries again with the new version.
                 onFailure = { visiting -= arrived.activityId },
             )

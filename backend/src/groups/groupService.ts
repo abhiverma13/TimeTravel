@@ -3,9 +3,10 @@ import { randomInt } from 'node:crypto';
 import { Types, isValidObjectId } from 'mongoose';
 
 import { UserModel } from '../auth/userModel';
-import { ItineraryModel } from '../itineraries/itineraryModel';
+import { TripModel } from '../trips/tripModel';
 import { HttpError } from '../middleware/errorHandler';
 import { INTEREST_TAGS, type InterestTag } from '../shared/interestTags';
+import { LiveEvents, firstNameOf } from '../sync/liveEvents';
 import { type GroupDocument, type GroupMember, GroupModel, type GroupRole } from './groupModel';
 
 /** Larger parties rarely move around a city together; the planner is tuned for small groups. */
@@ -48,7 +49,7 @@ export interface GroupPreferencesUpdate {
   vetoedActivityIds?: string[] | undefined;
 }
 
-/** What a group's members want from a trip, combined for the Itinerary Engine. */
+/** What a group's members want from a trip, combined for the Trip Engine. */
 export interface GroupTripPreferences {
   /** Per interest, the share of members (0 to 1) who picked it; empty when nobody picked any. */
   interestShares: Map<InterestTag, number>;
@@ -56,12 +57,25 @@ export interface GroupTripPreferences {
   vetoedActivityIds: Set<string>;
 }
 
+/** Travellers who lost access to a group's trips: they left or were removed, or the group was deleted. */
+export interface MembersLeft {
+  groupId: string;
+  userIds: string[];
+  tripIds: string[];
+}
+
+export type MembersLeftListener = (left: MembersLeft) => void;
+
 function randomInviteCode(): string {
   return Array.from({ length: INVITE_CODE_LENGTH }, () => INVITE_CODE_ALPHABET.charAt(randomInt(INVITE_CODE_ALPHABET.length))).join('');
 }
 
 function isDuplicateKeyError(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === DUPLICATE_KEY_ERROR;
+}
+
+function memberIds(group: GroupDocument): string[] {
+  return group.members.map((member) => member.userId.toString());
 }
 
 function memberOf(group: GroupDocument, userId: string): GroupMember | undefined {
@@ -90,6 +104,15 @@ function knownInterests(tags: readonly string[]): InterestTag[] {
 
 /** Group Service: travel groups, their members, invite codes and each member's trip preferences. */
 export class GroupService {
+  private readonly membersLeftListeners: MembersLeftListener[] = [];
+
+  constructor(private readonly events: LiveEvents = new LiveEvents()) {}
+
+  /** Called after members lose access to a group's trips; the Trip Sync & Disruption Service cuts their live updates. */
+  onMembersLeft(listener: MembersLeftListener): void {
+    this.membersLeftListeners.push(listener);
+  }
+
   /** Creates a group owned by the caller, with a fresh invite code. */
   async createGroup(userId: string, name: string): Promise<GroupDto> {
     const owner: GroupMember = {
@@ -158,6 +181,7 @@ export class GroupService {
     if (!joined) {
       throw new HttpError(409, 'This group is full');
     }
+    this.events.publish(memberIds(joined), { type: 'memberJoined', actorId: userId, groupId: joined._id.toString(), text: `${await firstNameOf(userId)} joined ${joined.name}` });
     return joined;
   }
 
@@ -196,16 +220,30 @@ export class GroupService {
       throw new HttpError(403, 'Only the group owner can remove members');
     }
     await GroupModel.updateOne({ _id: group._id }, { $pull: { members: { userId: target.userId } } });
+    const trips = await TripModel.find({ groupId: group._id }, { _id: 1 });
+    this.announceMembersLeft(group, [memberId], trips);
+    const name = await firstNameOf(userId);
+    const remaining = memberIds(group).filter((id) => id !== memberId);
+    if (memberId === userId) {
+      this.events.publish(remaining, { type: 'memberLeft', actorId: userId, groupId, text: `${name} left ${group.name}` });
+      return;
+    }
+    this.events.publish([memberId], { type: 'removedFromGroup', actorId: userId, groupId, text: `${name} removed you from ${group.name}` });
+    const removedName = await firstNameOf(memberId);
+    this.events.publish(remaining, { type: 'memberLeft', actorId: userId, groupId, text: `${name} removed ${removedName} from ${group.name}` });
   }
 
-  /** Deletes the group and its itineraries. Owner only. */
+  /** Deletes the group and its trips. Owner only. */
   async deleteGroup(userId: string, groupId: string): Promise<void> {
     const group = await this.requireMember(userId, groupId);
     if (memberOf(group, userId)?.role !== 'owner') {
       throw new HttpError(403, 'Only the group owner can delete the group');
     }
-    await ItineraryModel.deleteMany({ groupId: group._id });
+    const trips = await TripModel.find({ groupId: group._id }, { _id: 1 });
+    await TripModel.deleteMany({ groupId: group._id });
     await GroupModel.deleteOne({ _id: group._id });
+    this.announceMembersLeft(group, memberIds(group), trips);
+    this.events.publish(memberIds(group), { type: 'groupDeleted', actorId: userId, groupId: group._id.toString(), text: `${await firstNameOf(userId)} deleted ${group.name}` });
   }
 
   /** Every member's interests and vetoes, combined; the caller must be a member. */
@@ -235,6 +273,17 @@ export class GroupService {
       throw new HttpError(404, 'Group not found');
     }
     return group;
+  }
+
+  private announceMembersLeft(group: GroupDocument, userIds: string[], trips: { _id: Types.ObjectId }[]): void {
+    const left: MembersLeft = { groupId: group._id.toString(), userIds, tripIds: trips.map((trip) => trip._id.toString()) };
+    for (const listener of this.membersLeftListeners) {
+      try {
+        listener(left);
+      } catch (error) {
+        console.error('Failed to push a membership change', error);
+      }
+    }
   }
 
   private async profileInterests(userId: string): Promise<InterestTag[]> {

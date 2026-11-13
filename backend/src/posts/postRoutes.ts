@@ -3,7 +3,7 @@ import { isValidObjectId } from 'mongoose';
 import { z } from 'zod';
 
 import type { AuthService } from '../auth/authService';
-import { isIsoDate } from '../itineraries/tripCalendar';
+import { isIsoDate } from '../trips/tripCalendar';
 import { authenticatedUserId, requireSession } from '../middleware/authenticate';
 import { FEEDS, type PostService } from './postService';
 
@@ -13,7 +13,7 @@ const MAX_COMMENT_LENGTH = 300;
 const objectId = (what: string) => z.string().refine((id) => isValidObjectId(id), `must be ${what} id`);
 
 const createPostBody = z.object({
-  itineraryId: objectId('an itinerary'),
+  tripId: objectId('a trip'),
   rating: z.number().int().min(1).max(5),
   caption: z.string().trim().max(MAX_CAPTION_LENGTH).default(''),
 });

@@ -15,9 +15,10 @@ import { FriendService } from './friends/friendService';
 import { GroupService } from './groups/groupService';
 import { NearbyService } from './nearby/nearbyService';
 import { PostService } from './posts/postService';
-import { ItineraryService } from './itineraries/itineraryService';
-import { GoogleRoutesClient } from './itineraries/routesClient';
-import { TravelTimeService } from './itineraries/travelTimes';
+import { TripService } from './trips/tripService';
+import { GoogleRoutesClient } from './trips/routesClient';
+import { TravelTimeService } from './trips/travelTimes';
+import { LiveEvents } from './sync/liveEvents';
 import { attachTripSync } from './sync/tripSync';
 
 async function main(): Promise<void> {
@@ -32,25 +33,26 @@ async function main(): Promise<void> {
   }
   const placesClient = env.googlePlacesApiKey ? new GooglePlacesClient(env.googlePlacesApiKey) : null;
   const activityService = new ActivityService(placesClient);
-  const groupService = new GroupService();
+  const liveEvents = new LiveEvents();
+  const groupService = new GroupService(liveEvents);
   // The same Google Cloud key serves Places and Routes (Routes API must be enabled for it).
   const routesClient = env.googlePlacesApiKey ? new GoogleRoutesClient(env.googlePlacesApiKey) : null;
-  const itineraryService = new ItineraryService(activityService, placesClient, groupService, new TravelTimeService(routesClient));
-  const friendService = new FriendService();
-  const postService = new PostService(itineraryService, friendService);
-  const nearbyService = new NearbyService(groupService);
+  const tripService = new TripService(activityService, placesClient, groupService, new TravelTimeService(routesClient));
+  const friendService = new FriendService(liveEvents);
+  const postService = new PostService(tripService, friendService, liveEvents);
+  const nearbyService = new NearbyService(groupService, liveEvents);
   if (!env.openWeatherApiKey) {
     console.warn('OPENWEATHER_API_KEY is not set: trips under way are checked for closed venues only');
   }
   const weatherClient = env.openWeatherApiKey ? new OpenWeatherClient(env.openWeatherApiKey) : null;
-  const disruptionService = new DisruptionService(itineraryService, weatherClient, placesClient);
-  const app = createApp({ authService, activityService, groupService, itineraryService, friendService, postService, nearbyService, disruptionService });
+  const disruptionService = new DisruptionService(tripService, weatherClient, placesClient, liveEvents);
+  const app = createApp({ authService, activityService, groupService, tripService, friendService, postService, nearbyService, disruptionService });
   const hasTlsConfiguration = Boolean(env.tlsCertPath && env.tlsKeyPath);
   const server = hasTlsConfiguration
     ? createHttpsServer({ cert: readFileSync(env.tlsCertPath), key: readFileSync(env.tlsKeyPath) }, app)
     : createHttpServer(app);
-  // Live itinerary updates share the API's port (and its TLS), so the app needs no second address.
-  attachTripSync(server, authService, itineraryService, disruptionService);
+  // Live trip updates share the API's port (and its TLS), so the app needs no second address.
+  attachTripSync(server, { authService, tripService, groupService, disruptionService, liveEvents });
   // Checks trips under way for rain and closed venues; suggestions reach the members live.
   const disruptionTimer = setInterval(() => {
     disruptionService.checkActiveTrips().catch((error: unknown) => {

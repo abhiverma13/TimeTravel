@@ -35,8 +35,8 @@ data class ShareUiState(
     val shared: Boolean = false,
 )
 
-/** Shares an itinerary to the feed with a rating and a caption. */
-class SharePostViewModel(private val posts: PostRepository, private val itineraryId: String) : ViewModel() {
+/** Shares a trip to the feed with a rating and a caption. */
+class SharePostViewModel(private val posts: PostRepository, private val tripId: String) : ViewModel() {
     private val mutableState = MutableStateFlow(ShareUiState())
     val state: StateFlow<ShareUiState> = mutableState.asStateFlow()
 
@@ -56,7 +56,7 @@ class SharePostViewModel(private val posts: PostRepository, private val itinerar
         }
         mutableState.update { it.copy(sharing = true, error = null) }
         viewModelScope.launch {
-            val result = posts.share(itineraryId, current.rating, current.caption)
+            val result = posts.share(tripId, current.rating, current.caption)
             mutableState.update { latest ->
                 result.fold(
                     onSuccess = { latest.copy(sharing = false, open = false, shared = true) },

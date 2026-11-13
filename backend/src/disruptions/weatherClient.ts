@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { GeoPoint } from '../itineraries/engine/types';
+import type { GeoPoint } from '../trips/engine/types';
 
 const FORECAST_URL = 'https://api.openweathermap.org/data/2.5/forecast';
 const WEATHER_TIMEOUT_MS = 10_000;

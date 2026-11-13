@@ -25,10 +25,10 @@ interface TimeTravelApi {
     suspend fun reviewActivity(@Path("activityId") activityId: String, @Body body: ReviewRequest): ReviewResponse
 
     @GET("api/suggestions")
-    suspend fun suggestions(@Query("itineraryId") itineraryId: String): SuggestionsResponse
+    suspend fun suggestions(@Query("tripId") tripId: String): SuggestionsResponse
 
     @POST("api/suggestions/{suggestionId}/accept")
-    suspend fun acceptSuggestion(@Path("suggestionId") suggestionId: String): Itinerary
+    suspend fun acceptSuggestion(@Path("suggestionId") suggestionId: String): Trip
 
     @POST("api/suggestions/{suggestionId}/dismiss")
     suspend fun dismissSuggestion(@Path("suggestionId") suggestionId: String)
@@ -36,16 +36,16 @@ interface TimeTravelApi {
     @GET("api/activities/{activityId}/reviews")
     suspend fun reviews(@Path("activityId") activityId: String): ReviewsResponse
 
-    @POST("api/itineraries/generate")
-    suspend fun generateItinerary(@Body body: GenerateItineraryRequest): Itinerary
+    @POST("api/trips/generate")
+    suspend fun generateTrip(@Body body: GenerateTripRequest): Trip
 
-    /** All the traveller's itineraries, or only one group's when `groupId` is set. */
-    @GET("api/itineraries")
-    suspend fun itineraries(@Query("groupId") groupId: String?): ItinerariesResponse
+    /** All the traveller's trips, or only one group's when `groupId` is set. */
+    @GET("api/trips")
+    suspend fun trips(@Query("groupId") groupId: String?): TripsResponse
 
-    @GET("api/itineraries/{itineraryId}")
-    suspend fun itinerary(@Path("itineraryId") itineraryId: String): Itinerary
+    @GET("api/trips/{tripId}")
+    suspend fun trip(@Path("tripId") tripId: String): Trip
 
-    @POST("api/itineraries/{itineraryId}/adjust")
-    suspend fun adjustItinerary(@Path("itineraryId") itineraryId: String, @Body body: AdjustRequest): Itinerary
+    @POST("api/trips/{tripId}/adjust")
+    suspend fun adjustTrip(@Path("tripId") tripId: String, @Body body: AdjustRequest): Trip
 }

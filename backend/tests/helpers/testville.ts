@@ -2,7 +2,7 @@ import { Types } from 'mongoose';
 
 import { ActivityModel } from '../../src/activities/activityModel';
 import type { ActivityService, TaggedPlace } from '../../src/activities/activityService';
-import { ItineraryModel } from '../../src/itineraries/itineraryModel';
+import { TripModel } from '../../src/trips/tripModel';
 
 /*
  * Testville: five made-up places a short walk apart, with opening hours (and two prices) chosen so that adjustments
@@ -62,7 +62,7 @@ export interface StoredTripOptions {
 }
 
 /**
- * Stores a one-day Testville itinerary (Saturday 2026-10-24, 09:00-18:00, moderate pace unless options say otherwise) with exactly these stops
+ * Stores a one-day Testville trip (Saturday 2026-10-24, 09:00-18:00, moderate pace unless options say otherwise) with exactly these stops
  * in this order, as if it had been generated, and returns its id. Adjustments re-time the stops themselves.
  */
 export async function storeTestvilleTrip(userId: string, stopNames: string[], options: StoredTripOptions = {}): Promise<string> {
@@ -88,7 +88,7 @@ export async function storeTestvilleTrip(userId: string, stopNames: string[], op
       };
     }),
   );
-  const itinerary = await ItineraryModel.create({
+  const trip = await TripModel.create({
     userId: new Types.ObjectId(userId),
     groupId: options.groupId === undefined ? undefined : new Types.ObjectId(options.groupId),
     city: 'Testville',
@@ -105,5 +105,5 @@ export async function storeTestvilleTrip(userId: string, stopNames: string[], op
     warnings: [],
     generationMs: 1,
   });
-  return itinerary._id.toString();
+  return trip._id.toString();
 }

@@ -2,7 +2,7 @@ import { Types } from 'mongoose';
 import request from 'supertest';
 
 import { ActivityModel } from '../../src/activities/activityModel';
-import type { ItineraryDto } from '../../src/itineraries/itineraryService';
+import type { TripDto } from '../../src/trips/tripService';
 import { CommentModel, PostModel } from '../../src/posts/postModel';
 import type { CommentDto, LikeState, PostDetailDto, PostDto } from '../../src/posts/postService';
 import { createTestApp, signedInUser } from '../helpers/testApp';
@@ -28,8 +28,8 @@ async function sharing() {
   });
   // Stores a Testville trip for the traveller and shares it with a 5-star rating.
   const share = async (user: Traveller, stops: string[] = AVA_TRIP) => {
-    const itineraryId = await storeTestvilleTrip(user.userId, stops);
-    return (await client(user).post('/api/posts', { itineraryId, rating: 5 })).body as PostDetailDto;
+    const tripId = await storeTestvilleTrip(user.userId, stops);
+    return (await client(user).post('/api/posts', { tripId, rating: 5 })).body as PostDetailDto;
   };
   const befriend = async (one: Traveller, other: Traveller) => {
     await client(one).post('/api/friends/requests', { userId: other.userId });
@@ -55,19 +55,19 @@ afterAll(stopTestDatabase);
 describe('Unmocked: POST /api/posts', () => {
   // Input: Ava shares her one-day Testville trip with { rating: 4, caption: "  Great day out  " }, then removes a stop from it
   // Expected status code: 201
-  // Expected behavior: the post keeps a frozen copy of the trip, so later changes to the itinerary do not change it
+  // Expected behavior: the post keeps a frozen copy of the trip, so later changes to the trip do not change it
   // Expected output: the post with Ava as author, the trimmed caption, 1 day and 3 stops, before and after the change
   test('Shares a frozen copy of a trip', async () => {
     const { ava, client } = await sharing();
-    const itineraryId = await storeTestvilleTrip(ava.userId, AVA_TRIP);
+    const tripId = await storeTestvilleTrip(ava.userId, AVA_TRIP);
 
-    const response = await client(ava).post('/api/posts', { itineraryId, rating: 4, caption: '  Great day out  ' });
-    const itinerary = (await client(ava).get(`/api/itineraries/${itineraryId}`)).body as ItineraryDto;
-    await client(ava).post(`/api/itineraries/${itineraryId}/adjust`, {
+    const response = await client(ava).post('/api/posts', { tripId, rating: 4, caption: '  Great day out  ' });
+    const trip = (await client(ava).get(`/api/trips/${tripId}`)).body as TripDto;
+    await client(ava).post(`/api/trips/${tripId}/adjust`, {
       action: 'remove',
       version: 0,
       dayIndex: 0,
-      activityId: itinerary.days.at(0)?.stops.at(0)?.activityId,
+      activityId: trip.days.at(0)?.stops.at(0)?.activityId,
     });
     const later = (await client(ava).get(`/api/posts/${(response.body as PostDetailDto).id}`)).body as PostDetailDto;
 
@@ -96,31 +96,31 @@ describe('Unmocked: POST /api/posts', () => {
   // Expected behavior: nothing is posted
   // Expected output: the matching error
   test.each([
-    ['someone else\'s trip', 404, 'Itinerary not found'],
+    ['someone else\'s trip', 404, 'Trip not found'],
     ['a trip with no stops', 422, 'This trip has no stops to share'],
   ])('Share refused: %s', async (scenario, status, error) => {
     const { ava, ben, client } = await sharing();
-    const itineraryId = await storeTestvilleTrip(ava.userId, scenario === 'a trip with no stops' ? [] : AVA_TRIP);
+    const tripId = await storeTestvilleTrip(ava.userId, scenario === 'a trip with no stops' ? [] : AVA_TRIP);
     const sharer = scenario === 'a trip with no stops' ? ava : ben;
 
-    const response = await client(sharer).post('/api/posts', { itineraryId, rating: 5 });
+    const response = await client(sharer).post('/api/posts', { tripId, rating: 5 });
 
     expect(response.status).toBe(status);
     expect(response.body).toEqual({ error });
     expect(await PostModel.countDocuments()).toBe(0);
   });
 
-  // Input: ratings 0, 6 and 4.5, a 501-character caption, and no itinerary id
+  // Input: ratings 0, 6 and 4.5, a 501-character caption, and no trip id
   // Expected status code: 400 for each
   // Expected behavior: nothing is posted
   // Expected output: { error: "Invalid request", details: [...] }
-  test.each([{ rating: 0 }, { rating: 6 }, { rating: 4.5 }, { caption: 'x'.repeat(501) }, { itineraryId: undefined }])(
+  test.each([{ rating: 0 }, { rating: 6 }, { rating: 4.5 }, { caption: 'x'.repeat(501) }, { tripId: undefined }])(
     'Invalid post %p',
     async (change) => {
       const { ava, client } = await sharing();
-      const itineraryId = await storeTestvilleTrip(ava.userId, AVA_TRIP);
+      const tripId = await storeTestvilleTrip(ava.userId, AVA_TRIP);
 
-      const response = await client(ava).post('/api/posts', { itineraryId, rating: 5, ...change });
+      const response = await client(ava).post('/api/posts', { tripId, rating: 5, ...change });
 
       expect(response.status).toBe(400);
       expect((response.body as { error: string }).error).toBe('Invalid request');
@@ -134,7 +134,7 @@ describe('Unmocked: POST /api/posts', () => {
   test('Not signed in', async () => {
     const { app } = await sharing();
 
-    const response = await request(app).post('/api/posts').send({ itineraryId: '64b7f0c2a1b2c3d4e5f60718', rating: 5 });
+    const response = await request(app).post('/api/posts').send({ tripId: '64b7f0c2a1b2c3d4e5f60718', rating: 5 });
 
     expect(response.status).toBe(401);
   });
@@ -473,22 +473,22 @@ describe('Unmocked: POST /api/posts/:postId/copy', () => {
   // Input: Ben copies Ava's Saturday trip to start on Monday 2026-11-02
   // Expected status code: 201
   // Expected behavior: a new personal trip of Ben's, with the same stops in the same order, re-timed for Monday
-  // Expected output: the itinerary on 2026-11-02 (weekday 1), stops in Ava's order, and a note saying where it came from
+  // Expected output: the trip on 2026-11-02 (weekday 1), stops in Ava's order, and a note saying where it came from
   test('Copies a shared trip onto new dates', async () => {
     const { ava, ben, client, share } = await sharing();
     const post = await share(ava);
 
     const response = await client(ben).post(`/api/posts/${post.id}/copy`, { startDate: '2026-11-02' });
 
-    const itinerary = response.body as ItineraryDto;
+    const trip = response.body as TripDto;
     expect(response.status).toBe(201);
-    expect(itinerary).toMatchObject({ city: 'Testville', startDate: '2026-11-02', endDate: '2026-11-02', groupId: null, pace: 'moderate' });
-    expect(itinerary.days.map((day) => day.weekday)).toEqual([1]);
-    expect(itinerary.days.at(0)?.stops.map((stop) => stop.name)).toEqual(AVA_TRIP);
-    expect(itinerary.days.at(0)?.stops.at(0)?.startTime).not.toBe('09:00');
-    expect(itinerary.warnings).toEqual(["Copied from Ava Traveller's Testville trip."]);
-    const bensTrips = (await client(ben).get('/api/itineraries')).body as { itineraries: { id: string }[] };
-    expect(bensTrips.itineraries.map((trip) => trip.id)).toEqual([itinerary.id]);
+    expect(trip).toMatchObject({ city: 'Testville', startDate: '2026-11-02', endDate: '2026-11-02', groupId: null, pace: 'moderate' });
+    expect(trip.days.map((day) => day.weekday)).toEqual([1]);
+    expect(trip.days.at(0)?.stops.map((stop) => stop.name)).toEqual(AVA_TRIP);
+    expect(trip.days.at(0)?.stops.at(0)?.startTime).not.toBe('09:00');
+    expect(trip.warnings).toEqual(["Copied from Ava Traveller's Testville trip."]);
+    const bensTrips = (await client(ben).get('/api/trips')).body as { trips: { id: string }[] };
+    expect(bensTrips.trips.map((listed) => listed.id)).toEqual([trip.id]);
   });
 
   // Input: Ava's trip [Harbour Park, Lookout Tower, Night Market]; Lookout Tower has since left the catalogue, and
@@ -503,10 +503,10 @@ describe('Unmocked: POST /api/posts/:postId/copy', () => {
 
     const response = await client(ben).post(`/api/posts/${post.id}/copy`, { startDate: '2026-11-02' });
 
-    const itinerary = response.body as ItineraryDto;
-    expect(itinerary.days.at(0)?.stops.map((stop) => stop.name)).toEqual(['Harbour Park']);
-    expect(itinerary.unscheduledCount).toBe(2);
-    expect(itinerary.warnings.slice(1)).toEqual([
+    const trip = response.body as TripDto;
+    expect(trip.days.at(0)?.stops.map((stop) => stop.name)).toEqual(['Harbour Park']);
+    expect(trip.unscheduledCount).toBe(2);
+    expect(trip.warnings.slice(1)).toEqual([
       'Lookout Tower does not fit Monday on your dates, so it was left out.',
       'Night Market does not fit Monday on your dates, so it was left out.',
     ]);
@@ -527,6 +527,6 @@ describe('Unmocked: POST /api/posts/:postId/copy', () => {
 
     expect(badDate.status).toBe(400);
     expect(hiddenCopy.status).toBe(404);
-    expect(((await client(cleo).get('/api/itineraries')).body as { itineraries: unknown[] }).itineraries).toEqual([]);
+    expect(((await client(cleo).get('/api/trips')).body as { trips: unknown[] }).trips).toEqual([]);
   });
 });

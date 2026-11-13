@@ -6,10 +6,10 @@ class NearbyRepository(private val api: NearbyApi) {
     suspend fun trips(position: GeoPoint): Result<List<NearbyTrip>> = apiCall { api.trips(position.lat, position.lng) }.map { it.trips }
 
     /** The group's owner opens a trip to travellers nearby, or closes it. */
-    suspend fun setOpen(itineraryId: String, open: Boolean): Result<Boolean> =
-        apiCall { api.setOpen(itineraryId, OpenToJoinBody(open)) }.map { it.openToJoin }
+    suspend fun setOpen(tripId: String, open: Boolean): Result<Boolean> =
+        apiCall { api.setOpen(tripId, OpenToJoinBody(open)) }.map { it.openToJoin }
 
-    suspend fun askToJoin(itineraryId: String, note: String): Result<JoinRequest> = apiCall { api.requestToJoin(itineraryId, JoinRequestBody(note.trim())) }
+    suspend fun askToJoin(tripId: String, note: String): Result<JoinRequest> = apiCall { api.requestToJoin(tripId, JoinRequestBody(note.trim())) }
 
     /** The group's pending requests; only its owner may see them. */
     suspend fun requests(groupId: String): Result<List<JoinRequest>> = apiCall { api.requests(groupId) }.map { it.requests }
