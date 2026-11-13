@@ -2,7 +2,7 @@ import { type RankedCandidate, pruneCandidates } from './candidates';
 import { type DayContext, type SimulatedDay, simulateDay } from './daySchedule';
 import { dayUtility, improveDay } from './localSearch';
 import { estimateTravelMinutes } from './travelTime';
-import type { DayPlan, Pace, PlanRequest, TravelTimeEstimator, TripDay, TripPlan } from './types';
+import type { DayPlan, Pace, PlanRequest, TravelTimeEstimator, CalendarDay, TripPlan } from './types';
 
 export interface PaceSettings {
   maxStopsPerDay: number;
@@ -89,7 +89,7 @@ export function fillDay(
   return current;
 }
 
-export function dayContext(request: PlanRequest, day: TripDay, travelMinutes: TravelTimeEstimator): DayContext {
+export function dayContext(request: PlanRequest, day: CalendarDay, travelMinutes: TravelTimeEstimator): DayContext {
   return {
     weekday: day.weekday,
     dayStartMinute: day.startMinute ?? request.dayStartMinute,
@@ -100,7 +100,7 @@ export function dayContext(request: PlanRequest, day: TripDay, travelMinutes: Tr
   };
 }
 
-function toDayPlan(day: TripDay, simulation: SimulatedDay): DayPlan {
+function toDayPlan(day: CalendarDay, simulation: SimulatedDay): DayPlan {
   return { date: day.date, weekday: day.weekday, stops: simulation.stops, returnTravelMinutes: simulation.returnTravelMinutes };
 }
 
@@ -130,7 +130,7 @@ export interface PlanOptions {
 }
 
 /**
- * The Itinerary Engine: prunes the candidates, then builds each day in turn by greedy insertion and
+ * The Trip Engine: prunes the candidates, then builds each day in turn by greedy insertion and
  * improves it with time-budgeted local search, never scheduling an activity twice in one trip.
  */
 export function planTrip(

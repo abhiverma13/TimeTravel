@@ -8,7 +8,7 @@ import { DATABASE_STARTUP_TIMEOUT_MS, startTestDatabase, stopTestDatabase } from
 
 /*
  * NFR 3, bounded Google Places usage: each city's activity catalogue is fetched from Google Places at most once every
- * 7 days (one text search per interest tag); searching or generating itineraries for a city fetched in the last 7 days
+ * 7 days (one text search per interest tag); searching or generating trips for a city fetched in the last 7 days
  * makes no Places calls (an entered lodging is looked up once).
  */
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -31,7 +31,7 @@ describe('NFR: bounded Google Places usage', () => {
         .set(travellers[index % 2]?.authorization ?? {});
     const generate = async (index: number, lodging?: string) =>
       request(app)
-        .post('/api/itineraries/generate')
+        .post('/api/trips/generate')
         .set(travellers[index % 2]?.authorization ?? {})
         .send({ city: 'Vancouver', startDate: '2026-10-28', endDate: '2026-10-29', ...(lodging === undefined ? {} : { lodging }) });
 

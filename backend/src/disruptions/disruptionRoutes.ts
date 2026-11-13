@@ -5,10 +5,10 @@ import type { AuthService } from '../auth/authService';
 import { authenticatedUserId, requireSession } from '../middleware/authenticate';
 import type { DisruptionService } from './disruptionService';
 
-const listQuery = z.object({ itineraryId: z.string().min(1, 'itineraryId is required') });
+const listQuery = z.object({ tripId: z.string().min(1, 'tripId is required') });
 
 /**
- * GET  /api/suggestions?itineraryId=<id>
+ * GET  /api/suggestions?tripId=<id>
  * POST /api/suggestions/:suggestionId/accept
  * POST /api/suggestions/:suggestionId/dismiss
  */
@@ -17,8 +17,8 @@ export function createSuggestionRouter(authService: AuthService, disruptionServi
   router.use(requireSession(authService));
 
   router.get('/', async (request, response) => {
-    const { itineraryId } = listQuery.parse(request.query);
-    response.json({ suggestions: await disruptionService.listSuggestions(authenticatedUserId(response), itineraryId) });
+    const { tripId } = listQuery.parse(request.query);
+    response.json({ suggestions: await disruptionService.listSuggestions(authenticatedUserId(response), tripId) });
   });
 
   router.post('/:suggestionId/accept', async (request, response) => {

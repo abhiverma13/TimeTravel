@@ -15,7 +15,7 @@ export interface GroupMember {
   joinedAt: Date;
 }
 
-/** A travel group: people who plan trips together. Its itineraries carry its id. */
+/** A travel group: people who plan trips together. Its trips carry its id. */
 export interface Group {
   name: string;
   /** Shared with friends so they can join; unique across groups. */

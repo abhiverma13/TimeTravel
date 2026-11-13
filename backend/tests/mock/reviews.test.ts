@@ -3,7 +3,7 @@ import request from 'supertest';
 import { ActivityModel, CityCatalogueModel } from '../../src/activities/activityModel';
 import type { ActivityDto } from '../../src/activities/activityService';
 import { ReviewModel } from '../../src/activities/reviewModel';
-import { ItineraryModel } from '../../src/itineraries/itineraryModel';
+import { TripModel } from '../../src/trips/tripModel';
 import { seedTestville, storeTestvilleTrip } from '../helpers/testville';
 import { createTestApp, seedVancouver, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
@@ -87,14 +87,14 @@ describe('Mocked: POST /api/activities/:activityId/reviews', () => {
   // Expected status code: 500
   // Expected behavior: no review is saved
   // Expected output: { error: "Internal server error" }
-  test('Itinerary database fails while verifying a visit', async () => {
+  test('Trip database fails while verifying a visit', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const { app, authService, activityService } = createTestApp({ now: () => new Date('2026-10-24T18:00:00Z') });
     const { userId, authorization } = await signedInUser(authService);
     await seedTestville(activityService);
     await storeTestvilleTrip(userId, ['Harbour Park']);
     const parkId = (await ActivityModel.findOne({ name: 'Harbour Park' }))?._id.toString() ?? '';
-    jest.spyOn(ItineraryModel, 'countDocuments').mockImplementation(() => {
+    jest.spyOn(TripModel, 'countDocuments').mockImplementation(() => {
       throw new Error('Simulated database outage');
     });
 

@@ -1,19 +1,19 @@
 import { interestsForPlace, typicalVisitMinutes } from '../../src/activities/interests';
 import { toOpeningPeriods } from '../../src/activities/openingHours';
 import { DEMO_VANCOUVER_PLACES } from '../../src/dev/demoVancouverPlaces';
-import { MAX_CANDIDATES, pruneCandidates, utilityOf, windowsOn } from '../../src/itineraries/engine/candidates';
-import { type DayContext, simulateDay } from '../../src/itineraries/engine/daySchedule';
-import { paceSettings, planTrip } from '../../src/itineraries/engine/planner';
-import { estimateTravelMinutes, haversineKm } from '../../src/itineraries/engine/travelTime';
-import type { Candidate, GeoPoint, PlanRequest, TripDay } from '../../src/itineraries/engine/types';
+import { MAX_CANDIDATES, pruneCandidates, utilityOf, windowsOn } from '../../src/trips/engine/candidates';
+import { type DayContext, simulateDay } from '../../src/trips/engine/daySchedule';
+import { paceSettings, planTrip } from '../../src/trips/engine/planner';
+import { estimateTravelMinutes, haversineKm } from '../../src/trips/engine/travelTime';
+import type { Candidate, GeoPoint, PlanRequest, CalendarDay } from '../../src/trips/engine/types';
 
 const DOWNTOWN: GeoPoint = { lat: 49.2827, lng: -123.1207 };
 const UBC: GeoPoint = { lat: 49.2606, lng: -123.246 };
 
 // 2026-10-25 is a Sunday; 2026-10-26 a Monday.
-const SUNDAY: TripDay = { date: '2026-10-25', weekday: 0 };
-const MONDAY: TripDay = { date: '2026-10-26', weekday: 1 };
-const TUESDAY: TripDay = { date: '2026-10-27', weekday: 2 };
+const SUNDAY: CalendarDay = { date: '2026-10-25', weekday: 0 };
+const MONDAY: CalendarDay = { date: '2026-10-26', weekday: 1 };
+const TUESDAY: CalendarDay = { date: '2026-10-27', weekday: 2 };
 
 function candidate(id: string, overrides: Partial<Candidate> = {}): Candidate {
   return { id, location: DOWNTOWN, interests: ['landmarks'], durationMinutes: 60, score: 4, openingHours: null, ...overrides };
@@ -56,7 +56,7 @@ const vancouverCandidates: Candidate[] = DEMO_VANCOUVER_PLACES.map((place) => {
   };
 });
 
-describe('Itinerary Engine: travel time', () => {
+describe('Trip Engine: travel time', () => {
   test('haversine distance from downtown Vancouver to UBC is about 9.5 km', () => {
     expect(haversineKm(DOWNTOWN, UBC)).toBeCloseTo(9.5, 0);
   });
@@ -71,7 +71,7 @@ describe('Itinerary Engine: travel time', () => {
   });
 });
 
-describe('Itinerary Engine: candidate pruning', () => {
+describe('Trip Engine: candidate pruning', () => {
   test('drops activities more than 25 km from the lodging', () => {
     const whistler = candidate('whistler', { location: { lat: 50.1163, lng: -122.9574 } });
     const pruned = pruneCandidates([candidate('nearby'), whistler], request());
@@ -108,7 +108,7 @@ describe('Itinerary Engine: candidate pruning', () => {
   });
 });
 
-describe('Itinerary Engine: day simulation', () => {
+describe('Trip Engine: day simulation', () => {
   test('waits for an activity to open', () => {
     const opensAtEleven = candidate('late-opener', { openingHours: [{ day: 0, openMinute: 660, closeMinute: 1020 }] });
     const day = simulateDay([opensAtEleven], context());
@@ -148,7 +148,7 @@ describe('Itinerary Engine: day simulation', () => {
   });
 });
 
-describe('Itinerary Engine: trip planning', () => {
+describe('Trip Engine: trip planning', () => {
   test('pace limits the number of stops per day', () => {
     const many = Array.from({ length: 12 }, (_, index) => candidate(`c${String(index)}`, { durationMinutes: 30 }));
     for (const pace of ['relaxed', 'moderate', 'packed'] as const) {
@@ -207,8 +207,8 @@ describe('Itinerary Engine: trip planning', () => {
 
   test('a day can start later and end earlier than the rest of the trip', () => {
     const many = Array.from({ length: 12 }, (_, index) => candidate(`c${String(index)}`, { durationMinutes: 45 }));
-    const arrival: TripDay = { ...SUNDAY, startMinute: 15 * 60 };
-    const departure: TripDay = { ...MONDAY, endMinute: 12 * 60 };
+    const arrival: CalendarDay = { ...SUNDAY, startMinute: 15 * 60 };
+    const departure: CalendarDay = { ...MONDAY, endMinute: 12 * 60 };
     const plan = planTrip(many, request({ days: [arrival, departure], pace: 'packed' }), { travelMinutes: () => 5 });
     const [first, last] = plan.days;
     expect(first?.stops.every((stop) => stop.startMinute >= 15 * 60)).toBe(true);

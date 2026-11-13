@@ -3,7 +3,7 @@ import { randomInt } from 'node:crypto';
 import { Types, isValidObjectId } from 'mongoose';
 
 import { UserModel } from '../auth/userModel';
-import { ItineraryModel } from '../itineraries/itineraryModel';
+import { TripModel } from '../trips/tripModel';
 import { HttpError } from '../middleware/errorHandler';
 import { INTEREST_TAGS, type InterestTag } from '../shared/interestTags';
 import { type GroupDocument, type GroupMember, GroupModel, type GroupRole } from './groupModel';
@@ -48,7 +48,7 @@ export interface GroupPreferencesUpdate {
   vetoedActivityIds?: string[] | undefined;
 }
 
-/** What a group's members want from a trip, combined for the Itinerary Engine. */
+/** What a group's members want from a trip, combined for the Trip Engine. */
 export interface GroupTripPreferences {
   /** Per interest, the share of members (0 to 1) who picked it; empty when nobody picked any. */
   interestShares: Map<InterestTag, number>;
@@ -198,13 +198,13 @@ export class GroupService {
     await GroupModel.updateOne({ _id: group._id }, { $pull: { members: { userId: target.userId } } });
   }
 
-  /** Deletes the group and its itineraries. Owner only. */
+  /** Deletes the group and its trips. Owner only. */
   async deleteGroup(userId: string, groupId: string): Promise<void> {
     const group = await this.requireMember(userId, groupId);
     if (memberOf(group, userId)?.role !== 'owner') {
       throw new HttpError(403, 'Only the group owner can delete the group');
     }
-    await ItineraryModel.deleteMany({ groupId: group._id });
+    await TripModel.deleteMany({ groupId: group._id });
     await GroupModel.deleteOne({ _id: group._id });
   }
 

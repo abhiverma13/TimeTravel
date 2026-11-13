@@ -3,13 +3,13 @@ import request from 'supertest';
 import type { TaggedPlace } from '../../src/activities/activityService';
 import { INTEREST_TAGS } from '../../src/activities/interests';
 import { DEMO_VANCOUVER_PLACES } from '../../src/dev/demoVancouverPlaces';
-import { MAX_CANDIDATES } from '../../src/itineraries/engine/candidates';
-import type { ItineraryDto } from '../../src/itineraries/itineraryService';
+import { MAX_CANDIDATES } from '../../src/trips/engine/candidates';
+import type { TripDto } from '../../src/trips/tripService';
 import { createTestApp, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
 
 /*
- * NFR 1, itinerary generation time: generating a 5-day itinerary from at least 40 candidate
+ * NFR 1, trip generation time: generating a 5-day trip from at least 40 candidate
  * activities completes within 3 s at the 95th percentile, measured at the API (request in, plan out,
  * including the database reads and write).
  */
@@ -40,7 +40,7 @@ function percentile(sortedValues: readonly number[], fraction: number): number {
 beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
 afterAll(stopTestDatabase);
 
-describe('NFR: itinerary generation time', () => {
+describe('NFR: trip generation time', () => {
   test(`p95 of ${String(RUNS)} five-day generations is under ${String(P95_LIMIT_MS)} ms`, async () => {
     const { app, authService, activityService } = createTestApp();
     const { authorization } = await signedInUser(authService);
@@ -56,27 +56,27 @@ describe('NFR: itinerary generation time', () => {
     };
 
     const durations: number[] = [];
-    let lastItinerary: ItineraryDto | undefined;
+    let lastTrip: TripDto | undefined;
     for (let run = 0; run < RUNS; run += 1) {
       const startedAt = performance.now();
-      const response = await request(app).post('/api/itineraries/generate').set(authorization).send(trip);
+      const response = await request(app).post('/api/trips/generate').set(authorization).send(trip);
       durations.push(performance.now() - startedAt);
       expect(response.status).toBe(201);
-      lastItinerary = response.body as ItineraryDto;
+      lastTrip = response.body as TripDto;
     }
 
     const sorted = [...durations].sort((left, right) => left - right);
     const p50 = percentile(sorted, 0.5);
     const p95 = percentile(sorted, 0.95);
-    const stops = lastItinerary?.days.reduce((count, day) => count + day.stops.length, 0) ?? 0;
+    const stops = lastTrip?.days.reduce((count, day) => count + day.stops.length, 0) ?? 0;
     console.info(
       [
-        `NFR itinerary generation: ${String(RUNS)} runs, 5 days, ${String(lastItinerary?.candidateCount)} candidates, ${String(stops)} stops`,
+        `NFR trip generation: ${String(RUNS)} runs, 5 days, ${String(lastTrip?.candidateCount)} candidates, ${String(stops)} stops`,
         `p50 ${p50.toFixed(0)} ms, p95 ${p95.toFixed(0)} ms, max ${(sorted.at(-1) ?? 0).toFixed(0)} ms (limit ${String(P95_LIMIT_MS)} ms)`,
       ].join('\n'),
     );
-    expect(lastItinerary?.candidateCount).toBe(MAX_CANDIDATES);
-    expect(lastItinerary?.days).toHaveLength(5);
+    expect(lastTrip?.candidateCount).toBe(MAX_CANDIDATES);
+    expect(lastTrip?.days).toHaveLength(5);
     expect(p95).toBeLessThan(P95_LIMIT_MS);
   }, 120_000);
 });

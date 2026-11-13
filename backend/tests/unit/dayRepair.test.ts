@@ -1,6 +1,6 @@
-import { repairDay } from '../../src/itineraries/engine/adjust';
-import type { RankedCandidate } from '../../src/itineraries/engine/candidates';
-import type { DayContext } from '../../src/itineraries/engine/daySchedule';
+import { repairDay } from '../../src/trips/engine/adjust';
+import type { RankedCandidate } from '../../src/trips/engine/candidates';
+import type { DayContext } from '../../src/trips/engine/daySchedule';
 
 // A straight street: each step of 0.01 degrees of longitude is 10 minutes away.
 function at(step: number): { lat: number; lng: number } {

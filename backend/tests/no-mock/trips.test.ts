@@ -3,8 +3,8 @@ import request from 'supertest';
 import { ActivityModel } from '../../src/activities/activityModel';
 import { DEMO_VANCOUVER_PLACES } from '../../src/dev/demoVancouverPlaces';
 import type { GroupDto } from '../../src/groups/groupService';
-import type { ItineraryDto, ItinerarySummaryDto } from '../../src/itineraries/itineraryService';
-import { ItineraryModel } from '../../src/itineraries/itineraryModel';
+import type { TripDto, TripSummaryDto } from '../../src/trips/tripService';
+import { TripModel } from '../../src/trips/tripModel';
 import { createTestApp, seedVancouver, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
 import { seedTestville } from '../helpers/testville';
@@ -22,8 +22,8 @@ const MUSEUM_WEEKEND = {
 
 const TESTVILLE_DAY = { city: 'Testville', startDate: '2026-10-24', endDate: '2026-10-24', dayStart: '09:00', dayEnd: '18:00' };
 
-function allStops(itinerary: ItineraryDto): ItineraryDto['days'][number]['stops'] {
-  return itinerary.days.flatMap((day) => day.stops);
+function allStops(trip: TripDto): TripDto['days'][number]['stops'] {
+  return trip.days.flatMap((day) => day.stops);
 }
 
 async function testvilleId(name: string): Promise<string> {
@@ -34,8 +34,8 @@ beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
 afterEach(clearTestDatabase);
 afterAll(stopTestDatabase);
 
-// Interface POST /api/itineraries/generate
-describe('Unmocked: POST /api/itineraries/generate', () => {
+// Interface POST /api/trips/generate
+describe('Unmocked: POST /api/trips/generate', () => {
   // Input: a 3-day Vancouver trip (Sat-Mon), 09:00-18:00, interested in museums, moderate pace
   // Expected status code: 201
   // Expected behavior: a day-by-day plan is generated from the cached catalogue and stored
@@ -45,39 +45,39 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     const { authorization } = await signedInUser(authService);
     await seedVancouver(activityService);
 
-    const response = await request(app).post('/api/itineraries/generate').set(authorization).send(MUSEUM_WEEKEND);
+    const response = await request(app).post('/api/trips/generate').set(authorization).send(MUSEUM_WEEKEND);
 
-    const itinerary = response.body as ItineraryDto;
+    const trip = response.body as TripDto;
     expect(response.status).toBe(201);
-    expect(itinerary.days.map((day) => [day.date, day.weekday])).toEqual([
+    expect(trip.days.map((day) => [day.date, day.weekday])).toEqual([
       ['2026-10-24', 6],
       ['2026-10-25', 0],
       ['2026-10-26', 1],
     ]);
-    const stops = allStops(itinerary);
+    const stops = allStops(trip);
     expect(stops.length).toBeGreaterThanOrEqual(6);
     expect(new Set(stops.map((stop) => stop.activityId)).size).toBe(stops.length);
     for (const stop of stops) {
       expect(stop.startTime >= '09:00' && stop.endTime <= '18:00').toBe(true);
     }
-    const monday = itinerary.days.at(2)?.stops.map((stop) => stop.name);
+    const monday = trip.days.at(2)?.stops.map((stop) => stop.name);
     expect(monday).not.toContain('Museum of Anthropology at UBC');
-    expect(itinerary.lodging).toMatchObject({ label: 'Vancouver centre', source: 'city-centre' });
-    expect(itinerary.warnings).toEqual([]);
-    expect(await ItineraryModel.countDocuments()).toBe(1);
+    expect(trip.lodging).toMatchObject({ label: 'Vancouver centre', source: 'city-centre' });
+    expect(trip.warnings).toEqual([]);
+    expect(await TripModel.countDocuments()).toBe(1);
   });
 
   // Input: the same trip with only the required fields (city and dates)
   // Expected status code: 201
   // Expected behavior: defaults are applied: 09:00-18:00, moderate pace, all interests
-  // Expected output: an itinerary echoing the defaults
+  // Expected output: a trip echoing the defaults
   test('Applies defaults', async () => {
     const { app, authService, activityService } = createTestApp();
     const { authorization } = await signedInUser(authService);
     await seedVancouver(activityService);
 
     const response = await request(app)
-      .post('/api/itineraries/generate')
+      .post('/api/trips/generate')
       .set(authorization)
       .send({ city: 'Vancouver', startDate: '2026-10-24', endDate: '2026-10-24' });
 
@@ -102,14 +102,14 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     await seedVancouver(activityService);
 
     const response = await request(app)
-      .post('/api/itineraries/generate')
+      .post('/api/trips/generate')
       .set(authorization)
       .send({ ...MUSEUM_WEEKEND, arrivalTime: '15:00', departureTime: '12:00' });
 
-    const itinerary = response.body as ItineraryDto;
+    const trip = response.body as TripDto;
     expect(response.status).toBe(201);
-    expect(itinerary).toMatchObject({ arrivalTime: '15:00', departureTime: '12:00' });
-    const [firstDay, , lastDay] = itinerary.days;
+    expect(trip).toMatchObject({ arrivalTime: '15:00', departureTime: '12:00' });
+    const [firstDay, , lastDay] = trip.days;
     expect(firstDay?.stops.length).toBeGreaterThan(0);
     expect(firstDay?.stops.every((stop) => stop.startTime >= '15:00')).toBe(true);
     expect(lastDay?.stops.every((stop) => stop.endTime <= '12:00')).toBe(true);
@@ -125,14 +125,14 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     await seedVancouver(activityService);
 
     const response = await request(app)
-      .post('/api/itineraries/generate')
+      .post('/api/trips/generate')
       .set(authorization)
       .send({ ...MUSEUM_WEEKEND, lodging: 'Fairmont Hotel Vancouver' });
 
-    const itinerary = response.body as ItineraryDto;
+    const trip = response.body as TripDto;
     expect(response.status).toBe(201);
-    expect(itinerary.lodging.source).toBe('city-centre');
-    expect(itinerary.warnings).toEqual(['Could not find "Fairmont Hotel Vancouver"; days start and end at the Vancouver centre.']);
+    expect(trip.lodging.source).toBe('city-centre');
+    expect(trip.warnings).toEqual(['Could not find "Fairmont Hotel Vancouver"; days start and end at the Vancouver centre.']);
   });
 
   // Input: a trip to a town whose only activity (a museum open 10:00-17:00) is visited 18:00-21:00
@@ -146,14 +146,14 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     await activityService.importPlaces('Tinytown', museum ? [museum] : []);
 
     const response = await request(app)
-      .post('/api/itineraries/generate')
+      .post('/api/trips/generate')
       .set(authorization)
       .send({ city: 'Tinytown', startDate: '2026-10-24', endDate: '2026-10-24', dayStart: '18:00', dayEnd: '21:00' });
 
-    const itinerary = response.body as ItineraryDto;
+    const trip = response.body as TripDto;
     expect(response.status).toBe(201);
-    expect(allStops(itinerary)).toEqual([]);
-    expect(itinerary.warnings).toEqual(['No activity fits these dates and hours; try longer days or different interests.']);
+    expect(allStops(trip)).toEqual([]);
+    expect(trip.warnings).toEqual(['No activity fits these dates and hours; try longer days or different interests.']);
   });
 
   // Input: invalid trips: end before start, longer than 7 days, impossible date, bad time, too-short day,
@@ -176,11 +176,11 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     const { authorization } = await signedInUser(authService);
     await seedVancouver(activityService);
 
-    const response = await request(app).post('/api/itineraries/generate').set(authorization).send(invalidTrip);
+    const response = await request(app).post('/api/trips/generate').set(authorization).send(invalidTrip);
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('Invalid request');
-    expect(await ItineraryModel.countDocuments()).toBe(0);
+    expect(await TripModel.countDocuments()).toBe(0);
   });
 
   // Input: a city with no cached catalogue, on a server without Google Places configured
@@ -191,7 +191,7 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     const { app, authService } = createTestApp();
     const { authorization } = await signedInUser(authService);
 
-    const response = await request(app).post('/api/itineraries/generate').set(authorization).send({ ...MUSEUM_WEEKEND, city: 'Atlantis' });
+    const response = await request(app).post('/api/trips/generate').set(authorization).send({ ...MUSEUM_WEEKEND, city: 'Atlantis' });
 
     expect(response.status).toBe(503);
   });
@@ -203,7 +203,7 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
   test('Not signed in', async () => {
     const { app } = createTestApp();
 
-    const response = await request(app).post('/api/itineraries/generate').send(MUSEUM_WEEKEND);
+    const response = await request(app).post('/api/trips/generate').send(MUSEUM_WEEKEND);
 
     expect(response.status).toBe(401);
   });
@@ -229,17 +229,17 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
       .send({ interests: ['outdoors', 'food'], vetoedActivityIds: [seawall?._id.toString()] });
 
     const response = await request(app)
-      .post('/api/itineraries/generate')
+      .post('/api/trips/generate')
       .set(owner.authorization)
       .send({ ...MUSEUM_WEEKEND, interests: ['nightlife'], groupId: group.id });
 
-    const itinerary = response.body as ItineraryDto;
+    const trip = response.body as TripDto;
     expect(response.status).toBe(201);
-    expect(itinerary.groupId).toBe(group.id);
-    expect(itinerary.interests).toEqual(['museums', 'outdoors', 'food']);
-    expect(allStops(itinerary).length).toBeGreaterThan(0);
-    expect(allStops(itinerary).map((stop) => stop.name)).not.toContain('Stanley Park Seawall');
-    const memberView = await request(app).get(`/api/itineraries/${itinerary.id}`).set(member.authorization);
+    expect(trip.groupId).toBe(group.id);
+    expect(trip.interests).toEqual(['museums', 'outdoors', 'food']);
+    expect(allStops(trip).length).toBeGreaterThan(0);
+    expect(allStops(trip).map((stop) => stop.name)).not.toContain('Stanley Park Seawall');
+    const memberView = await request(app).get(`/api/trips/${trip.id}`).set(member.authorization);
     expect(memberView.status).toBe(200);
   });
 
@@ -258,10 +258,10 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
     const groupId = scenario === 'not a member' ? group.id : scenario;
 
-    const response = await request(app).post('/api/itineraries/generate').set(stranger.authorization).send({ ...MUSEUM_WEEKEND, groupId });
+    const response = await request(app).post('/api/trips/generate').set(stranger.authorization).send({ ...MUSEUM_WEEKEND, groupId });
 
     expect(response.status).toBe(status);
-    expect(await ItineraryModel.countDocuments()).toBe(0);
+    expect(await TripModel.countDocuments()).toBe(0);
   });
 
   // Input: a one-day Testville trip on foot with a low budget
@@ -274,15 +274,15 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     await seedTestville(activityService);
 
     const response = await request(app)
-      .post('/api/itineraries/generate')
+      .post('/api/trips/generate')
       .set(authorization)
       .send({ ...TESTVILLE_DAY, transportMode: 'walk', budget: 'low' });
 
-    const itinerary = response.body as ItineraryDto;
+    const trip = response.body as TripDto;
     expect(response.status).toBe(201);
-    expect(itinerary).toMatchObject({ transportMode: 'walk', budget: 'low', travelTimeSource: 'estimate' });
-    expect(allStops(itinerary).length).toBeGreaterThan(0);
-    expect(allStops(itinerary).map((stop) => stop.name)).not.toContain('Town Museum');
+    expect(trip).toMatchObject({ transportMode: 'walk', budget: 'low', travelTimeSource: 'estimate' });
+    expect(allStops(trip).length).toBeGreaterThan(0);
+    expect(allStops(trip).map((stop) => stop.name)).not.toContain('Town Museum');
   });
 
   // Input: a one-day Testville trip by car, with no Google Routes key
@@ -295,14 +295,14 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     await seedTestville(activityService);
 
     const response = await request(app)
-      .post('/api/itineraries/generate')
+      .post('/api/trips/generate')
       .set(authorization)
       .send({ ...TESTVILLE_DAY, transportMode: 'drive' });
 
-    const itinerary = response.body as ItineraryDto;
-    const drives = allStops(itinerary).map((stop) => stop.travelMinutes).filter((minutes) => minutes > 0);
+    const trip = response.body as TripDto;
+    const drives = allStops(trip).map((stop) => stop.travelMinutes).filter((minutes) => minutes > 0);
     expect(response.status).toBe(201);
-    expect(itinerary).toMatchObject({ transportMode: 'drive', travelTimeSource: 'estimate' });
+    expect(trip).toMatchObject({ transportMode: 'drive', travelTimeSource: 'estimate' });
     expect(drives.length).toBeGreaterThan(0);
     expect(drives.every((minutes) => minutes >= 5)).toBe(true);
   });
@@ -319,17 +319,17 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     const park = await testvilleId('Harbour Park');
 
     const response = await request(app)
-      .post('/api/itineraries/generate')
+      .post('/api/trips/generate')
       .set(authorization)
       .send({ ...TESTVILLE_DAY, dayEnd: '21:00', mustSeeIds: [market], avoidIds: [park] });
 
-    const itinerary = response.body as ItineraryDto;
-    const names = allStops(itinerary).map((stop) => stop.name);
+    const trip = response.body as TripDto;
+    const names = allStops(trip).map((stop) => stop.name);
     expect(response.status).toBe(201);
     expect(names).toContain('Night Market');
     expect(names).not.toContain('Harbour Park');
-    expect(itinerary).toMatchObject({ mustSeeIds: [market], avoidIds: [park] });
-    expect(itinerary.warnings).toEqual([]);
+    expect(trip).toMatchObject({ mustSeeIds: [market], avoidIds: [park] });
+    expect(trip.warnings).toEqual([]);
   });
 
   // Input: must-sees that cannot be included: Night Market on a day ending at 16:00, a place from another city,
@@ -351,21 +351,21 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     await request(app).put(`/api/groups/${group.id}/members/me`).set(member.authorization).send({ vetoedActivityIds: [lookout] });
 
     const solo = await request(app)
-      .post('/api/itineraries/generate')
+      .post('/api/trips/generate')
       .set(owner.authorization)
       .send({ ...TESTVILLE_DAY, dayEnd: '16:00', mustSeeIds: [market, elsewhere] });
     const grouped = await request(app)
-      .post('/api/itineraries/generate')
+      .post('/api/trips/generate')
       .set(owner.authorization)
       .send({ ...TESTVILLE_DAY, mustSeeIds: [lookout], groupId: group.id });
 
     expect(solo.status).toBe(201);
-    expect((solo.body as ItineraryDto).warnings).toEqual([
+    expect((solo.body as TripDto).warnings).toEqual([
       'Night Market did not fit your days: check its opening hours.',
       "One of your must-see places is not in this city's activities.",
     ]);
     expect(grouped.status).toBe(201);
-    expect((grouped.body as ItineraryDto).warnings).toEqual(['Lookout Tower was vetoed by a member of the group, so it was left out.']);
+    expect((grouped.body as TripDto).warnings).toEqual(['Lookout Tower was vetoed by a member of the group, so it was left out.']);
   });
 
   // Input: an unknown transport mode, an unknown budget, a place both must-see and avoided, and 11 must-sees
@@ -382,80 +382,80 @@ describe('Unmocked: POST /api/itineraries/generate', () => {
     const { authorization } = await signedInUser(authService);
     await seedTestville(activityService);
 
-    const response = await request(app).post('/api/itineraries/generate').set(authorization).send({ ...TESTVILLE_DAY, ...options });
+    const response = await request(app).post('/api/trips/generate').set(authorization).send({ ...TESTVILLE_DAY, ...options });
 
     expect(response.status).toBe(400);
-    expect(await ItineraryModel.countDocuments()).toBe(0);
+    expect(await TripModel.countDocuments()).toBe(0);
   });
 });
 
-// Interface GET /api/itineraries/:itineraryId
-describe('Unmocked: GET /api/itineraries/:itineraryId', () => {
-  // Input: the id of an itinerary the signed-in traveller generated
+// Interface GET /api/trips/:tripId
+describe('Unmocked: GET /api/trips/:tripId', () => {
+  // Input: the id of a trip the signed-in traveller generated
   // Expected status code: 200
-  // Expected behavior: the stored itinerary is read back unchanged
-  // Expected output: the same itinerary the generate call returned
-  test('Own itinerary', async () => {
+  // Expected behavior: the stored trip is read back unchanged
+  // Expected output: the same trip the generate call returned
+  test('Own trip', async () => {
     const { app, authService, activityService } = createTestApp();
     const { authorization } = await signedInUser(authService);
     await seedVancouver(activityService);
-    const generated = await request(app).post('/api/itineraries/generate').set(authorization).send(MUSEUM_WEEKEND);
+    const generated = await request(app).post('/api/trips/generate').set(authorization).send(MUSEUM_WEEKEND);
 
-    const response = await request(app).get(`/api/itineraries/${(generated.body as ItineraryDto).id}`).set(authorization);
+    const response = await request(app).get(`/api/trips/${(generated.body as TripDto).id}`).set(authorization);
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(generated.body);
   });
 
-  // Input: the id of an itinerary another traveller generated
+  // Input: the id of a trip another traveller generated
   // Expected status code: 404
   // Expected behavior: other travellers' plans are not revealed
-  // Expected output: { error: "Itinerary not found" }
-  test("Another traveller's itinerary", async () => {
+  // Expected output: { error: "Trip not found" }
+  test("Another traveller's trip", async () => {
     const { app, authService, activityService } = createTestApp();
     const owner = await signedInUser(authService, 'Trip Owner');
     const stranger = await signedInUser(authService, 'Someone Else');
     await seedVancouver(activityService);
-    const generated = await request(app).post('/api/itineraries/generate').set(owner.authorization).send(MUSEUM_WEEKEND);
+    const generated = await request(app).post('/api/trips/generate').set(owner.authorization).send(MUSEUM_WEEKEND);
 
-    const response = await request(app).get(`/api/itineraries/${(generated.body as ItineraryDto).id}`).set(stranger.authorization);
+    const response = await request(app).get(`/api/trips/${(generated.body as TripDto).id}`).set(stranger.authorization);
 
     expect(response.status).toBe(404);
-    expect(response.body).toEqual({ error: 'Itinerary not found' });
+    expect(response.body).toEqual({ error: 'Trip not found' });
   });
 
-  // Input: an id that is not a valid id, and a valid id that matches no itinerary
+  // Input: an id that is not a valid id, and a valid id that matches no trip
   // Expected status code: 404 for both
   // Expected behavior: nothing is returned
-  // Expected output: { error: "Itinerary not found" }
-  test.each(['not-an-id', '64b7f0c2a1b2c3d4e5f60718'])('Unknown itinerary %s', async (itineraryId) => {
+  // Expected output: { error: "Trip not found" }
+  test.each(['not-an-id', '64b7f0c2a1b2c3d4e5f60718'])('Unknown trip %s', async (tripId) => {
     const { app, authService } = createTestApp();
     const { authorization } = await signedInUser(authService);
 
-    const response = await request(app).get(`/api/itineraries/${itineraryId}`).set(authorization);
+    const response = await request(app).get(`/api/trips/${tripId}`).set(authorization);
 
     expect(response.status).toBe(404);
   });
 });
 
-// Interface GET /api/itineraries
-describe('Unmocked: GET /api/itineraries', () => {
-  // Input: a traveller who generated two itineraries, while another traveller generated one
+// Interface GET /api/trips
+describe('Unmocked: GET /api/trips', () => {
+  // Input: a traveller who generated two trips, while another traveller generated one
   // Expected status code: 200
-  // Expected behavior: only the traveller's own itineraries are listed, newest first
-  // Expected output: { itineraries: [summary of the second, summary of the first] }
-  test("Lists the traveller's itineraries, newest first", async () => {
+  // Expected behavior: only the traveller's own trips are listed, newest first
+  // Expected output: { trips: [summary of the second, summary of the first] }
+  test("Lists the traveller's trips, newest first", async () => {
     const { app, authService, activityService } = createTestApp();
     const { authorization } = await signedInUser(authService, 'Trip Owner');
     const stranger = await signedInUser(authService, 'Someone Else');
     await seedVancouver(activityService);
-    await request(app).post('/api/itineraries/generate').set(authorization).send({ ...MUSEUM_WEEKEND, pace: 'relaxed' });
-    await request(app).post('/api/itineraries/generate').set(authorization).send({ ...MUSEUM_WEEKEND, pace: 'packed' });
-    await request(app).post('/api/itineraries/generate').set(stranger.authorization).send(MUSEUM_WEEKEND);
+    await request(app).post('/api/trips/generate').set(authorization).send({ ...MUSEUM_WEEKEND, pace: 'relaxed' });
+    await request(app).post('/api/trips/generate').set(authorization).send({ ...MUSEUM_WEEKEND, pace: 'packed' });
+    await request(app).post('/api/trips/generate').set(stranger.authorization).send(MUSEUM_WEEKEND);
 
-    const response = await request(app).get('/api/itineraries').set(authorization);
+    const response = await request(app).get('/api/trips').set(authorization);
 
-    const summaries = (response.body as { itineraries: ItinerarySummaryDto[] }).itineraries;
+    const summaries = (response.body as { trips: TripSummaryDto[] }).trips;
     expect(response.status).toBe(200);
     expect(summaries.map((summary) => summary.pace)).toEqual(['packed', 'relaxed']);
     expect(summaries.at(0)).toMatchObject({ city: 'Vancouver', startDate: '2026-10-24', endDate: '2026-10-26' });
@@ -465,15 +465,15 @@ describe('Unmocked: GET /api/itineraries', () => {
   // Input: a traveller who has not generated anything
   // Expected status code: 200
   // Expected behavior: nothing is listed
-  // Expected output: { itineraries: [] }
-  test('No itineraries yet', async () => {
+  // Expected output: { trips: [] }
+  test('No trips yet', async () => {
     const { app, authService } = createTestApp();
     const { authorization } = await signedInUser(authService);
 
-    const response = await request(app).get('/api/itineraries').set(authorization);
+    const response = await request(app).get('/api/trips').set(authorization);
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ itineraries: [] });
+    expect(response.body).toEqual({ trips: [] });
   });
 
   // Input: the owner has a personal trip and a group trip; a member of the group lists theirs, then filters by the group
@@ -487,14 +487,14 @@ describe('Unmocked: GET /api/itineraries', () => {
     await seedVancouver(activityService);
     const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
     await request(app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
-    await request(app).post('/api/itineraries/generate').set(owner.authorization).send(MUSEUM_WEEKEND);
-    await request(app).post('/api/itineraries/generate').set(owner.authorization).send({ ...MUSEUM_WEEKEND, groupId: group.id });
+    await request(app).post('/api/trips/generate').set(owner.authorization).send(MUSEUM_WEEKEND);
+    await request(app).post('/api/trips/generate').set(owner.authorization).send({ ...MUSEUM_WEEKEND, groupId: group.id });
 
-    const all = await request(app).get('/api/itineraries').set(member.authorization);
-    const filtered = await request(app).get('/api/itineraries').query({ groupId: group.id }).set(member.authorization);
+    const all = await request(app).get('/api/trips').set(member.authorization);
+    const filtered = await request(app).get('/api/trips').query({ groupId: group.id }).set(member.authorization);
 
     for (const response of [all, filtered]) {
-      const summaries = (response.body as { itineraries: ItinerarySummaryDto[] }).itineraries;
+      const summaries = (response.body as { trips: TripSummaryDto[] }).trips;
       expect(response.status).toBe(200);
       expect(summaries.map((summary) => summary.groupId)).toEqual([group.id]);
     }
@@ -514,7 +514,7 @@ describe('Unmocked: GET /api/itineraries', () => {
     const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
     const groupId = scenario === 'not a member' ? group.id : scenario;
 
-    const response = await request(app).get('/api/itineraries').query({ groupId }).set(stranger.authorization);
+    const response = await request(app).get('/api/trips').query({ groupId }).set(stranger.authorization);
 
     expect(response.status).toBe(status);
   });

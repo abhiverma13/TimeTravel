@@ -39,7 +39,7 @@ jobs:
       - name: All interface tests (combined coverage)
         run: npx jest tests/mock tests/no-mock --coverage --coverageDirectory=coverage/interface
 
-      - name: Unit tests (Itinerary Engine)
+      - name: Unit tests (Trip Engine)
         run: npx jest tests/unit --coverage=false
 
       - name: Non-functional requirement tests

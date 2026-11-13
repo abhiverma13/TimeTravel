@@ -6,7 +6,7 @@ import { INTEREST_TAGS } from '../activities/interests';
 import type { AuthService } from '../auth/authService';
 import { authenticatedUserId, requireSession } from '../middleware/authenticate';
 import { PACES, TRANSPORT_MODES } from './engine/types';
-import { MAX_TRIP_DAYS, type ItineraryService } from './itineraryService';
+import { MAX_TRIP_DAYS, type TripService } from './tripService';
 import { isClockTime, isIsoDate, minutesFromClock, tripLengthDays } from './tripCalendar';
 import { BUDGETS } from './tripOptions';
 
@@ -20,7 +20,7 @@ const activityId = z.string().refine((id) => isValidObjectId(id), 'must be an ac
 const MAX_MUST_SEE = 10;
 const MAX_AVOID = 50;
 
-const generateItineraryBody = z
+const generateTripBody = z
   .object({
     city: z.string().trim().min(1, 'city is required').max(80),
     startDate: isoDate,
@@ -62,32 +62,32 @@ const adjustBody = z.union([
 ]);
 
 /**
- * POST /api/itineraries/generate
- * GET  /api/itineraries?groupId=
- * GET  /api/itineraries/:itineraryId
- * POST /api/itineraries/:itineraryId/adjust
+ * POST /api/trips/generate
+ * GET  /api/trips?groupId=
+ * GET  /api/trips/:tripId
+ * POST /api/trips/:tripId/adjust
  */
-export function createItineraryRouter(authService: AuthService, itineraryService: ItineraryService): Router {
+export function createTripRouter(authService: AuthService, tripService: TripService): Router {
   const router = Router();
   router.use(requireSession(authService));
 
   router.post('/generate', async (request, response) => {
-    const input = generateItineraryBody.parse(request.body);
-    response.status(201).json(await itineraryService.generateItinerary(authenticatedUserId(response), input));
+    const input = generateTripBody.parse(request.body);
+    response.status(201).json(await tripService.generateTrip(authenticatedUserId(response), input));
   });
 
   router.get('/', async (request, response) => {
     const query = listQuery.parse(request.query);
-    response.json({ itineraries: await itineraryService.listItineraries(authenticatedUserId(response), query.groupId) });
+    response.json({ trips: await tripService.listTrips(authenticatedUserId(response), query.groupId) });
   });
 
-  router.get('/:itineraryId', async (request, response) => {
-    response.json(await itineraryService.getItinerary(authenticatedUserId(response), request.params.itineraryId));
+  router.get('/:tripId', async (request, response) => {
+    response.json(await tripService.getTrip(authenticatedUserId(response), request.params.tripId));
   });
 
-  router.post('/:itineraryId/adjust', async (request, response) => {
+  router.post('/:tripId/adjust', async (request, response) => {
     const change = adjustBody.parse(request.body);
-    response.json(await itineraryService.adjustItinerary(authenticatedUserId(response), request.params.itineraryId, change));
+    response.json(await tripService.adjustTrip(authenticatedUserId(response), request.params.tripId, change));
   });
 
   return router;

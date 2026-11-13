@@ -1,9 +1,9 @@
 import { Types, isValidObjectId } from 'mongoose';
 
 import { UserModel } from '../auth/userModel';
-import { haversineKm } from '../itineraries/engine/travelTime';
-import type { GeoPoint } from '../itineraries/engine/types';
-import { isScheduledOn } from '../itineraries/visits';
+import { haversineKm } from '../trips/engine/travelTime';
+import type { GeoPoint } from '../trips/engine/types';
+import { isScheduledOn } from '../trips/visits';
 import { HttpError } from '../middleware/errorHandler';
 import { type ActivityDocument, ActivityModel, type CityCatalogue, CityCatalogueModel, toCityKey } from './activityModel';
 import { DEFAULT_CITY_MEAN_RATING, cityMeanRating, communityScore } from './communityScore';
@@ -26,7 +26,7 @@ export interface TaggedPlace extends PlaceResult {
   foundBy: InterestTag[];
 }
 
-/** The activity shape the front-end and the Itinerary Engine read. */
+/** The activity shape the front-end and the Trip Engine read. */
 export interface ActivityDto {
   id: string;
   name: string;

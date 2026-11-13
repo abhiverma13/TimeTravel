@@ -6,33 +6,33 @@ import type { PlacesClient } from '../activities/placesClient';
 import { UserModel } from '../auth/userModel';
 import type { GroupService, GroupTripPreferences } from '../groups/groupService';
 import { HttpError } from '../middleware/errorHandler';
-import { type ItineraryAdjustment, type RepairInputs, STALE_ITINERARY, applyAdjustment, replaceStop, timedStops, toCandidate } from './dayRepair';
+import { type TripAdjustment, type RepairInputs, STALE_TRIP, applyAdjustment, replaceStop, timedStops, toCandidate } from './dayRepair';
 import { type RankedCandidate, pruneCandidates } from './engine/candidates';
 import { type SimulatedDay, simulateDay } from './engine/daySchedule';
 import { dayContext, paceSettings, planTrip } from './engine/planner';
-import type { Candidate, GeoPoint, Pace, PlanRequest, TransportMode, TripDay } from './engine/types';
-import { type Itinerary, type ItineraryDay, type ItineraryDocument, ItineraryModel, type Lodging } from './itineraryModel';
+import type { Candidate, GeoPoint, Pace, PlanRequest, TransportMode, CalendarDay } from './engine/types';
+import { type Trip, type TripDay, type TripDocument, TripModel, type Lodging } from './tripModel';
 import { ROUTED_CANDIDATES, type TravelTimeService } from './travelTimes';
 import { addDays, clockFromMinutes, minutesFromClock, tripDays } from './tripCalendar';
 import { type Budget, selectActivities } from './tripOptions';
 
 export const MAX_TRIP_DAYS = 7;
-const RECENT_ITINERARY_LIMIT = 20;
+const RECENT_TRIP_LIMIT = 20;
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-/** A day of an itinerary changed but not yet saved, and the itinerary version it was made from. */
+/** A day of a trip changed but not yet saved, and the trip version it was made from. */
 export interface ProposedDay {
   version: number;
-  day: ItineraryDay;
+  day: TripDay;
 }
 
 /** A frozen copy of a trip, as a post keeps it: the plan and the choices it was made with. */
 export type TripSnapshot = Pick<
-  Itinerary,
+  Trip,
   'city' | 'startDate' | 'endDate' | 'dayStart' | 'dayEnd' | 'interests' | 'pace' | 'transportMode' | 'budget' | 'lodging' | 'days'
 >;
 
-export interface GenerateItineraryInput {
+export interface GenerateTripInput {
   city: string;
   startDate: string;
   endDate: string;
@@ -55,7 +55,7 @@ export interface GenerateItineraryInput {
   avoidIds: string[];
 }
 
-export interface ItineraryStopDto {
+export interface TripStopDto {
   activityId: string;
   name: string;
   address: string;
@@ -69,7 +69,7 @@ export interface ItineraryStopDto {
   visited: boolean;
 }
 
-export interface ItineraryDto {
+export interface TripDto {
   id: string;
   /** The group the trip belongs to, or null for a personal trip. */
   groupId: string | null;
@@ -88,7 +88,7 @@ export interface ItineraryDto {
   avoidIds: string[];
   travelTimeSource: 'google-routes' | 'estimate';
   lodging: Lodging;
-  days: { date: string; weekday: number; stops: ItineraryStopDto[]; returnTravelMinutes: number }[];
+  days: { date: string; weekday: number; stops: TripStopDto[]; returnTravelMinutes: number }[];
   candidateCount: number;
   unscheduledCount: number;
   warnings: string[];
@@ -100,7 +100,7 @@ export interface ItineraryDto {
   createdAt: string;
 }
 
-export interface ItinerarySummaryDto {
+export interface TripSummaryDto {
   id: string;
   groupId: string | null;
   city: string;
@@ -112,41 +112,41 @@ export interface ItinerarySummaryDto {
   createdAt: string;
 }
 
-/** An adjustment that was saved: who made it, and the itinerary as it is now. */
-export interface ItineraryChange {
-  itinerary: ItineraryDto;
+/** An adjustment that was saved: who made it, and the trip as it is now. */
+export interface TripChange {
+  trip: TripDto;
   actorId: string;
   /** For the other members' screens: "Ava removed Stanley Park Seawall". */
   summary: string;
 }
 
-export type ItineraryListener = (change: ItineraryChange) => void;
+export type TripListener = (change: TripChange) => void;
 
-export interface ItineraryServiceOptions {
+export interface TripServiceOptions {
   /** Local search time per day, passed to the engine. */
   searchBudgetMsPerDay?: number;
 }
 
-function toItineraryDto(itinerary: ItineraryDocument): ItineraryDto {
+function toTripDto(trip: TripDocument): TripDto {
   return {
-    id: itinerary._id.toString(),
-    groupId: itinerary.groupId?.toString() ?? null,
-    city: itinerary.city,
-    startDate: itinerary.startDate,
-    endDate: itinerary.endDate,
-    dayStart: itinerary.dayStart,
-    dayEnd: itinerary.dayEnd,
-    arrivalTime: itinerary.arrivalTime ?? null,
-    departureTime: itinerary.departureTime ?? null,
-    interests: [...itinerary.interests],
-    pace: itinerary.pace,
-    transportMode: itinerary.transportMode,
-    budget: itinerary.budget,
-    mustSeeIds: itinerary.mustSeeIds.map((id) => id.toString()),
-    avoidIds: itinerary.avoidIds.map((id) => id.toString()),
-    travelTimeSource: itinerary.travelTimeSource,
-    lodging: { label: itinerary.lodging.label, lat: itinerary.lodging.lat, lng: itinerary.lodging.lng, source: itinerary.lodging.source },
-    days: itinerary.days.map((day) => ({
+    id: trip._id.toString(),
+    groupId: trip.groupId?.toString() ?? null,
+    city: trip.city,
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+    dayStart: trip.dayStart,
+    dayEnd: trip.dayEnd,
+    arrivalTime: trip.arrivalTime ?? null,
+    departureTime: trip.departureTime ?? null,
+    interests: [...trip.interests],
+    pace: trip.pace,
+    transportMode: trip.transportMode,
+    budget: trip.budget,
+    mustSeeIds: trip.mustSeeIds.map((id) => id.toString()),
+    avoidIds: trip.avoidIds.map((id) => id.toString()),
+    travelTimeSource: trip.travelTimeSource,
+    lodging: { label: trip.lodging.label, lat: trip.lodging.lat, lng: trip.lodging.lng, source: trip.lodging.source },
+    days: trip.days.map((day) => ({
       date: day.date,
       weekday: day.weekday,
       returnTravelMinutes: day.returnTravelMinutes,
@@ -164,20 +164,20 @@ function toItineraryDto(itinerary: ItineraryDocument): ItineraryDto {
         visited: stop.visited,
       })),
     })),
-    candidateCount: itinerary.candidateCount,
-    unscheduledCount: itinerary.unscheduledCount,
-    warnings: [...itinerary.warnings],
-    generationMs: itinerary.generationMs,
-    version: itinerary.version,
-    openToJoin: itinerary.openToJoin,
-    createdAt: itinerary.createdAt.toISOString(),
+    candidateCount: trip.candidateCount,
+    unscheduledCount: trip.unscheduledCount,
+    warnings: [...trip.warnings],
+    generationMs: trip.generationMs,
+    version: trip.version,
+    openToJoin: trip.openToJoin,
+    createdAt: trip.createdAt.toISOString(),
   };
 }
 
 /** The trip's days, with the first day starting at arrival and the last ending at departure. */
-type TripHours = Pick<GenerateItineraryInput, 'startDate' | 'endDate' | 'dayStart' | 'dayEnd' | 'arrivalTime' | 'departureTime'>;
+type TripHours = Pick<GenerateTripInput, 'startDate' | 'endDate' | 'dayStart' | 'dayEnd' | 'arrivalTime' | 'departureTime'>;
 
-function plannedDays(input: TripHours): TripDay[] {
+function plannedDays(input: TripHours): CalendarDay[] {
   const days = tripDays(input.startDate, input.endDate);
   const lastIndex = days.length - 1;
   return days.map((day, index) => ({
@@ -218,7 +218,7 @@ function missedMustSees(
 }
 
 // A stored day as plain data, so it can be changed and written back whole.
-function plainDay(day: ItineraryDay): ItineraryDay {
+function plainDay(day: TripDay): TripDay {
   return {
     date: day.date,
     weekday: day.weekday,
@@ -239,19 +239,19 @@ function plainDay(day: ItineraryDay): ItineraryDay {
   };
 }
 
-/** Trip planning on top of the Itinerary Engine: gathers candidates, resolves lodging, stores the plan. */
-export class ItineraryService {
-  private readonly listeners: ItineraryListener[] = [];
+/** Trip planning on top of the Trip Engine: gathers candidates, resolves lodging, stores the plan. */
+export class TripService {
+  private readonly listeners: TripListener[] = [];
 
   constructor(
     private readonly activityService: ActivityService,
     private readonly placesClient: PlacesClient | null,
     private readonly groupService: GroupService,
     private readonly travelTimes: TravelTimeService,
-    private readonly options: ItineraryServiceOptions = {},
+    private readonly options: TripServiceOptions = {},
   ) {}
 
-  async generateItinerary(userId: string, input: GenerateItineraryInput): Promise<ItineraryDto> {
+  async generateTrip(userId: string, input: GenerateTripInput): Promise<TripDto> {
     const startedAt = performance.now();
     const group: GroupTripPreferences | null =
       input.groupId === undefined ? null : await this.groupService.tripPreferences(userId, input.groupId);
@@ -316,7 +316,7 @@ export class ItineraryService {
     }
     warnings.push(...missedMustSees(input.mustSeeIds, days, catalogue, excludedIds));
 
-    const itinerary = await ItineraryModel.create({
+    const trip = await TripModel.create({
       userId: new Types.ObjectId(userId),
       groupId: input.groupId === undefined ? undefined : new Types.ObjectId(input.groupId),
       city: input.city,
@@ -340,52 +340,52 @@ export class ItineraryService {
       warnings,
       generationMs: Math.round(performance.now() - startedAt),
     });
-    return toItineraryDto(itinerary);
+    return toTripDto(trip);
   }
 
   /**
-   * An itinerary the traveller may see: their own personal trip, or a trip of a group they belong to.
+   * A trip the traveller may see: their own personal trip, or a trip of a group they belong to.
    * Anything else is reported as not found.
    */
-  async getItinerary(userId: string, itineraryId: string): Promise<ItineraryDto> {
-    return toItineraryDto(await this.findVisible(userId, itineraryId));
+  async getTrip(userId: string, tripId: string): Promise<TripDto> {
+    return toTripDto(await this.findVisible(userId, tripId));
   }
 
-  /** The traveller's most recent personal and group itineraries, newest first; or one group's, with `groupId`. */
-  async listItineraries(userId: string, groupId?: string): Promise<ItinerarySummaryDto[]> {
+  /** The traveller's most recent personal and group trips, newest first; or one group's, with `groupId`. */
+  async listTrips(userId: string, groupId?: string): Promise<TripSummaryDto[]> {
     const filter =
       groupId === undefined
         ? await this.visibleFilter(userId)
         : { groupId: (await this.groupService.requireMember(userId, groupId))._id };
-    const itineraries = await ItineraryModel.find(filter).sort({ createdAt: -1 }).limit(RECENT_ITINERARY_LIMIT);
-    return itineraries.map((itinerary) => ({
-      id: itinerary._id.toString(),
-      groupId: itinerary.groupId?.toString() ?? null,
-      city: itinerary.city,
-      startDate: itinerary.startDate,
-      endDate: itinerary.endDate,
-      pace: itinerary.pace,
-      stopCount: itinerary.days.reduce((count, day) => count + day.stops.length, 0),
-      openToJoin: itinerary.openToJoin,
-      createdAt: itinerary.createdAt.toISOString(),
+    const trips = await TripModel.find(filter).sort({ createdAt: -1 }).limit(RECENT_TRIP_LIMIT);
+    return trips.map((trip) => ({
+      id: trip._id.toString(),
+      groupId: trip.groupId?.toString() ?? null,
+      city: trip.city,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      pace: trip.pace,
+      stopCount: trip.days.reduce((count, day) => count + day.stops.length, 0),
+      openToJoin: trip.openToJoin,
+      createdAt: trip.createdAt.toISOString(),
     }));
   }
 
-  /** A frozen copy of an itinerary the traveller may see, for sharing it in a post. */
-  async snapshot(userId: string, itineraryId: string): Promise<TripSnapshot> {
-    const itinerary = await this.findVisible(userId, itineraryId);
+  /** A frozen copy of a trip the traveller may see, for sharing it in a post. */
+  async snapshot(userId: string, tripId: string): Promise<TripSnapshot> {
+    const trip = await this.findVisible(userId, tripId);
     return {
-      city: itinerary.city,
-      startDate: itinerary.startDate,
-      endDate: itinerary.endDate,
-      dayStart: itinerary.dayStart,
-      dayEnd: itinerary.dayEnd,
-      interests: [...itinerary.interests],
-      pace: itinerary.pace,
-      transportMode: itinerary.transportMode,
-      budget: itinerary.budget,
-      lodging: { label: itinerary.lodging.label, lat: itinerary.lodging.lat, lng: itinerary.lodging.lng, source: itinerary.lodging.source },
-      days: itinerary.days.map(plainDay),
+      city: trip.city,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      dayStart: trip.dayStart,
+      dayEnd: trip.dayEnd,
+      interests: [...trip.interests],
+      pace: trip.pace,
+      transportMode: trip.transportMode,
+      budget: trip.budget,
+      lodging: { label: trip.lodging.label, lat: trip.lodging.lat, lng: trip.lodging.lng, source: trip.lodging.source },
+      days: trip.days.map(plainDay),
     };
   }
 
@@ -393,24 +393,24 @@ export class ItineraryService {
    * Copies a shared trip into the traveller's own trips, starting on `startDate`. Each day keeps its stops in order,
    * re-timed for its new weekday; a stop that no longer fits (closed that day, say) is left out with a warning.
    */
-  async copyTrip(userId: string, trip: TripSnapshot, startDate: string, note: string): Promise<ItineraryDto> {
+  async copyTrip(userId: string, snapshot: TripSnapshot, startDate: string, note: string): Promise<TripDto> {
     const startedAt = performance.now();
-    const endDate = addDays(startDate, trip.days.length - 1);
-    const catalogue = new Map((await this.activityService.listActivities(trip.city)).map((activity) => [activity.id, activity]));
+    const endDate = addDays(startDate, snapshot.days.length - 1);
+    const catalogue = new Map((await this.activityService.listActivities(snapshot.city)).map((activity) => [activity.id, activity]));
     const request: PlanRequest = {
-      days: plannedDays({ startDate, endDate, dayStart: trip.dayStart, dayEnd: trip.dayEnd }),
-      dayStartMinute: minutesFromClock(trip.dayStart),
-      dayEndMinute: minutesFromClock(trip.dayEnd),
-      origin: { lat: trip.lodging.lat, lng: trip.lodging.lng },
-      interests: trip.interests,
-      pace: trip.pace,
+      days: plannedDays({ startDate, endDate, dayStart: snapshot.dayStart, dayEnd: snapshot.dayEnd }),
+      dayStartMinute: minutesFromClock(snapshot.dayStart),
+      dayEndMinute: minutesFromClock(snapshot.dayEnd),
+      origin: { lat: snapshot.lodging.lat, lng: snapshot.lodging.lng },
+      interests: snapshot.interests,
+      pace: snapshot.pace,
     };
-    const sourceDays = trip.days.map(plainDay);
+    const sourceDays = snapshot.days.map(plainDay);
     const sourceStops = sourceDays.flatMap((day) => day.stops.map((stop) => ({ ...stop, locked: false, visited: false })));
-    const times = await this.travelTimes.forPoints([request.origin, ...sourceStops.map((stop) => stop.location)], trip.transportMode, true);
+    const times = await this.travelTimes.forPoints([request.origin, ...sourceStops.map((stop) => stop.location)], snapshot.transportMode, true);
     const warnings = [note];
-    const days = request.days.map((tripDay, index) => {
-      const context = dayContext(request, tripDay, times.travelMinutes);
+    const days = request.days.map((calendarDay, index) => {
+      const context = dayContext(request, calendarDay, times.travelMinutes);
       const route: Candidate[] = [];
       let simulation: SimulatedDay = { stops: [], returnTravelMinutes: 0, totalTravelMinutes: 0 };
       for (const stop of sourceDays.at(index)?.stops ?? []) {
@@ -420,178 +420,178 @@ export class ItineraryService {
           route.push(toCandidate(activity));
           simulation = next;
         } else {
-          warnings.push(`${stop.name} does not fit ${WEEKDAY_NAMES.at(tripDay.weekday) ?? 'that day'} on your dates, so it was left out.`);
+          warnings.push(`${stop.name} does not fit ${WEEKDAY_NAMES.at(calendarDay.weekday) ?? 'that day'} on your dates, so it was left out.`);
         }
       }
       return {
-        date: tripDay.date,
-        weekday: tripDay.weekday,
+        date: calendarDay.date,
+        weekday: calendarDay.weekday,
         stops: timedStops(simulation, catalogue, sourceStops),
         returnTravelMinutes: simulation.returnTravelMinutes,
       };
     });
-    const itinerary = await ItineraryModel.create({
+    const copy = await TripModel.create({
       userId: new Types.ObjectId(userId),
-      city: trip.city,
+      city: snapshot.city,
       startDate,
       endDate,
-      dayStart: trip.dayStart,
-      dayEnd: trip.dayEnd,
-      interests: trip.interests,
-      pace: trip.pace,
-      transportMode: trip.transportMode,
-      budget: trip.budget,
+      dayStart: snapshot.dayStart,
+      dayEnd: snapshot.dayEnd,
+      interests: snapshot.interests,
+      pace: snapshot.pace,
+      transportMode: snapshot.transportMode,
+      budget: snapshot.budget,
       travelTimeSource: times.usesRoutes ? 'google-routes' : 'estimate',
-      lodging: trip.lodging,
+      lodging: snapshot.lodging,
       days,
       candidateCount: sourceStops.length,
       unscheduledCount: warnings.length - 1,
       warnings,
       generationMs: Math.round(performance.now() - startedAt),
     });
-    return toItineraryDto(itinerary);
+    return toTripDto(copy);
   }
 
   /** Called after every saved adjustment; the Trip Sync & Disruption Service pushes it to connected members. */
-  onItineraryChanged(listener: ItineraryListener): void {
+  onTripChanged(listener: TripListener): void {
     this.listeners.push(listener);
   }
 
   /**
-   * View & Adjust Itinerary: locks, unlocks, removes or moves a stop, or re-plans a day, then notifies listeners.
-   * Refused with 409 when the itinerary changed since `change.version`, so concurrent edits never overwrite each other.
+   * View & Adjust Trip: locks, unlocks, removes or moves a stop, or re-plans a day, then notifies listeners.
+   * Refused with 409 when the trip changed since `change.version`, so concurrent edits never overwrite each other.
    */
-  async adjustItinerary(userId: string, itineraryId: string, change: ItineraryAdjustment): Promise<ItineraryDto> {
-    const itinerary = await this.findVisible(userId, itineraryId);
-    if (itinerary.version !== change.version) {
-      throw new HttpError(409, STALE_ITINERARY);
+  async adjustTrip(userId: string, tripId: string, change: TripAdjustment): Promise<TripDto> {
+    const trip = await this.findVisible(userId, tripId);
+    if (trip.version !== change.version) {
+      throw new HttpError(409, STALE_TRIP);
     }
-    const days = itinerary.days.map(plainDay);
+    const days = trip.days.map(plainDay);
     const day = days.at(change.dayIndex);
     if (day === undefined) {
       throw new HttpError(400, 'dayIndex is out of range');
     }
-    const repaired = applyAdjustment(change, await this.repairInputs(itinerary, days, day, change.dayIndex));
+    const repaired = applyAdjustment(change, await this.repairInputs(trip, days, day, change.dayIndex));
     const newDays = days.map((other, index) =>
       index === change.dayIndex ? { ...other, stops: repaired.stops, returnTravelMinutes: repaired.returnTravelMinutes } : other,
     );
-    const updated = await ItineraryModel.findOneAndUpdate(
-      { _id: itinerary._id, version: change.version },
+    const updated = await TripModel.findOneAndUpdate(
+      { _id: trip._id, version: change.version },
       { $set: { days: newDays }, $inc: { version: 1 } },
       { new: true, runValidators: true },
     );
     if (!updated) {
-      throw new HttpError(409, STALE_ITINERARY);
+      throw new HttpError(409, STALE_TRIP);
     }
-    const dto = toItineraryDto(updated);
+    const dto = toTripDto(updated);
     await this.notify(userId, dto, repaired.summary);
     return dto;
   }
 
   /**
    * For the Trip Sync & Disruption Service: the day with the stop replaced by another activity that `allowed` accepts,
-   * proposed but not saved. Null if the itinerary, day or stop is gone, or the rest of the day no longer fits.
+   * proposed but not saved. Null if the trip, day or stop is gone, or the rest of the day no longer fits.
    */
   async proposeReplacement(
-    itineraryId: Types.ObjectId,
+    tripId: Types.ObjectId,
     dayIndex: number,
     activityId: string,
     allowed: (candidate: RankedCandidate, activity: ActivityDto | undefined) => boolean,
   ): Promise<ProposedDay | null> {
-    const itinerary = await ItineraryModel.findById(itineraryId);
-    const days = itinerary?.days.map(plainDay) ?? [];
+    const trip = await TripModel.findById(tripId);
+    const days = trip?.days.map(plainDay) ?? [];
     const day = days.at(dayIndex);
-    if (!itinerary || !day?.stops.some((stop) => stop.activityId.toString() === activityId)) {
+    if (!trip || !day?.stops.some((stop) => stop.activityId.toString() === activityId)) {
       return null;
     }
-    const inputs = await this.repairInputs(itinerary, days, day, dayIndex);
+    const inputs = await this.repairInputs(trip, days, day, dayIndex);
     try {
       const repaired = replaceStop(inputs, activityId, (candidate) => allowed(candidate, inputs.catalogue.get(candidate.id)));
-      return { version: itinerary.version, day: { ...day, stops: repaired.stops, returnTravelMinutes: repaired.returnTravelMinutes } };
+      return { version: trip.version, day: { ...day, stops: repaired.stops, returnTravelMinutes: repaired.returnTravelMinutes } };
     } catch {
       return null;
     }
   }
 
-  /** Saves a proposed day the traveller accepted, if the itinerary has not changed since; then tells the members. */
-  async applyProposedDay(userId: string, itineraryId: string, proposal: ProposedDay, dayIndex: number, summary: string): Promise<ItineraryDto> {
-    const itinerary = await this.findVisible(userId, itineraryId);
-    if (itinerary.version !== proposal.version) {
-      throw new HttpError(409, STALE_ITINERARY);
+  /** Saves a proposed day the traveller accepted, if the trip has not changed since; then tells the members. */
+  async applyProposedDay(userId: string, tripId: string, proposal: ProposedDay, dayIndex: number, summary: string): Promise<TripDto> {
+    const trip = await this.findVisible(userId, tripId);
+    if (trip.version !== proposal.version) {
+      throw new HttpError(409, STALE_TRIP);
     }
-    const days = itinerary.days.map(plainDay).map((day, index) => (index === dayIndex ? proposal.day : day));
-    const updated = await ItineraryModel.findOneAndUpdate(
-      { _id: itinerary._id, version: proposal.version },
+    const days = trip.days.map(plainDay).map((day, index) => (index === dayIndex ? proposal.day : day));
+    const updated = await TripModel.findOneAndUpdate(
+      { _id: trip._id, version: proposal.version },
       { $set: { days }, $inc: { version: 1 } },
       { new: true, runValidators: true },
     );
     if (!updated) {
-      throw new HttpError(409, STALE_ITINERARY);
+      throw new HttpError(409, STALE_TRIP);
     }
-    const dto = toItineraryDto(updated);
+    const dto = toTripDto(updated);
     await this.notify(userId, dto, summary);
     return dto;
   }
 
   private async repairInputs(
-    itinerary: ItineraryDocument,
-    days: readonly ItineraryDay[],
-    day: ItineraryDay,
+    trip: TripDocument,
+    days: readonly TripDay[],
+    day: TripDay,
     dayIndex: number,
   ): Promise<RepairInputs> {
-    const catalogue = await this.activityService.listActivities(itinerary.city);
+    const catalogue = await this.activityService.listActivities(trip.city);
     // Access was checked by whoever asked; a group trip uses its members' combined preferences.
-    const group = itinerary.groupId ? await this.groupService.preferencesOf(itinerary.groupId) : null;
+    const group = trip.groupId ? await this.groupService.preferencesOf(trip.groupId) : null;
     const request: PlanRequest = {
-      days: plannedDays(itinerary),
-      dayStartMinute: minutesFromClock(itinerary.dayStart),
-      dayEndMinute: minutesFromClock(itinerary.dayEnd),
-      origin: { lat: itinerary.lodging.lat, lng: itinerary.lodging.lng },
-      interests: itinerary.interests,
+      days: plannedDays(trip),
+      dayStartMinute: minutesFromClock(trip.dayStart),
+      dayEndMinute: minutesFromClock(trip.dayEnd),
+      origin: { lat: trip.lodging.lat, lng: trip.lodging.lng },
+      interests: trip.interests,
       interestShares: group?.interestShares,
-      pace: itinerary.pace,
+      pace: trip.pace,
     };
-    const excludedIds = new Set([...(group?.vetoedActivityIds ?? []), ...itinerary.avoidIds.map((id) => id.toString())]);
-    const ranked = pruneCandidates(selectActivities(catalogue, { budget: itinerary.budget, excludedIds }).map(toCandidate), request);
-    const tripDay = request.days.at(dayIndex) ?? { date: day.date, weekday: day.weekday };
+    const excludedIds = new Set([...(group?.vetoedActivityIds ?? []), ...trip.avoidIds.map((id) => id.toString())]);
+    const ranked = pruneCandidates(selectActivities(catalogue, { budget: trip.budget, excludedIds }).map(toCandidate), request);
+    const calendarDay = request.days.at(dayIndex) ?? { date: day.date, weekday: day.weekday };
     // Adjustments must stay fast for live updates, so they use cached Routes times only, never a new request.
     const points = [request.origin, ...days.flatMap((other) => other.stops.map((stop) => stop.location)), ...ranked.slice(0, ROUTED_CANDIDATES).map((candidate) => candidate.location)];
-    const times = await this.travelTimes.forPoints(points, itinerary.transportMode, false);
+    const times = await this.travelTimes.forPoints(points, trip.transportMode, false);
     return {
       day,
-      context: dayContext(request, tripDay, times.travelMinutes),
+      context: dayContext(request, calendarDay, times.travelMinutes),
       ranked: new Map(ranked.map((candidate) => [candidate.id, candidate])),
       catalogue: new Map(catalogue.map((activity) => [activity.id, activity])),
       usedElsewhere: new Set(
         days.filter((_, index) => index !== dayIndex).flatMap((other) => other.stops.map((stop) => stop.activityId.toString())),
       ),
-      maxStops: paceSettings(itinerary.pace).maxStopsPerDay,
+      maxStops: paceSettings(trip.pace).maxStopsPerDay,
     };
   }
 
-  private async notify(userId: string, itinerary: ItineraryDto, summary: string): Promise<void> {
+  private async notify(userId: string, trip: TripDto, summary: string): Promise<void> {
     const actor = await UserModel.findById(userId);
     const firstName = actor?.name.split(' ').at(0) ?? 'Someone';
     for (const listener of this.listeners) {
       try {
-        listener({ itinerary, actorId: userId, summary: `${firstName} ${summary}` });
+        listener({ trip, actorId: userId, summary: `${firstName} ${summary}` });
       } catch (error) {
         // The change is saved; a failed push must not fail the request. Clients catch up when they reload.
-        console.error('Failed to push an itinerary change', error);
+        console.error('Failed to push a trip change', error);
       }
     }
   }
 
-  /** The itinerary, if the traveller may see it; 404 otherwise. */
-  private async findVisible(userId: string, itineraryId: string): Promise<ItineraryDocument> {
-    if (!isValidObjectId(itineraryId)) {
-      throw new HttpError(404, 'Itinerary not found');
+  /** The trip, if the traveller may see it; 404 otherwise. */
+  private async findVisible(userId: string, tripId: string): Promise<TripDocument> {
+    if (!isValidObjectId(tripId)) {
+      throw new HttpError(404, 'Trip not found');
     }
-    const itinerary = await ItineraryModel.findOne({ _id: new Types.ObjectId(itineraryId), ...(await this.visibleFilter(userId)) });
-    if (!itinerary) {
-      throw new HttpError(404, 'Itinerary not found');
+    const trip = await TripModel.findOne({ _id: new Types.ObjectId(tripId), ...(await this.visibleFilter(userId)) });
+    if (!trip) {
+      throw new HttpError(404, 'Trip not found');
     }
-    return itinerary;
+    return trip;
   }
 
   // Personal trips are the generating traveller's; group trips belong to whoever is in the group now.
@@ -602,7 +602,7 @@ export class ItineraryService {
 
   /** Finds the lodging with Google Places, falling back to the centre of the city's activities. */
   private async resolveLodging(
-    input: GenerateItineraryInput,
+    input: GenerateTripInput,
     activities: readonly ActivityDto[],
     warnings: string[],
   ): Promise<Lodging> {

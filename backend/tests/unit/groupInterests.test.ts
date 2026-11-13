@@ -1,5 +1,5 @@
-import { utilityOf } from '../../src/itineraries/engine/candidates';
-import type { Candidate } from '../../src/itineraries/engine/types';
+import { utilityOf } from '../../src/trips/engine/candidates';
+import type { Candidate } from '../../src/trips/engine/types';
 
 function candidate(interests: string[], score = 4): Candidate {
   return { id: interests.join('+'), location: { lat: 0, lng: 0 }, interests, durationMinutes: 60, score, openingHours: null };

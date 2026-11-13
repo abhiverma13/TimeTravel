@@ -29,7 +29,7 @@ export type Pace = (typeof PACES)[number];
 export const TRANSPORT_MODES = ['walk', 'transit', 'drive'] as const;
 export type TransportMode = (typeof TRANSPORT_MODES)[number];
 
-export interface TripDay {
+export interface CalendarDay {
   /** ISO date, YYYY-MM-DD. */
   date: string;
   /** 0 = Sunday. */
@@ -41,7 +41,7 @@ export interface TripDay {
 }
 
 export interface PlanRequest {
-  days: readonly TripDay[];
+  days: readonly CalendarDay[];
   dayStartMinute: number;
   dayEndMinute: number;
   /** Where each day starts and ends (the traveller's lodging). */

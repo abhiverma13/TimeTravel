@@ -2,7 +2,7 @@ import request from 'supertest';
 
 import { GroupModel } from '../../src/groups/groupModel';
 import type { GroupDto } from '../../src/groups/groupService';
-import { ItineraryModel } from '../../src/itineraries/itineraryModel';
+import { TripModel } from '../../src/trips/tripModel';
 import { createTestApp, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
 
@@ -177,17 +177,17 @@ describe('Mocked: DELETE /api/groups/:groupId/members/:userId', () => {
 
 // Interface DELETE /api/groups/:groupId
 describe('Mocked: DELETE /api/groups/:groupId', () => {
-  // Mocked behavior: deleting the group's itineraries fails
+  // Mocked behavior: deleting the group's trips fails
   // Input: the owner deletes the group
   // Expected status code: 500
-  // Expected behavior: the group is kept, so no itinerary is left without its group
+  // Expected behavior: the group is kept, so no trip is left without its group
   // Expected output: { error: "Internal server error" }
-  test('Itinerary database delete fails', async () => {
+  test('Trip database delete fails', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const { app, authService } = createTestApp();
     const { authorization } = await signedInUser(authService);
     const group = (await request(app).post('/api/groups').set(authorization).send({ name: 'Crew' })).body as GroupDto;
-    jest.spyOn(ItineraryModel, 'deleteMany').mockImplementation(simulatedOutage);
+    jest.spyOn(TripModel, 'deleteMany').mockImplementation(simulatedOutage);
 
     const response = await request(app).delete(`/api/groups/${group.id}`).set(authorization);
 

@@ -4,7 +4,7 @@ import { INTEREST_TAGS, type InterestTag } from '../activities/interests';
 import { PACES, type Pace, TRANSPORT_MODES, type TransportMode } from './engine/types';
 import { BUDGETS, type Budget } from './tripOptions';
 
-export interface ItineraryStop {
+export interface TripStop {
   activityId: Types.ObjectId;
   name: string;
   address: string;
@@ -22,10 +22,10 @@ export interface ItineraryStop {
   visited: boolean;
 }
 
-export interface ItineraryDay {
+export interface TripDay {
   date: string;
   weekday: number;
-  stops: ItineraryStop[];
+  stops: TripStop[];
   /** Travel from the last stop back to the lodging. */
   returnTravelMinutes: number;
 }
@@ -38,8 +38,8 @@ export interface Lodging {
   source: 'places' | 'city-centre';
 }
 
-/** A generated trip plan. The trip details are embedded so one document holds the whole itinerary. */
-export interface Itinerary {
+/** A generated trip plan. The trip details are embedded so one document holds the whole trip. */
+export interface Trip {
   /** Who generated it. */
   userId: Types.ObjectId;
   /** Set for a group trip: every member of the group can see it. Personal trips have none. */
@@ -63,7 +63,7 @@ export interface Itinerary {
   /** Whether travel times came from Google Routes or from the offline estimate. */
   travelTimeSource: 'google-routes' | 'estimate';
   lodging: Lodging;
-  days: ItineraryDay[];
+  days: TripDay[];
   candidateCount: number;
   unscheduledCount: number;
   warnings: string[];
@@ -78,7 +78,7 @@ export interface Itinerary {
 
 const pointSchema = { lat: { type: Number, required: true }, lng: { type: Number, required: true } };
 
-const stopSchema = new Schema<ItineraryStop>(
+const stopSchema = new Schema<TripStop>(
   {
     activityId: { type: Schema.Types.ObjectId, ref: 'Activity', required: true },
     name: { type: String, required: true },
@@ -95,7 +95,7 @@ const stopSchema = new Schema<ItineraryStop>(
   { _id: false },
 );
 
-export const daySchema = new Schema<ItineraryDay>(
+export const daySchema = new Schema<TripDay>(
   {
     date: { type: String, required: true },
     weekday: { type: Number, required: true },
@@ -105,7 +105,7 @@ export const daySchema = new Schema<ItineraryDay>(
   { _id: false },
 );
 
-const itinerarySchema = new Schema<Itinerary>(
+const tripSchema = new Schema<Trip>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     groupId: { type: Schema.Types.ObjectId, ref: 'Group', index: true },
@@ -138,7 +138,7 @@ const itinerarySchema = new Schema<Itinerary>(
   },
   { timestamps: true },
 );
-itinerarySchema.index({ openToJoin: 1, endDate: 1 });
+tripSchema.index({ openToJoin: 1, endDate: 1 });
 
-export type ItineraryDocument = HydratedDocument<Itinerary>;
-export const ItineraryModel = model<Itinerary>('Itinerary', itinerarySchema);
+export type TripDocument = HydratedDocument<Trip>;
+export const TripModel = model<Trip>('Trip', tripSchema);

@@ -2,61 +2,61 @@ import request from 'supertest';
 
 import { ActivityModel } from '../../src/activities/activityModel';
 import type { GroupDto } from '../../src/groups/groupService';
-import { ItineraryModel } from '../../src/itineraries/itineraryModel';
-import type { ItineraryDto } from '../../src/itineraries/itineraryService';
+import { TripModel } from '../../src/trips/tripModel';
+import type { TripDto } from '../../src/trips/tripService';
 import { createTestApp, seedVancouver, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
 import { seedTestville, storeTestvilleTrip } from '../helpers/testville';
 
-type Stop = ItineraryDto['days'][number]['stops'][number];
+type Stop = TripDto['days'][number]['stops'][number];
 
-function stopsOf(itinerary: ItineraryDto, dayIndex = 0): Stop[] {
-  return itinerary.days.at(dayIndex)?.stops ?? [];
+function stopsOf(trip: TripDto, dayIndex = 0): Stop[] {
+  return trip.days.at(dayIndex)?.stops ?? [];
 }
 
-function names(itinerary: ItineraryDto, dayIndex = 0): string[] {
-  return stopsOf(itinerary, dayIndex).map((stop) => stop.name);
+function names(trip: TripDto, dayIndex = 0): string[] {
+  return stopsOf(trip, dayIndex).map((stop) => stop.name);
 }
 
-function idOf(itinerary: ItineraryDto, name: string): string {
-  return stopsOf(itinerary).find((stop) => stop.name === name)?.activityId ?? '';
+function idOf(trip: TripDto, name: string): string {
+  return stopsOf(trip).find((stop) => stop.name === name)?.activityId ?? '';
 }
 
 async function testvilleTrip(stopNames: string[], options: Parameters<typeof storeTestvilleTrip>[2] = {}) {
   const testApp = createTestApp();
   const owner = await signedInUser(testApp.authService, 'Trip Owner');
   await seedTestville(testApp.activityService);
-  const itineraryId = await storeTestvilleTrip(owner.userId, stopNames, options);
-  const itinerary = (await request(testApp.app).get(`/api/itineraries/${itineraryId}`).set(owner.authorization)).body as ItineraryDto;
+  const tripId = await storeTestvilleTrip(owner.userId, stopNames, options);
+  const trip = (await request(testApp.app).get(`/api/trips/${tripId}`).set(owner.authorization)).body as TripDto;
   const adjust = (body: object, authorization = owner.authorization) =>
-    request(testApp.app).post(`/api/itineraries/${itineraryId}/adjust`).set(authorization).send(body);
-  return { ...testApp, owner, itinerary, adjust };
+    request(testApp.app).post(`/api/trips/${tripId}/adjust`).set(authorization).send(body);
+  return { ...testApp, owner, trip, adjust };
 }
 
 beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
 afterEach(clearTestDatabase);
 afterAll(stopTestDatabase);
 
-// Interface POST /api/itineraries/:itineraryId/adjust
-describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
+// Interface POST /api/trips/:tripId/adjust
+describe('Unmocked: POST /api/trips/:tripId/adjust', () => {
   // Input: lock Harbour Park, then unlock it, each with the version last seen
   // Expected status code: 200 for both
   // Expected behavior: only the stop's lock changes; the version goes up by one each time
-  // Expected output: the itinerary with Harbour Park locked (version 1), then unlocked (version 2)
+  // Expected output: the trip with Harbour Park locked (version 1), then unlocked (version 2)
   test('Locks and unlocks a stop', async () => {
-    const { itinerary, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
-    const park = idOf(itinerary, 'Harbour Park');
+    const { trip, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
+    const park = idOf(trip, 'Harbour Park');
 
     const locked = await adjust({ action: 'lock', version: 0, dayIndex: 0, activityId: park });
     const unlocked = await adjust({ action: 'unlock', version: 1, dayIndex: 0, activityId: park });
 
     expect(locked.status).toBe(200);
-    expect((locked.body as ItineraryDto).version).toBe(1);
-    expect(stopsOf(locked.body as ItineraryDto).map((stop) => stop.locked)).toEqual([false, true]);
-    expect(stopsOf(locked.body as ItineraryDto).map((stop) => stop.startTime)).toEqual(stopsOf(itinerary).map((stop) => stop.startTime));
+    expect((locked.body as TripDto).version).toBe(1);
+    expect(stopsOf(locked.body as TripDto).map((stop) => stop.locked)).toEqual([false, true]);
+    expect(stopsOf(locked.body as TripDto).map((stop) => stop.startTime)).toEqual(stopsOf(trip).map((stop) => stop.startTime));
     expect(unlocked.status).toBe(200);
-    expect((unlocked.body as ItineraryDto).version).toBe(2);
-    expect(stopsOf(unlocked.body as ItineraryDto).every((stop) => !stop.locked)).toBe(true);
+    expect((unlocked.body as TripDto).version).toBe(2);
+    expect(stopsOf(unlocked.body as TripDto).every((stop) => !stop.locked)).toBe(true);
   });
 
   // Input: remove Harbour Park from [Morning Bakery, Harbour Park, Town Museum]
@@ -64,11 +64,11 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
   // Expected behavior: the other stops keep their order and are re-timed; the freed time goes to another activity
   // Expected output: Morning Bakery before Town Museum, Lookout Tower added, Harbour Park gone
   test('Removes a stop and fills the freed time', async () => {
-    const { itinerary, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park', 'Town Museum']);
+    const { trip, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park', 'Town Museum']);
 
-    const response = await adjust({ action: 'remove', version: 0, dayIndex: 0, activityId: idOf(itinerary, 'Harbour Park') });
+    const response = await adjust({ action: 'remove', version: 0, dayIndex: 0, activityId: idOf(trip, 'Harbour Park') });
 
-    const day = names(response.body as ItineraryDto);
+    const day = names(response.body as TripDto);
     expect(response.status).toBe(200);
     expect(day).not.toContain('Harbour Park');
     expect(day).toContain('Lookout Tower');
@@ -81,15 +81,15 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
   // Expected behavior: the freed time is never given to a place the trip avoids
   // Expected output: neither Harbour Park nor Lookout Tower in the day
   test('Removing a stop never brings in an avoided place', async () => {
-    const { itinerary, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park', 'Town Museum']);
+    const { trip, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park', 'Town Museum']);
     const tower = await ActivityModel.findOne({ name: 'Lookout Tower' });
-    await ItineraryModel.updateOne({ _id: itinerary.id }, { $set: { avoidIds: [tower?._id] } });
+    await TripModel.updateOne({ _id: trip.id }, { $set: { avoidIds: [tower?._id] } });
 
-    const response = await adjust({ action: 'remove', version: 0, dayIndex: 0, activityId: idOf(itinerary, 'Harbour Park') });
+    const response = await adjust({ action: 'remove', version: 0, dayIndex: 0, activityId: idOf(trip, 'Harbour Park') });
 
     expect(response.status).toBe(200);
-    expect(names(response.body as ItineraryDto)).not.toContain('Harbour Park');
-    expect(names(response.body as ItineraryDto)).not.toContain('Lookout Tower');
+    expect(names(response.body as TripDto)).not.toContain('Harbour Park');
+    expect(names(response.body as TripDto)).not.toContain('Lookout Tower');
   });
 
   // Input: move Lookout Tower from last to first in [Harbour Park, Town Museum, Lookout Tower]
@@ -97,11 +97,11 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
   // Expected behavior: the stops are re-timed in the new order
   // Expected output: [Lookout Tower, Harbour Park, Town Museum], each starting after the one before ends
   test('Moves a stop', async () => {
-    const { itinerary, adjust } = await testvilleTrip(['Harbour Park', 'Town Museum', 'Lookout Tower']);
+    const { trip, adjust } = await testvilleTrip(['Harbour Park', 'Town Museum', 'Lookout Tower']);
 
-    const response = await adjust({ action: 'move', version: 0, dayIndex: 0, activityId: idOf(itinerary, 'Lookout Tower'), toIndex: 0 });
+    const response = await adjust({ action: 'move', version: 0, dayIndex: 0, activityId: idOf(trip, 'Lookout Tower'), toIndex: 0 });
 
-    const stops = stopsOf(response.body as ItineraryDto);
+    const stops = stopsOf(response.body as TripDto);
     expect(response.status).toBe(200);
     expect(stops.map((stop) => stop.name)).toEqual(['Lookout Tower', 'Harbour Park', 'Town Museum']);
     expect(stops.every((stop, index) => index === 0 || stop.startTime >= (stops.at(index - 1)?.endTime ?? ''))).toBe(true);
@@ -109,17 +109,17 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
 
   // Input: move Morning Bakery (closes 12:00) after a park visit and a 2-hour museum visit
   // Expected status code: 422
-  // Expected behavior: the move is refused and the itinerary is unchanged
+  // Expected behavior: the move is refused and the trip is unchanged
   // Expected output: an error naming the stop; a later read shows version 0
   test('Move would miss opening hours', async () => {
-    const { app, owner, itinerary, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park', 'Town Museum']);
+    const { app, owner, trip, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park', 'Town Museum']);
 
-    const response = await adjust({ action: 'move', version: 0, dayIndex: 0, activityId: idOf(itinerary, 'Morning Bakery'), toIndex: 2 });
+    const response = await adjust({ action: 'move', version: 0, dayIndex: 0, activityId: idOf(trip, 'Morning Bakery'), toIndex: 2 });
 
     expect(response.status).toBe(422);
     expect(response.body.error).toMatch(/^Morning Bakery cannot go there/);
-    const after = await request(app).get(`/api/itineraries/${itinerary.id}`).set(owner.authorization);
-    expect((after.body as ItineraryDto).version).toBe(0);
+    const after = await request(app).get(`/api/trips/${trip.id}`).set(owner.authorization);
+    expect((after.body as TripDto).version).toBe(0);
   });
 
   // Input: re-plan from 11:00 a day whose first two stops already started (09:00, 10:00) and whose Lookout Tower is locked
@@ -127,16 +127,16 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
   // Expected behavior: started stops stay as they are; the locked stop stays; the rest of the day is re-chosen after them
   // Expected output: the same first two stops, Lookout Tower still locked, no other stop starting before 11:00
   test('Re-plans the rest of a day', async () => {
-    const { itinerary, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park', 'Lookout Tower'], {
+    const { trip, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park', 'Lookout Tower'], {
       locked: ['Lookout Tower'],
       startTimes: { 'Morning Bakery': '09:00', 'Harbour Park': '10:00', 'Lookout Tower': '12:00' },
     });
 
     const response = await adjust({ action: 'replan', version: 0, dayIndex: 0, fromTime: '11:00' });
 
-    const stops = stopsOf(response.body as ItineraryDto);
+    const stops = stopsOf(response.body as TripDto);
     expect(response.status).toBe(200);
-    expect(stops.slice(0, 2)).toEqual(stopsOf(itinerary).slice(0, 2));
+    expect(stops.slice(0, 2)).toEqual(stopsOf(trip).slice(0, 2));
     expect(stops.find((stop) => stop.name === 'Lookout Tower')?.locked).toBe(true);
     expect(stops.slice(2).every((stop) => stop.startTime >= '11:00')).toBe(true);
     expect(stops.map((stop) => stop.name)).toContain('Town Museum');
@@ -153,20 +153,20 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
     await seedVancouver(activityService);
     const generated = (
       await request(app)
-        .post('/api/itineraries/generate')
+        .post('/api/trips/generate')
         .set(authorization)
         .send({ city: 'Vancouver', startDate: '2026-10-24', endDate: '2026-10-25', interests: ['outdoors'] })
-    ).body as ItineraryDto;
+    ).body as TripDto;
     const lockedStop = stopsOf(generated).at(1);
     const lockedId = lockedStop?.activityId ?? '';
     await request(app)
-      .post(`/api/itineraries/${generated.id}/adjust`)
+      .post(`/api/trips/${generated.id}/adjust`)
       .set(authorization)
       .send({ action: 'lock', version: 0, dayIndex: 0, activityId: lockedId });
 
-    const response = await request(app).post(`/api/itineraries/${generated.id}/adjust`).set(authorization).send({ action: 'replan', version: 1, dayIndex: 0 });
+    const response = await request(app).post(`/api/trips/${generated.id}/adjust`).set(authorization).send({ action: 'replan', version: 1, dayIndex: 0 });
 
-    const replanned = response.body as ItineraryDto;
+    const replanned = response.body as TripDto;
     const all = replanned.days.flatMap((day) => day.stops);
     expect(response.status).toBe(200);
     expect(stopsOf(replanned).find((stop) => stop.activityId === lockedId)).toMatchObject({
@@ -197,23 +197,23 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
   // Input: two adjustments sent with the same version (two people editing at once), then one with an old version
   // Expected status code: 200 for the first, 409 for the others
   // Expected behavior: the second change does not overwrite the first
-  // Expected output: { error: "This itinerary changed since you loaded it; reload it and try again" }
+  // Expected output: { error: "This trip changed since you loaded it; reload it and try again" }
   test('Edits from an out-of-date copy are refused', async () => {
-    const { itinerary, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
-    const park = idOf(itinerary, 'Harbour Park');
+    const { trip, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
+    const park = idOf(trip, 'Harbour Park');
 
     const first = await adjust({ action: 'lock', version: 0, dayIndex: 0, activityId: park });
     const second = await adjust({ action: 'remove', version: 0, dayIndex: 0, activityId: park });
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(409);
-    expect(second.body).toEqual({ error: 'This itinerary changed since you loaded it; reload it and try again' });
+    expect(second.body).toEqual({ error: 'This trip changed since you loaded it; reload it and try again' });
   });
 
   // Input: a group member locks a stop of the group's trip; a traveller outside the group tries too
   // Expected status code: 200 for the member, 404 for the outsider
   // Expected behavior: any member can adjust a group trip; others cannot see it
-  // Expected output: the adjusted itinerary, then { error: "Itinerary not found" }
+  // Expected output: the adjusted trip, then { error: "Trip not found" }
   test('Group members can adjust a group trip', async () => {
     const { app, authService, activityService } = createTestApp();
     const owner = await signedInUser(authService, 'Trip Owner');
@@ -222,12 +222,12 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
     await seedTestville(activityService);
     const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
     await request(app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
-    const itineraryId = await storeTestvilleTrip(owner.userId, ['Harbour Park'], { groupId: group.id });
-    const itinerary = (await request(app).get(`/api/itineraries/${itineraryId}`).set(owner.authorization)).body as ItineraryDto;
-    const body = { action: 'lock', version: 0, dayIndex: 0, activityId: idOf(itinerary, 'Harbour Park') };
+    const tripId = await storeTestvilleTrip(owner.userId, ['Harbour Park'], { groupId: group.id });
+    const trip = (await request(app).get(`/api/trips/${tripId}`).set(owner.authorization)).body as TripDto;
+    const body = { action: 'lock', version: 0, dayIndex: 0, activityId: idOf(trip, 'Harbour Park') };
 
-    const byMember = await request(app).post(`/api/itineraries/${itineraryId}/adjust`).set(member.authorization).send(body);
-    const byOutsider = await request(app).post(`/api/itineraries/${itineraryId}/adjust`).set(outsider.authorization).send({ ...body, version: 1 });
+    const byMember = await request(app).post(`/api/trips/${tripId}/adjust`).set(member.authorization).send(body);
+    const byOutsider = await request(app).post(`/api/trips/${tripId}/adjust`).set(outsider.authorization).send({ ...body, version: 1 });
 
     expect(byMember.status).toBe(200);
     expect(byOutsider.status).toBe(404);
@@ -242,19 +242,19 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
     const owner = await signedInUser(authService, 'Trip Owner');
     await seedTestville(activityService);
     const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
-    const itineraryId = await storeTestvilleTrip(owner.userId, ['Morning Bakery', 'Harbour Park', 'Town Museum'], { groupId: group.id });
-    const itinerary = (await request(app).get(`/api/itineraries/${itineraryId}`).set(owner.authorization)).body as ItineraryDto;
+    const tripId = await storeTestvilleTrip(owner.userId, ['Morning Bakery', 'Harbour Park', 'Town Museum'], { groupId: group.id });
+    const trip = (await request(app).get(`/api/trips/${tripId}`).set(owner.authorization)).body as TripDto;
     await request(app)
       .put(`/api/groups/${group.id}/members/me`)
       .set(owner.authorization)
-      .send({ vetoedActivityIds: [idOf(itinerary, 'Harbour Park')] });
+      .send({ vetoedActivityIds: [idOf(trip, 'Harbour Park')] });
 
     const response = await request(app)
-      .post(`/api/itineraries/${itineraryId}/adjust`)
+      .post(`/api/trips/${tripId}/adjust`)
       .set(owner.authorization)
-      .send({ action: 'remove', version: 0, dayIndex: 0, activityId: idOf(itinerary, 'Town Museum') });
+      .send({ action: 'remove', version: 0, dayIndex: 0, activityId: idOf(trip, 'Town Museum') });
 
-    const day = names(response.body as ItineraryDto);
+    const day = names(response.body as TripDto);
     expect(response.status).toBe(200);
     expect(day).toContain('Harbour Park');
     expect(day.indexOf('Morning Bakery')).toBeLessThan(day.indexOf('Harbour Park'));
@@ -271,11 +271,11 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
 
     const response = await adjust({ action: 'add', version: 0, dayIndex: 0, activityId: lookout });
 
-    const day = names(response.body as ItineraryDto);
+    const day = names(response.body as TripDto);
     expect(response.status).toBe(200);
     expect(day).toContain('Lookout Tower');
     expect(day.indexOf('Morning Bakery')).toBeLessThan(day.indexOf('Harbour Park'));
-    expect((response.body as ItineraryDto).version).toBe(1);
+    expect((response.body as TripDto).version).toBe(1);
   });
 
   // Input: add Lookout Tower to a day that is full, with Morning Bakery (and Town Museum) locked: a relaxed day that
@@ -291,18 +291,18 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
     ],
     ['no time left', ['Morning Bakery', 'Harbour Park'], { dayEnd: '13:00', locked: ['Morning Bakery'], startTimes: { 'Morning Bakery': '09:30' } }],
   ])('Adds a chosen place to a full day by dropping an unlocked stop: %s', async (_scenario, stopNames, options) => {
-    const { itinerary, itineraryService, adjust } = await testvilleTrip(stopNames, options);
+    const { trip, tripService, adjust } = await testvilleTrip(stopNames, options);
     const summaries: string[] = [];
-    itineraryService.onItineraryChanged((change) => summaries.push(change.summary));
+    tripService.onTripChanged((change) => summaries.push(change.summary));
     const lookout = (await ActivityModel.findOne({ name: 'Lookout Tower' }))?._id.toString();
 
     const response = await adjust({ action: 'add', version: 0, dayIndex: 0, activityId: lookout });
 
-    const stops = stopsOf(response.body as ItineraryDto);
+    const stops = stopsOf(response.body as TripDto);
     expect(response.status).toBe(200);
     expect(stops.map((stop) => stop.name)).toContain('Lookout Tower');
     expect(stops.map((stop) => stop.name)).not.toContain('Harbour Park');
-    for (const locked of stopsOf(itinerary).filter((stop) => stop.locked)) {
+    for (const locked of stopsOf(trip).filter((stop) => stop.locked)) {
       expect(stops.find((stop) => stop.name === locked.name)?.startTime).toBe(locked.startTime);
     }
     expect(summaries).toEqual(['Trip added Lookout Tower, dropping Harbour Park to make room']);
@@ -353,17 +353,17 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
   // Expected behavior: only the stop's visited mark changes; times stay as they were
   // Expected output: Harbour Park visited (version 1), then not visited (version 2)
   test('Marks a stop visited and not visited', async () => {
-    const { itinerary, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
-    const park = idOf(itinerary, 'Harbour Park');
+    const { trip, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
+    const park = idOf(trip, 'Harbour Park');
 
     const visited = await adjust({ action: 'visit', version: 0, dayIndex: 0, activityId: park });
     const unvisited = await adjust({ action: 'unvisit', version: 1, dayIndex: 0, activityId: park });
 
     expect(visited.status).toBe(200);
-    expect(stopsOf(visited.body as ItineraryDto).map((stop) => stop.visited)).toEqual([false, true]);
-    expect(stopsOf(visited.body as ItineraryDto).map((stop) => stop.startTime)).toEqual(stopsOf(itinerary).map((stop) => stop.startTime));
+    expect(stopsOf(visited.body as TripDto).map((stop) => stop.visited)).toEqual([false, true]);
+    expect(stopsOf(visited.body as TripDto).map((stop) => stop.startTime)).toEqual(stopsOf(trip).map((stop) => stop.startTime));
     expect(unvisited.status).toBe(200);
-    expect(stopsOf(unvisited.body as ItineraryDto).every((stop) => !stop.visited)).toBe(true);
+    expect(stopsOf(unvisited.body as TripDto).every((stop) => !stop.visited)).toBe(true);
   });
 
   // Input: mark Morning Bakery visited, then remove Harbour Park
@@ -371,12 +371,12 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
   // Expected behavior: a stop stays visited when the rest of the day is repaired
   // Expected output: Morning Bakery still visited after the removal
   test('A visited stop stays visited when the day changes', async () => {
-    const { itinerary, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
+    const { trip, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
 
-    await adjust({ action: 'visit', version: 0, dayIndex: 0, activityId: idOf(itinerary, 'Morning Bakery') });
-    const response = await adjust({ action: 'remove', version: 1, dayIndex: 0, activityId: idOf(itinerary, 'Harbour Park') });
+    await adjust({ action: 'visit', version: 0, dayIndex: 0, activityId: idOf(trip, 'Morning Bakery') });
+    const response = await adjust({ action: 'remove', version: 1, dayIndex: 0, activityId: idOf(trip, 'Harbour Park') });
 
-    expect(stopsOf(response.body as ItineraryDto).find((stop) => stop.name === 'Morning Bakery')?.visited).toBe(true);
+    expect(stopsOf(response.body as TripDto).find((stop) => stop.name === 'Morning Bakery')?.visited).toBe(true);
   });
 
   // Input: a stop that is not in the day, a day index past the trip, and a target position past the day
@@ -388,9 +388,9 @@ describe('Unmocked: POST /api/itineraries/:itineraryId/adjust', () => {
     ['day out of range', { action: 'replan', dayIndex: 3 }, 400, 'dayIndex is out of range'],
     ['position out of range', { action: 'move', toIndex: 5 }, 400, 'toIndex is out of range'],
   ])('Adjustment refused: %s', async (_scenario, change, status, error) => {
-    const { itinerary, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
+    const { trip, adjust } = await testvilleTrip(['Morning Bakery', 'Harbour Park']);
 
-    const response = await adjust({ version: 0, dayIndex: 0, activityId: idOf(itinerary, 'Harbour Park'), ...change });
+    const response = await adjust({ version: 0, dayIndex: 0, activityId: idOf(trip, 'Harbour Park'), ...change });
 
     expect(response.status).toBe(status);
     expect(response.body).toEqual({ error });

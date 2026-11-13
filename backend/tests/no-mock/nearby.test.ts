@@ -1,7 +1,7 @@
 import request from 'supertest';
 
 import type { GroupDto } from '../../src/groups/groupService';
-import type { ItineraryDto } from '../../src/itineraries/itineraryService';
+import type { TripDto } from '../../src/trips/tripService';
 import { JoinRequestModel } from '../../src/nearby/joinRequestModel';
 import type { JoinRequestDto, NearbyTripDto } from '../../src/nearby/nearbyService';
 import { createTestApp, signedInUser } from '../helpers/testApp';
@@ -33,11 +33,11 @@ async function openTrip(now: Date = TWO_DAYS_BEFORE) {
   });
   const group = (await client(olivia).post('/api/groups', { name: 'Testville crew' })).body as GroupDto;
   await client(max).post('/api/groups/join', { inviteCode: group.inviteCode });
-  const itineraryId = await storeTestvilleTrip(olivia.userId, ['Morning Bakery', 'Harbour Park', 'Town Museum'], { groupId: group.id });
-  const open = async () => client(olivia).put(`/api/nearby/trips/${itineraryId}`, { openToJoin: true });
+  const tripId = await storeTestvilleTrip(olivia.userId, ['Morning Bakery', 'Harbour Park', 'Town Museum'], { groupId: group.id });
+  const open = async () => client(olivia).put(`/api/nearby/trips/${tripId}`, { openToJoin: true });
   const ask = async (user: Traveller, note = 'Hi! Mind if I join?') =>
-    (await client(user).post(`/api/nearby/trips/${itineraryId}/requests`, { note })).body as JoinRequestDto;
-  return { app, olivia, max, vera, wes, client, group, itineraryId, open, ask };
+    (await client(user).post(`/api/nearby/trips/${tripId}/requests`, { note })).body as JoinRequestDto;
+  return { app, olivia, max, vera, wes, client, group, tripId, open, ask };
 }
 
 function trips(response: request.Response): NearbyTripDto[] {
@@ -48,22 +48,22 @@ beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
 afterEach(clearTestDatabase);
 afterAll(stopTestDatabase);
 
-// Interface PUT /api/nearby/trips/:itineraryId
-describe('Unmocked: PUT /api/nearby/trips/:itineraryId', () => {
+// Interface PUT /api/nearby/trips/:tripId
+describe('Unmocked: PUT /api/nearby/trips/:tripId', () => {
   // Input: the group's owner sends { openToJoin: true }, then { openToJoin: false }
   // Expected status code: 200 for both
   // Expected behavior: the trip is opened to travellers nearby, then closed again
-  // Expected output: { openToJoin: true } (and the itinerary says so), then { openToJoin: false }
+  // Expected output: { openToJoin: true } (and the trip says so), then { openToJoin: false }
   test('The group owner opens a trip and closes it again', async () => {
-    const { olivia, client, itineraryId, open } = await openTrip();
+    const { olivia, client, tripId, open } = await openTrip();
 
     const opened = await open();
-    const itinerary = (await client(olivia).get(`/api/itineraries/${itineraryId}`)).body as ItineraryDto;
-    const closed = await client(olivia).put(`/api/nearby/trips/${itineraryId}`, { openToJoin: false });
+    const trip = (await client(olivia).get(`/api/trips/${tripId}`)).body as TripDto;
+    const closed = await client(olivia).put(`/api/nearby/trips/${tripId}`, { openToJoin: false });
 
     expect(opened.status).toBe(200);
     expect(opened.body).toEqual({ openToJoin: true });
-    expect(itinerary.openToJoin).toBe(true);
+    expect(trip.openToJoin).toBe(true);
     expect(closed.body).toEqual({ openToJoin: false });
   });
 
@@ -73,12 +73,12 @@ describe('Unmocked: PUT /api/nearby/trips/:itineraryId', () => {
   // Expected behavior: the trip stays closed
   // Expected output: the matching error
   test('Who may not open a trip', async () => {
-    const { max, vera, client, itineraryId } = await openTrip();
+    const { max, vera, client, tripId } = await openTrip();
     const personal = await storeTestvilleTrip(vera.userId, ['Harbour Park']);
 
     const responses = await Promise.all([
-      client(max).put(`/api/nearby/trips/${itineraryId}`, { openToJoin: true }),
-      client(vera).put(`/api/nearby/trips/${itineraryId}`, { openToJoin: true }),
+      client(max).put(`/api/nearby/trips/${tripId}`, { openToJoin: true }),
+      client(vera).put(`/api/nearby/trips/${tripId}`, { openToJoin: true }),
       client(vera).put(`/api/nearby/trips/${personal}`, { openToJoin: true }),
       client(max).put(`/api/nearby/trips/${personal}`, { openToJoin: true }),
       client(max).put('/api/nearby/trips/not-an-id', { openToJoin: true }),
@@ -86,10 +86,10 @@ describe('Unmocked: PUT /api/nearby/trips/:itineraryId', () => {
 
     expect(responses.map((response) => [response.status, (response.body as { error: string }).error])).toEqual([
       [403, 'Only the group owner can open this trip to travellers nearby'],
-      [404, 'Itinerary not found'],
+      [404, 'Trip not found'],
       [409, 'Only group trips can be opened to travellers nearby'],
-      [404, 'Itinerary not found'],
-      [404, 'Itinerary not found'],
+      [404, 'Trip not found'],
+      [404, 'Trip not found'],
     ]);
   });
 
@@ -98,9 +98,9 @@ describe('Unmocked: PUT /api/nearby/trips/:itineraryId', () => {
   // Expected behavior: nothing changes
   // Expected output: { error: "Invalid request", details: [...] }
   test.each([{}, { openToJoin: 'yes' }])('Invalid body %p', async (body) => {
-    const { olivia, client, itineraryId } = await openTrip();
+    const { olivia, client, tripId } = await openTrip();
 
-    const response = await client(olivia).put(`/api/nearby/trips/${itineraryId}`, body);
+    const response = await client(olivia).put(`/api/nearby/trips/${tripId}`, body);
 
     expect(response.status).toBe(400);
   });
@@ -113,7 +113,7 @@ describe('Unmocked: GET /api/nearby/trips', () => {
   // Expected behavior: the open trip is listed with what Vera needs to decide, but never its lodging or anyone's position
   // Expected output: the trip with its group, organizer, member count, dates, stops, distance and myRequest "none"
   test('Lists open trips nearby', async () => {
-    const { vera, client, group, itineraryId, open } = await openTrip();
+    const { vera, client, group, tripId, open } = await openTrip();
     await open();
 
     const response = await client(vera).get(`/api/nearby/trips?${IN_TESTVILLE}`);
@@ -121,7 +121,7 @@ describe('Unmocked: GET /api/nearby/trips', () => {
     const [trip] = trips(response);
     expect(response.status).toBe(200);
     expect(trip).toMatchObject({
-      itineraryId,
+      tripId,
       groupId: group.id,
       groupName: 'Testville crew',
       organizer: 'Olivia Owner',
@@ -141,7 +141,7 @@ describe('Unmocked: GET /api/nearby/trips', () => {
   // Expected behavior: trips are listed nearest first, by their stop closest to Vera
   // Expected output: Wes's trip (0 km) before Olivia's (0.3 km, at Town Museum)
   test('Lists the nearest trip first', async () => {
-    const { vera, wes, client, itineraryId, open } = await openTrip();
+    const { vera, wes, client, tripId, open } = await openTrip();
     await open();
     const marketCrew = (await client(wes).post('/api/groups', { name: 'Market crew' })).body as GroupDto;
     const marketTrip = await storeTestvilleTrip(wes.userId, ['Night Market'], { groupId: marketCrew.id });
@@ -150,7 +150,7 @@ describe('Unmocked: GET /api/nearby/trips', () => {
     const response = await client(vera).get('/api/nearby/trips?lat=49.284&lng=-123.116');
 
     expect(response.status).toBe(200);
-    expect(trips(response).map((trip) => trip.itineraryId)).toEqual([marketTrip, itineraryId]);
+    expect(trips(response).map((trip) => trip.tripId)).toEqual([marketTrip, tripId]);
     expect(trips(response).map((trip) => trip.distanceKm)).toEqual([0, 0.3]);
   });
 
@@ -190,22 +190,22 @@ describe('Unmocked: GET /api/nearby/trips', () => {
   });
 });
 
-// Interface POST /api/nearby/trips/:itineraryId/requests
-describe('Unmocked: POST /api/nearby/trips/:itineraryId/requests', () => {
+// Interface POST /api/nearby/trips/:tripId/requests
+describe('Unmocked: POST /api/nearby/trips/:tripId/requests', () => {
   // Input: Vera asks to join the open trip with the note "  Hi! Mind if I join?  "
   // Expected status code: 201
   // Expected behavior: a pending request is saved, and the nearby list shows it
   // Expected output: the request from Vera with the trimmed note; myRequest "pending" for the trip
   test('Asks to join with a note', async () => {
-    const { vera, client, group, itineraryId, open } = await openTrip();
+    const { vera, client, group, tripId, open } = await openTrip();
     await open();
 
-    const response = await client(vera).post(`/api/nearby/trips/${itineraryId}/requests`, { note: '  Hi! Mind if I join?  ' });
+    const response = await client(vera).post(`/api/nearby/trips/${tripId}/requests`, { note: '  Hi! Mind if I join?  ' });
     const nearby = await client(vera).get(`/api/nearby/trips?${IN_TESTVILLE}`);
 
     expect(response.status).toBe(201);
     expect(response.body).toMatchObject({
-      itineraryId,
+      tripId,
       groupId: group.id,
       requester: { id: vera.userId, name: 'Vera Visitor' },
       note: 'Hi! Mind if I join?',
@@ -215,21 +215,21 @@ describe('Unmocked: POST /api/nearby/trips/:itineraryId/requests', () => {
   });
 
   // Input: a request to a closed trip, from a member of its group, a second request while one is pending, a 201-character
-  //        note, and an itinerary id that is not an id
+  //        note, and a trip id that is not an id
   // Expected status code: 404, 409, 409, 400 and 404
   // Expected behavior: no new request is saved
   // Expected output: the matching error
   test('Requests that are refused', async () => {
-    const { max, vera, client, itineraryId, open, ask } = await openTrip();
-    const closed = await client(vera).post(`/api/nearby/trips/${itineraryId}/requests`);
+    const { max, vera, client, tripId, open, ask } = await openTrip();
+    const closed = await client(vera).post(`/api/nearby/trips/${tripId}/requests`);
     await open();
     await ask(vera);
 
     const responses = [
       closed,
-      await client(max).post(`/api/nearby/trips/${itineraryId}/requests`),
-      await client(vera).post(`/api/nearby/trips/${itineraryId}/requests`),
-      await client(vera).post(`/api/nearby/trips/${itineraryId}/requests`, { note: 'x'.repeat(201) }),
+      await client(max).post(`/api/nearby/trips/${tripId}/requests`),
+      await client(vera).post(`/api/nearby/trips/${tripId}/requests`),
+      await client(vera).post(`/api/nearby/trips/${tripId}/requests`, { note: 'x'.repeat(201) }),
       await client(vera).post('/api/nearby/trips/not-an-id/requests'),
     ];
 
@@ -290,7 +290,7 @@ describe('Unmocked: POST /api/nearby/requests/:requestId/accept', () => {
   // Expected behavior: Vera joins the group (and so sees its trip); the trip leaves her nearby list, being her own now
   // Expected output: the request with status "accepted"
   test('Accepting adds the traveller to the group', async () => {
-    const { olivia, vera, client, group, itineraryId, open, ask } = await openTrip();
+    const { olivia, vera, client, group, tripId, open, ask } = await openTrip();
     await open();
     const joinRequest = await ask(vera);
 
@@ -299,7 +299,7 @@ describe('Unmocked: POST /api/nearby/requests/:requestId/accept', () => {
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ id: joinRequest.id, status: 'accepted' });
     expect((await client(vera).get(`/api/groups/${group.id}`)).status).toBe(200);
-    expect((await client(vera).get(`/api/itineraries/${itineraryId}`)).status).toBe(200);
+    expect((await client(vera).get(`/api/trips/${tripId}`)).status).toBe(200);
     expect(trips(await client(vera).get(`/api/nearby/trips?${IN_TESTVILLE}`))).toEqual([]);
   });
 
@@ -348,13 +348,13 @@ describe('Unmocked: POST /api/nearby/requests/:requestId/decline', () => {
   // Expected behavior: Vera stays out of the group and sees the answer; she may ask again later
   // Expected output: status "declined"; myRequest "declined"; then a new pending request
   test('Declining keeps the traveller out', async () => {
-    const { olivia, vera, client, group, itineraryId, open, ask } = await openTrip();
+    const { olivia, vera, client, group, tripId, open, ask } = await openTrip();
     await open();
     const joinRequest = await ask(vera);
 
     const response = await client(olivia).post(`/api/nearby/requests/${joinRequest.id}/decline`);
     const nearby = await client(vera).get(`/api/nearby/trips?${IN_TESTVILLE}`);
-    const again = await client(vera).post(`/api/nearby/trips/${itineraryId}/requests`);
+    const again = await client(vera).post(`/api/nearby/trips/${tripId}/requests`);
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ status: 'declined' });

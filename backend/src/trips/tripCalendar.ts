@@ -1,4 +1,4 @@
-import type { TripDay } from './engine/types';
+import type { CalendarDay } from './engine/types';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -41,7 +41,7 @@ export function addDays(isoDate: string, days: number): string {
 }
 
 /** Every date of the trip with its weekday (0 = Sunday). Dates are the destination's local dates. */
-export function tripDays(startDate: string, endDate: string): TripDay[] {
+export function tripDays(startDate: string, endDate: string): CalendarDay[] {
   const start = utcMidnight(startDate).getTime();
   return Array.from({ length: tripLengthDays(startDate, endDate) }, (_, offset) => {
     const date = new Date(start + offset * MS_PER_DAY);

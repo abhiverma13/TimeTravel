@@ -1,10 +1,10 @@
 import request from 'supertest';
 
 import type { PlaceResult, PlacesClient } from '../../src/activities/placesClient';
-import type { GeoPoint, TransportMode } from '../../src/itineraries/engine/types';
-import { ItineraryModel } from '../../src/itineraries/itineraryModel';
-import type { ItineraryDto } from '../../src/itineraries/itineraryService';
-import { GoogleRoutesClient, type RoutesClient } from '../../src/itineraries/routesClient';
+import type { GeoPoint, TransportMode } from '../../src/trips/engine/types';
+import { TripModel } from '../../src/trips/tripModel';
+import type { TripDto } from '../../src/trips/tripService';
+import { GoogleRoutesClient, type RoutesClient } from '../../src/trips/routesClient';
 import { createTestApp, seedVancouver, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
 import { seedTestville } from '../helpers/testville';
@@ -33,8 +33,8 @@ afterEach(async () => {
 });
 afterAll(stopTestDatabase);
 
-// Interface POST /api/itineraries/generate
-describe('Mocked: POST /api/itineraries/generate', () => {
+// Interface POST /api/trips/generate
+describe('Mocked: POST /api/trips/generate', () => {
   // Mocked behavior: Google Places finds the traveller's hotel
   // Input: the Vancouver trip with lodging "Fairmont Hotel Vancouver" (catalogue already cached)
   // Expected status code: 201
@@ -47,15 +47,15 @@ describe('Mocked: POST /api/itineraries/generate', () => {
     await seedVancouver(activityService);
 
     const response = await request(app)
-      .post('/api/itineraries/generate')
+      .post('/api/trips/generate')
       .set(authorization)
       .send({ ...TRIP, lodging: 'Fairmont Hotel Vancouver' });
 
-    const itinerary = response.body as ItineraryDto;
+    const trip = response.body as TripDto;
     expect(response.status).toBe(201);
     expect(placesClient.searchText).toHaveBeenCalledWith('Fairmont Hotel Vancouver, Vancouver');
-    expect(itinerary.lodging).toEqual({ label: 'Fairmont Hotel Vancouver', lat: 49.2838, lng: -123.1205, source: 'places' });
-    expect(itinerary.warnings).toEqual([]);
+    expect(trip.lodging).toEqual({ label: 'Fairmont Hotel Vancouver', lat: 49.2838, lng: -123.1205, source: 'places' });
+    expect(trip.warnings).toEqual([]);
   });
 
   // Mocked behavior: Google Places finds nothing for the lodging text
@@ -68,12 +68,12 @@ describe('Mocked: POST /api/itineraries/generate', () => {
     const { authorization } = await signedInUser(authService);
     await seedVancouver(activityService);
 
-    const response = await request(app).post('/api/itineraries/generate').set(authorization).send({ ...TRIP, lodging: 'Nowhere Inn' });
+    const response = await request(app).post('/api/trips/generate').set(authorization).send({ ...TRIP, lodging: 'Nowhere Inn' });
 
-    const itinerary = response.body as ItineraryDto;
+    const trip = response.body as TripDto;
     expect(response.status).toBe(201);
-    expect(itinerary.lodging.source).toBe('city-centre');
-    expect(itinerary.warnings).toHaveLength(1);
+    expect(trip.lodging.source).toBe('city-centre');
+    expect(trip.warnings).toHaveLength(1);
   });
 
   // Mocked behavior: the Google Places lodging search fails
@@ -89,12 +89,12 @@ describe('Mocked: POST /api/itineraries/generate', () => {
     await seedVancouver(activityService);
 
     const response = await request(app)
-      .post('/api/itineraries/generate')
+      .post('/api/trips/generate')
       .set(authorization)
       .send({ ...TRIP, lodging: 'Fairmont Hotel Vancouver' });
 
     expect(response.status).toBe(201);
-    expect((response.body as ItineraryDto).lodging.source).toBe('city-centre');
+    expect((response.body as TripDto).lodging.source).toBe('city-centre');
   });
 
   // Mocked behavior: the activity catalogue for the city is empty
@@ -106,69 +106,69 @@ describe('Mocked: POST /api/itineraries/generate', () => {
     const { app, authService } = createTestApp({ placesClient: lodgingClient(async () => Promise.resolve([])) });
     const { authorization } = await signedInUser(authService);
 
-    const response = await request(app).post('/api/itineraries/generate').set(authorization).send({ ...TRIP, city: 'Nowhere' });
+    const response = await request(app).post('/api/trips/generate').set(authorization).send({ ...TRIP, city: 'Nowhere' });
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'No activities found for Nowhere' });
   });
 
-  // Mocked behavior: saving the itinerary to the database fails
+  // Mocked behavior: saving the trip to the database fails
   // Input: the Vancouver trip
   // Expected status code: 500
   // Expected behavior: the error is handled without crashing the server
   // Expected output: { error: "Internal server error" }
-  test('Itinerary database write fails', async () => {
+  test('Trip database write fails', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const { app, authService, activityService } = createTestApp();
     const { authorization } = await signedInUser(authService);
     await seedVancouver(activityService);
-    jest.spyOn(ItineraryModel, 'create').mockImplementation(() => {
+    jest.spyOn(TripModel, 'create').mockImplementation(() => {
       throw new Error('Simulated database outage');
     });
 
-    const response = await request(app).post('/api/itineraries/generate').set(authorization).send(TRIP);
+    const response = await request(app).post('/api/trips/generate').set(authorization).send(TRIP);
 
     expect(response.status).toBe(500);
   });
 });
 
-// Interface GET /api/itineraries/:itineraryId
-describe('Mocked: GET /api/itineraries/:itineraryId', () => {
-  // Mocked behavior: the itinerary database read fails
-  // Input: a valid itinerary id
+// Interface GET /api/trips/:tripId
+describe('Mocked: GET /api/trips/:tripId', () => {
+  // Mocked behavior: the trip database read fails
+  // Input: a valid trip id
   // Expected status code: 500
   // Expected behavior: the error is handled without crashing the server
   // Expected output: { error: "Internal server error" }
-  test('Itinerary database read fails', async () => {
+  test('Trip database read fails', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const { app, authService } = createTestApp();
     const { authorization } = await signedInUser(authService);
-    jest.spyOn(ItineraryModel, 'findOne').mockImplementation(() => {
+    jest.spyOn(TripModel, 'findOne').mockImplementation(() => {
       throw new Error('Simulated database outage');
     });
 
-    const response = await request(app).get('/api/itineraries/64b7f0c2a1b2c3d4e5f60718').set(authorization);
+    const response = await request(app).get('/api/trips/64b7f0c2a1b2c3d4e5f60718').set(authorization);
 
     expect(response.status).toBe(500);
   });
 });
 
-// Interface GET /api/itineraries
-describe('Mocked: GET /api/itineraries', () => {
-  // Mocked behavior: the itinerary database query fails
+// Interface GET /api/trips
+describe('Mocked: GET /api/trips', () => {
+  // Mocked behavior: the trip database query fails
   // Input: a signed-in traveller
   // Expected status code: 500
   // Expected behavior: the error is handled without crashing the server
   // Expected output: { error: "Internal server error" }
-  test('Itinerary database query fails', async () => {
+  test('Trip database query fails', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const { app, authService } = createTestApp();
     const { authorization } = await signedInUser(authService);
-    jest.spyOn(ItineraryModel, 'find').mockImplementation(() => {
+    jest.spyOn(TripModel, 'find').mockImplementation(() => {
       throw new Error('Simulated database outage');
     });
 
-    const response = await request(app).get('/api/itineraries').set(authorization);
+    const response = await request(app).get('/api/trips').set(authorization);
 
     expect(response.status).toBe(500);
   });
@@ -190,12 +190,12 @@ function routesTaking(minutes: number) {
   return { client, requests };
 }
 
-function allStops(itinerary: ItineraryDto): ItineraryDto['days'][number]['stops'] {
-  return itinerary.days.flatMap((day) => day.stops);
+function allStops(trip: TripDto): TripDto['days'][number]['stops'] {
+  return trip.days.flatMap((day) => day.stops);
 }
 
-// Interface POST /api/itineraries/generate, with Google Routes travel times
-describe('Mocked: POST /api/itineraries/generate with Google Routes', () => {
+// Interface POST /api/trips/generate, with Google Routes travel times
+describe('Mocked: POST /api/trips/generate with Google Routes', () => {
   // Mocked behavior: Google Routes says every trip between Testville's places takes 7 minutes
   // Input: a one-day Testville trip
   // Expected status code: 201
@@ -208,13 +208,13 @@ describe('Mocked: POST /api/itineraries/generate with Google Routes', () => {
     const { authorization } = await signedInUser(authService);
     await seedTestville(activityService);
 
-    const response = await request(app).post('/api/itineraries/generate').set(authorization).send(TESTVILLE_DAY);
+    const response = await request(app).post('/api/trips/generate').set(authorization).send(TESTVILLE_DAY);
 
-    const itinerary = response.body as ItineraryDto;
+    const trip = response.body as TripDto;
     expect(response.status).toBe(201);
-    expect(itinerary.travelTimeSource).toBe('google-routes');
-    expect(allStops(itinerary).every((stop) => stop.travelMinutes === 7)).toBe(true);
-    expect(itinerary.days.at(0)?.returnTravelMinutes).toBe(7);
+    expect(trip.travelTimeSource).toBe('google-routes');
+    expect(allStops(trip).every((stop) => stop.travelMinutes === 7)).toBe(true);
+    expect(trip.days.at(0)?.returnTravelMinutes).toBe(7);
     expect(requests).toEqual([{ origins: 5, destinations: 5, mode: 'transit' }]);
   });
 
@@ -229,10 +229,10 @@ describe('Mocked: POST /api/itineraries/generate with Google Routes', () => {
     const { authorization } = await signedInUser(authService);
     await seedTestville(activityService);
 
-    await request(app).post('/api/itineraries/generate').set(authorization).send(TESTVILLE_DAY);
-    const second = (await request(app).post('/api/itineraries/generate').set(authorization).send(TESTVILLE_DAY)).body as ItineraryDto;
+    await request(app).post('/api/trips/generate').set(authorization).send(TESTVILLE_DAY);
+    const second = (await request(app).post('/api/trips/generate').set(authorization).send(TESTVILLE_DAY)).body as TripDto;
     const adjusted = await request(app)
-      .post(`/api/itineraries/${second.id}/adjust`)
+      .post(`/api/trips/${second.id}/adjust`)
       .set(authorization)
       .send({ action: 'lock', version: 0, dayIndex: 0, activityId: allStops(second).at(0)?.activityId });
 
@@ -252,7 +252,7 @@ describe('Mocked: POST /api/itineraries/generate with Google Routes', () => {
     const { authorization } = await signedInUser(authService);
     await seedVancouver(activityService);
 
-    const response = await request(app).post('/api/itineraries/generate').set(authorization).send({ ...TRIP, transportMode: 'transit' });
+    const response = await request(app).post('/api/trips/generate').set(authorization).send({ ...TRIP, transportMode: 'transit' });
 
     expect(response.status).toBe(201);
     expect(requests.length).toBeGreaterThanOrEqual(2);
@@ -272,16 +272,16 @@ describe('Mocked: POST /api/itineraries/generate with Google Routes', () => {
     const { authorization } = await signedInUser(authService);
     await seedTestville(activityService);
 
-    const response = await request(app).post('/api/itineraries/generate').set(authorization).send(TESTVILLE_DAY);
+    const response = await request(app).post('/api/trips/generate').set(authorization).send(TESTVILLE_DAY);
 
     expect(response.status).toBe(201);
-    expect((response.body as ItineraryDto).travelTimeSource).toBe('estimate');
+    expect((response.body as TripDto).travelTimeSource).toBe('estimate');
     expect(consoleWarn).toHaveBeenCalledWith('Google Routes travel times unavailable; using estimates', expect.any(Error));
   });
 });
 
-// Interface POST /api/itineraries/generate, through the production Google Routes client
-describe('Mocked: POST /api/itineraries/generate via GoogleRoutesClient', () => {
+// Interface POST /api/trips/generate, through the production Google Routes client
+describe('Mocked: POST /api/trips/generate via GoogleRoutesClient', () => {
   // Mocked behavior: Google's Compute Route Matrix answers one pair (300 s), reports another as unroutable, and
   //                  leaves out zero indexes as its JSON encoding does
   // Input: a one-day walking trip in Testville
@@ -302,10 +302,10 @@ describe('Mocked: POST /api/itineraries/generate via GoogleRoutesClient', () => 
     const { authorization } = await signedInUser(authService);
     await seedTestville(activityService);
 
-    const response = await request(app).post('/api/itineraries/generate').set(authorization).send({ ...TESTVILLE_DAY, transportMode: 'walk' });
+    const response = await request(app).post('/api/trips/generate').set(authorization).send({ ...TESTVILLE_DAY, transportMode: 'walk' });
 
     expect(response.status).toBe(201);
-    expect((response.body as ItineraryDto).travelTimeSource).toBe('google-routes');
+    expect((response.body as TripDto).travelTimeSource).toBe('google-routes');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] ?? [];
     expect(url).toBe('https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix');
@@ -328,9 +328,9 @@ describe('Mocked: POST /api/itineraries/generate via GoogleRoutesClient', () => 
     const { authorization } = await signedInUser(authService);
     await seedTestville(activityService);
 
-    const response = await request(app).post('/api/itineraries/generate').set(authorization).send(TESTVILLE_DAY);
+    const response = await request(app).post('/api/trips/generate').set(authorization).send(TESTVILLE_DAY);
 
     expect(response.status).toBe(201);
-    expect((response.body as ItineraryDto).travelTimeSource).toBe('estimate');
+    expect((response.body as TripDto).travelTimeSource).toBe('estimate');
   });
 });

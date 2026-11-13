@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 
 import { type Socket, io } from 'socket.io-client';
 
-import type { ItineraryChange } from '../../src/itineraries/itineraryService';
+import type { TripChange } from '../../src/trips/tripService';
 import { type SubscribeReply, attachTripSync } from '../../src/sync/tripSync';
 import type { TestApp } from './testApp';
 
@@ -15,7 +15,7 @@ export interface LiveServer {
 /** Serves the test app and its live-update hub on a free local port, as index.ts does in production. */
 export async function startLiveServer(testApp: TestApp): Promise<LiveServer> {
   const server = createServer(testApp.app);
-  const hub = attachTripSync(server, testApp.authService, testApp.itineraryService, testApp.disruptionService);
+  const hub = attachTripSync(server, testApp.authService, testApp.tripService, testApp.disruptionService);
   await new Promise<void>((resolve) => {
     server.listen(0, resolve);
   });
@@ -36,12 +36,12 @@ export async function connectClient(url: string, authorization: { Authorization:
   return socket;
 }
 
-export async function subscribeTo(socket: Socket, itineraryId: string): Promise<SubscribeReply> {
-  return (await socket.emitWithAck('subscribe', { itineraryId })) as SubscribeReply;
+export async function subscribeTo(socket: Socket, tripId: string): Promise<SubscribeReply> {
+  return (await socket.emitWithAck('subscribe', { tripId })) as SubscribeReply;
 }
 
-export async function nextUpdate(socket: Socket): Promise<ItineraryChange> {
+export async function nextUpdate(socket: Socket): Promise<TripChange> {
   return new Promise((resolve) => {
-    socket.once('itineraryUpdated', resolve);
+    socket.once('tripUpdated', resolve);
   });
 }

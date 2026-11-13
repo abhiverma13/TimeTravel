@@ -4,10 +4,10 @@ import type { InterestTag } from '../activities/interests';
 import { UserModel } from '../auth/userModel';
 import { type GroupDocument, GroupModel } from '../groups/groupModel';
 import type { GroupService } from '../groups/groupService';
-import { haversineKm } from '../itineraries/engine/travelTime';
-import type { GeoPoint } from '../itineraries/engine/types';
-import { type ItineraryDocument, ItineraryModel } from '../itineraries/itineraryModel';
-import { addDays } from '../itineraries/tripCalendar';
+import { haversineKm } from '../trips/engine/travelTime';
+import type { GeoPoint } from '../trips/engine/types';
+import { type TripDocument, TripModel } from '../trips/tripModel';
+import { addDays } from '../trips/tripCalendar';
 import { HttpError } from '../middleware/errorHandler';
 import { type JoinRequestDocument, JoinRequestModel, type JoinRequestStatus } from './joinRequestModel';
 
@@ -21,7 +21,7 @@ const FORMER_TRAVELLER = 'Former traveller';
 
 /** An open trip near the traveller. Its lodging and its members' positions are never included. */
 export interface NearbyTripDto {
-  itineraryId: string;
+  tripId: string;
   groupId: string;
   groupName: string;
   /** The group owner's name. */
@@ -41,7 +41,7 @@ export interface NearbyTripDto {
 
 export interface JoinRequestDto {
   id: string;
-  itineraryId: string;
+  tripId: string;
   groupId: string;
   requester: { id: string; name: string };
   note: string;
@@ -53,8 +53,8 @@ function isoDay(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function nearestStopKm(itinerary: ItineraryDocument, point: GeoPoint): number {
-  const distances = itinerary.days.flatMap((day) => day.stops.map((stop) => haversineKm(point, stop.location)));
+function nearestStopKm(trip: TripDocument, point: GeoPoint): number {
+  const distances = trip.days.flatMap((day) => day.stops.map((stop) => haversineKm(point, stop.location)));
   return Math.min(Number.POSITIVE_INFINITY, ...distances);
 }
 
@@ -66,7 +66,7 @@ async function requesterNames(requests: readonly JoinRequestDocument[]): Promise
 function describe(request: JoinRequestDocument, names: ReadonlyMap<string, string>): JoinRequestDto {
   return {
     id: request._id.toString(),
-    itineraryId: request.itineraryId.toString(),
+    tripId: request.tripId.toString(),
     groupId: request.groupId.toString(),
     requester: { id: request.requesterId.toString(), name: names.get(request.requesterId.toString()) ?? FORMER_TRAVELLER },
     note: request.note,
@@ -87,23 +87,23 @@ export class NearbyService {
   ) {}
 
   /** The group's owner opens a group trip to travellers nearby, or closes it again. */
-  async setOpen(userId: string, itineraryId: string, openToJoin: boolean): Promise<{ openToJoin: boolean }> {
-    const itinerary = isValidObjectId(itineraryId) ? await ItineraryModel.findById(itineraryId) : null;
-    if (!itinerary?.groupId) {
-      if (itinerary?.userId.toString() === userId) {
+  async setOpen(userId: string, tripId: string, openToJoin: boolean): Promise<{ openToJoin: boolean }> {
+    const trip = isValidObjectId(tripId) ? await TripModel.findById(tripId) : null;
+    if (!trip?.groupId) {
+      if (trip?.userId.toString() === userId) {
         throw new HttpError(409, 'Only group trips can be opened to travellers nearby');
       }
-      throw new HttpError(404, 'Itinerary not found');
+      throw new HttpError(404, 'Trip not found');
     }
-    const group = await GroupModel.findById(itinerary.groupId);
+    const group = await GroupModel.findById(trip.groupId);
     const role = group ? roleOf(group, userId) : undefined;
     if (role === undefined) {
-      throw new HttpError(404, 'Itinerary not found');
+      throw new HttpError(404, 'Trip not found');
     }
     if (role !== 'owner') {
       throw new HttpError(403, 'Only the group owner can open this trip to travellers nearby');
     }
-    await ItineraryModel.updateOne({ _id: itinerary._id }, { $set: { openToJoin } });
+    await TripModel.updateOne({ _id: trip._id }, { $set: { openToJoin } });
     return { openToJoin };
   }
 
@@ -111,62 +111,62 @@ export class NearbyService {
   async findNearby(userId: string, point: GeoPoint): Promise<NearbyTripDto[]> {
     const today = isoDay(this.now());
     const myGroupIds = await this.groupService.memberGroupIds(userId);
-    const open = await ItineraryModel.find({
+    const open = await TripModel.find({
       openToJoin: true,
       groupId: { $exists: true, $nin: myGroupIds },
       endDate: { $gte: today },
       startDate: { $lte: addDays(today, NEARBY_DAYS_AHEAD) },
     });
     const nearby = open
-      .map((itinerary) => ({ itinerary, distanceKm: nearestStopKm(itinerary, point) }))
+      .map((trip) => ({ trip, distanceKm: nearestStopKm(trip, point) }))
       .filter((trip) => trip.distanceKm <= NEARBY_RADIUS_KM)
       .sort((a, b) => a.distanceKm - b.distanceKm)
       .slice(0, NEARBY_LIMIT);
-    const groups = new Map((await GroupModel.find({ _id: { $in: nearby.map((trip) => trip.itinerary.groupId) } })).map((group) => [group._id.toString(), group]));
+    const groups = new Map((await GroupModel.find({ _id: { $in: nearby.map((entry) => entry.trip.groupId) } })).map((group) => [group._id.toString(), group]));
     const ownerIds = [...groups.values()].flatMap((group) => group.members.filter((member) => member.role === 'owner').map((member) => member.userId));
     const names = new Map((await UserModel.find({ _id: { $in: ownerIds } }, { name: 1 })).map((user) => [user._id.toString(), user.name]));
-    const requests = await JoinRequestModel.find({ requesterId: new Types.ObjectId(userId), itineraryId: { $in: nearby.map((trip) => trip.itinerary._id) } }).sort({ createdAt: 1 });
-    const latestRequest = new Map(requests.map((request) => [request.itineraryId.toString(), request.status]));
-    return nearby.flatMap(({ itinerary, distanceKm }) => {
-      const group = groups.get(itinerary.groupId?.toString() ?? '');
+    const requests = await JoinRequestModel.find({ requesterId: new Types.ObjectId(userId), tripId: { $in: nearby.map((entry) => entry.trip._id) } }).sort({ createdAt: 1 });
+    const latestRequest = new Map(requests.map((request) => [request.tripId.toString(), request.status]));
+    return nearby.flatMap(({ trip, distanceKm }) => {
+      const group = groups.get(trip.groupId?.toString() ?? '');
       if (!group) {
         return [];
       }
       const ownerId = group.members.find((member) => member.role === 'owner')?.userId.toString() ?? '';
       return [
         {
-          itineraryId: itinerary._id.toString(),
+          tripId: trip._id.toString(),
           groupId: group._id.toString(),
           groupName: group.name,
           organizer: names.get(ownerId) ?? FORMER_TRAVELLER,
           memberCount: group.members.length,
-          city: itinerary.city,
-          startDate: itinerary.startDate,
-          endDate: itinerary.endDate,
-          stopNames: itinerary.days.flatMap((day) => day.stops.map((stop) => stop.name)).slice(0, STOP_PREVIEW),
-          interests: [...itinerary.interests],
+          city: trip.city,
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          stopNames: trip.days.flatMap((day) => day.stops.map((stop) => stop.name)).slice(0, STOP_PREVIEW),
+          interests: [...trip.interests],
           distanceKm: Math.round(distanceKm * 10) / 10,
-          myRequest: latestRequest.get(itinerary._id.toString()) ?? 'none',
+          myRequest: latestRequest.get(trip._id.toString()) ?? 'none',
         },
       ];
     });
   }
 
   /** Asks to join the group of an open trip, with an optional note to its owner. */
-  async requestToJoin(userId: string, itineraryId: string, note: string): Promise<JoinRequestDto> {
-    const itinerary = isValidObjectId(itineraryId) ? await ItineraryModel.findById(itineraryId) : null;
-    if (!itinerary?.openToJoin || !itinerary.groupId) {
+  async requestToJoin(userId: string, tripId: string, note: string): Promise<JoinRequestDto> {
+    const trip = isValidObjectId(tripId) ? await TripModel.findById(tripId) : null;
+    if (!trip?.openToJoin || !trip.groupId) {
       throw new HttpError(404, 'This trip is not open to join');
     }
-    const groupId = itinerary.groupId;
+    const groupId = trip.groupId;
     if ((await this.groupService.memberGroupIds(userId)).some((id) => id.equals(groupId))) {
       throw new HttpError(409, "You are already in this trip's group");
     }
     const requesterId = new Types.ObjectId(userId);
-    if ((await JoinRequestModel.countDocuments({ itineraryId: itinerary._id, requesterId, status: 'pending' })) > 0) {
+    if ((await JoinRequestModel.countDocuments({ tripId: trip._id, requesterId, status: 'pending' })) > 0) {
       throw new HttpError(409, 'You already asked to join this trip');
     }
-    const request = await JoinRequestModel.create({ groupId, itineraryId: itinerary._id, requesterId, note });
+    const request = await JoinRequestModel.create({ groupId, tripId: trip._id, requesterId, note });
     return describe(request, await requesterNames([request]));
   }
 

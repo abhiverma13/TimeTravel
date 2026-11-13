@@ -1,9 +1,9 @@
 import request from 'supertest';
 
-import type { GeoPoint } from '../../src/itineraries/engine/types';
-import { ItineraryModel } from '../../src/itineraries/itineraryModel';
-import type { ItineraryDto } from '../../src/itineraries/itineraryService';
-import type { RoutesClient } from '../../src/itineraries/routesClient';
+import type { GeoPoint } from '../../src/trips/engine/types';
+import { TripModel } from '../../src/trips/tripModel';
+import type { TripDto } from '../../src/trips/tripService';
+import type { RoutesClient } from '../../src/trips/routesClient';
 import { CommentModel, PostModel } from '../../src/posts/postModel';
 import type { CommentDto, PostDetailDto } from '../../src/posts/postService';
 import { createTestApp, signedInUser } from '../helpers/testApp';
@@ -32,15 +32,15 @@ async function sharedPost(routesClient?: RoutesClient) {
   await seedTestville(activityService);
   const ava = await signedInUser(authService, 'Ava Traveller');
   const ben = await signedInUser(authService, 'Ben Traveller');
-  const itineraryId = await storeTestvilleTrip(ava.userId, ['Morning Bakery', 'Harbour Park']);
-  const post = (await request(app).post('/api/posts').set(ava.authorization).send({ itineraryId, rating: 5 })).body as PostDetailDto;
+  const tripId = await storeTestvilleTrip(ava.userId, ['Morning Bakery', 'Harbour Park']);
+  const post = (await request(app).post('/api/posts').set(ava.authorization).send({ tripId, rating: 5 })).body as PostDetailDto;
   const as = (user: Traveller) => ({
     get: (path: string) => request(app).get(path).set(user.authorization),
     post: (path: string, body: object = {}) => request(app).post(path).set(user.authorization).send(body),
     put: (path: string) => request(app).put(path).set(user.authorization),
     delete: (path: string) => request(app).delete(path).set(user.authorization),
   });
-  return { app, ava, ben, itineraryId, post, as };
+  return { app, ava, ben, tripId, post, as };
 }
 
 beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
@@ -58,10 +58,10 @@ describe('Mocked: POST /api/posts', () => {
   // Expected behavior: the error is handled without crashing the server
   // Expected output: { error: "Internal server error" }
   test('Post database write fails', async () => {
-    const { ava, itineraryId, as } = await sharedPost();
+    const { ava, tripId, as } = await sharedPost();
     jest.spyOn(PostModel, 'create').mockImplementation(simulatedOutage);
 
-    const response = await as(ava).post('/api/posts', { itineraryId, rating: 4 });
+    const response = await as(ava).post('/api/posts', { tripId, rating: 4 });
 
     expect(response.status).toBe(500);
     expect(response.body).toEqual({ error: 'Internal server error' });
@@ -221,24 +221,24 @@ describe('Mocked: POST /api/posts/:postId/copy', () => {
 
     const response = await as(ben).post(`/api/posts/${post.id}/copy`, { startDate: '2026-11-02' });
 
-    const itinerary = response.body as ItineraryDto;
+    const trip = response.body as TripDto;
     expect(response.status).toBe(201);
-    expect(itinerary.travelTimeSource).toBe('google-routes');
-    expect(itinerary.days.flatMap((day) => day.stops.map((stop) => stop.travelMinutes))).toEqual([9, 9]);
+    expect(trip.travelTimeSource).toBe('google-routes');
+    expect(trip.days.flatMap((day) => day.stops.map((stop) => stop.travelMinutes))).toEqual([9, 9]);
   });
 
-  // Mocked behavior: saving the new itinerary fails
+  // Mocked behavior: saving the new trip fails
   // Input: Ben copies Ava's post
   // Expected status code: 500
   // Expected behavior: no trip is created
   // Expected output: { error: "Internal server error" }
-  test('Itinerary database write fails', async () => {
+  test('Trip database write fails', async () => {
     const { ben, post, as } = await sharedPost();
-    jest.spyOn(ItineraryModel, 'create').mockImplementation(simulatedOutage);
+    jest.spyOn(TripModel, 'create').mockImplementation(simulatedOutage);
 
     const response = await as(ben).post(`/api/posts/${post.id}/copy`, { startDate: '2026-11-02' });
 
     expect(response.status).toBe(500);
-    expect(await ItineraryModel.countDocuments({ userId: ben.userId })).toBe(0);
+    expect(await TripModel.countDocuments({ userId: ben.userId })).toBe(0);
   });
 });

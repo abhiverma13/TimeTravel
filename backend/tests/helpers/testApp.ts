@@ -11,9 +11,9 @@ import { DisruptionService } from '../../src/disruptions/disruptionService';
 import type { WeatherClient } from '../../src/disruptions/weatherClient';
 import { FriendService } from '../../src/friends/friendService';
 import { GroupService } from '../../src/groups/groupService';
-import { ItineraryService } from '../../src/itineraries/itineraryService';
-import type { RoutesClient } from '../../src/itineraries/routesClient';
-import { TravelTimeService } from '../../src/itineraries/travelTimes';
+import { TripService } from '../../src/trips/tripService';
+import type { RoutesClient } from '../../src/trips/routesClient';
+import { TravelTimeService } from '../../src/trips/travelTimes';
 import { NearbyService } from '../../src/nearby/nearbyService';
 import { PostService } from '../../src/posts/postService';
 
@@ -38,7 +38,7 @@ export interface TestApp {
   authService: AuthService;
   activityService: ActivityService;
   groupService: GroupService;
-  itineraryService: ItineraryService;
+  tripService: TripService;
   friendService: FriendService;
   postService: PostService;
   nearbyService: NearbyService;
@@ -53,17 +53,17 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   const placesClient = options.placesClient ?? null;
   const activityService = new ActivityService(placesClient, options.now);
   const groupService = new GroupService();
-  const itineraryService = new ItineraryService(activityService, placesClient, groupService, new TravelTimeService(options.routesClient ?? null));
+  const tripService = new TripService(activityService, placesClient, groupService, new TravelTimeService(options.routesClient ?? null));
   const friendService = new FriendService();
-  const postService = new PostService(itineraryService, friendService);
+  const postService = new PostService(tripService, friendService);
   const nearbyService = new NearbyService(groupService, options.now);
-  const disruptionService = new DisruptionService(itineraryService, options.weatherClient ?? null, placesClient, options.now);
+  const disruptionService = new DisruptionService(tripService, options.weatherClient ?? null, placesClient, options.now);
   return {
-    app: createApp({ authService, activityService, groupService, itineraryService, friendService, postService, nearbyService, disruptionService }),
+    app: createApp({ authService, activityService, groupService, tripService, friendService, postService, nearbyService, disruptionService }),
     authService,
     activityService,
     groupService,
-    itineraryService,
+    tripService,
     friendService,
     postService,
     nearbyService,

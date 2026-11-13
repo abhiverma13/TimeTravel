@@ -1,9 +1,9 @@
-import { type RankedCandidate, pruneCandidates } from '../../src/itineraries/engine/candidates';
-import { type DayContext, simulateDay } from '../../src/itineraries/engine/daySchedule';
-import { dayUtility, improveDay, reorderMove, swapMove } from '../../src/itineraries/engine/localSearch';
-import { type RoutedDay, fillDay, paceSettings, planTrip } from '../../src/itineraries/engine/planner';
-import { estimateTravelMinutes } from '../../src/itineraries/engine/travelTime';
-import type { Candidate, GeoPoint, PlanRequest } from '../../src/itineraries/engine/types';
+import { type RankedCandidate, pruneCandidates } from '../../src/trips/engine/candidates';
+import { type DayContext, simulateDay } from '../../src/trips/engine/daySchedule';
+import { dayUtility, improveDay, reorderMove, swapMove } from '../../src/trips/engine/localSearch';
+import { type RoutedDay, fillDay, paceSettings, planTrip } from '../../src/trips/engine/planner';
+import { estimateTravelMinutes } from '../../src/trips/engine/travelTime';
+import type { Candidate, GeoPoint, PlanRequest } from '../../src/trips/engine/types';
 
 const ORIGIN: GeoPoint = { lat: 49.2827, lng: -123.1207 };
 
@@ -72,7 +72,7 @@ function bruteForceOptimum(candidates: readonly RankedCandidate[], dayContext: D
   return best;
 }
 
-describe('Itinerary Engine: local search moves', () => {
+describe('Trip Engine: local search moves', () => {
   test('reordering untangles a route that zig-zags across town', () => {
     // West and east of the origin: visiting west, east, west, east wastes travel.
     const west1 = ranked('west-1', { location: { lat: 49.2827, lng: -123.16 } });
@@ -131,7 +131,7 @@ describe('Itinerary Engine: local search moves', () => {
   });
 });
 
-describe('Itinerary Engine: plan quality', () => {
+describe('Trip Engine: plan quality', () => {
   test('the planner finds the high-value plan that value-per-minute greedy insertion misses', () => {
     const request: PlanRequest = {
       days: [{ date: '2026-10-25', weekday: 0 }],
@@ -189,7 +189,7 @@ describe('Itinerary Engine: plan quality', () => {
 
     const worst = Math.min(...ratios);
     const mean = ratios.reduce((sum, ratio) => sum + ratio, 0) / ratios.length;
-    console.info(`Itinerary Engine vs optimum over 25 instances: mean ${(mean * 100).toFixed(1)}%, worst ${(worst * 100).toFixed(1)}%`);
+    console.info(`Trip Engine vs optimum over 25 instances: mean ${(mean * 100).toFixed(1)}%, worst ${(worst * 100).toFixed(1)}%`);
     expect(worst).toBeGreaterThanOrEqual(0.9);
     expect(mean).toBeGreaterThanOrEqual(0.95);
   });

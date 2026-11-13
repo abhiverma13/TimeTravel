@@ -4,7 +4,7 @@ import request from 'supertest';
 import { ActivityModel } from '../../src/activities/activityModel';
 import type { SuggestionDto } from '../../src/disruptions/disruptionService';
 import { SuggestionModel } from '../../src/disruptions/suggestionModel';
-import type { ItineraryDto } from '../../src/itineraries/itineraryService';
+import type { TripDto } from '../../src/trips/tripService';
 import { createTestApp, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
 import { seedTestville, storeTestvilleTrip } from '../helpers/testville';
@@ -18,13 +18,13 @@ async function rainyTrip() {
   await seedTestville(activityService);
   const pia = await signedInUser(authService, 'Pia Planner');
   const outsider = await signedInUser(authService, 'Oscar Outsider');
-  const itineraryId = await storeTestvilleTrip(pia.userId, ['Morning Bakery', 'Harbour Park', 'Town Museum']);
+  const tripId = await storeTestvilleTrip(pia.userId, ['Morning Bakery', 'Harbour Park', 'Town Museum']);
   const parkId = (await ActivityModel.findOne({ name: 'Harbour Park' }))?._id.toString() ?? '';
-  await disruptionService.suggest(new Types.ObjectId(itineraryId), 0, parkId, 'rain');
+  await disruptionService.suggest(new Types.ObjectId(tripId), 0, parkId, 'rain');
   const list = async (user = pia) =>
-    request(app).get(`/api/suggestions?itineraryId=${itineraryId}`).set(user.authorization);
+    request(app).get(`/api/suggestions?tripId=${tripId}`).set(user.authorization);
   const [suggestion] = ((await list()).body as { suggestions: SuggestionDto[] }).suggestions;
-  return { app, pia, outsider, itineraryId, parkId, suggestion: suggestion ?? fail('no suggestion was made'), list };
+  return { app, pia, outsider, tripId, parkId, suggestion: suggestion ?? fail('no suggestion was made'), list };
 }
 
 function fail(message: string): never {
@@ -69,11 +69,11 @@ describe('Unmocked: GET /api/suggestions', () => {
   // Expected behavior: a suggestion worked out for an older version of the trip, or past its time, is not shown
   // Expected output: { suggestions: [] } for both
   test.each(['the trip changed', 'the suggestion expired'])('Not listed once %s', async (scenario) => {
-    const { app, pia, itineraryId, list, suggestion } = await rainyTrip();
+    const { app, pia, tripId, list, suggestion } = await rainyTrip();
     if (scenario === 'the trip changed') {
-      const trip = (await request(app).get(`/api/itineraries/${itineraryId}`).set(pia.authorization)).body as ItineraryDto;
+      const trip = (await request(app).get(`/api/trips/${tripId}`).set(pia.authorization)).body as TripDto;
       await request(app)
-        .post(`/api/itineraries/${itineraryId}/adjust`)
+        .post(`/api/trips/${tripId}/adjust`)
         .set(pia.authorization)
         .send({ action: 'lock', version: 0, dayIndex: 0, activityId: trip.days.at(0)?.stops.at(0)?.activityId });
     } else {
@@ -86,10 +86,10 @@ describe('Unmocked: GET /api/suggestions', () => {
     expect(suggestionsIn(response)).toEqual([]);
   });
 
-  // Input: a traveller who cannot see the trip, and no itinerary id
+  // Input: a traveller who cannot see the trip, and no trip id
   // Expected status code: 404 and 400
   // Expected behavior: nothing is revealed
-  // Expected output: { error: "Itinerary not found" }, then { error: "Invalid request", details: [...] }
+  // Expected output: { error: "Trip not found" }, then { error: "Invalid request", details: [...] }
   test('Suggestions of a trip you cannot see', async () => {
     const { app, outsider, list } = await rainyTrip();
 
@@ -97,7 +97,7 @@ describe('Unmocked: GET /api/suggestions', () => {
     const missing = await request(app).get('/api/suggestions').set(outsider.authorization);
 
     expect(hidden.status).toBe(404);
-    expect(hidden.body).toEqual({ error: 'Itinerary not found' });
+    expect(hidden.body).toEqual({ error: 'Trip not found' });
     expect(missing.status).toBe(400);
   });
 });
@@ -107,16 +107,16 @@ describe('Unmocked: POST /api/suggestions/:suggestionId/accept', () => {
   // Input: Pia accepts the rain suggestion
   // Expected status code: 200
   // Expected behavior: the proposed day is saved as a new version of the trip, and the suggestion is answered
-  // Expected output: the itinerary with Lookout Tower instead of Harbour Park, version 1; no suggestions left
+  // Expected output: the trip with Lookout Tower instead of Harbour Park, version 1; no suggestions left
   test('Accepting applies the proposed day', async () => {
     const { app, pia, list, suggestion } = await rainyTrip();
 
     const response = await request(app).post(`/api/suggestions/${suggestion.id}/accept`).set(pia.authorization);
 
-    const itinerary = response.body as ItineraryDto;
-    const names = itinerary.days.at(0)?.stops.map((stop) => stop.name);
+    const trip = response.body as TripDto;
+    const names = trip.days.at(0)?.stops.map((stop) => stop.name);
     expect(response.status).toBe(200);
-    expect(itinerary.version).toBe(1);
+    expect(trip.version).toBe(1);
     expect(names).toContain('Lookout Tower');
     expect(names).not.toContain('Harbour Park');
     expect((await SuggestionModel.findById(suggestion.id))?.status).toBe('accepted');
@@ -128,10 +128,10 @@ describe('Unmocked: POST /api/suggestions/:suggestionId/accept', () => {
   // Expected behavior: the old proposal is not applied over the newer trip, and the suggestion lapses
   // Expected output: { error: "The trip changed since this suggestion; it no longer applies" }
   test('Accepting after the trip changed', async () => {
-    const { app, pia, itineraryId, suggestion } = await rainyTrip();
-    const trip = (await request(app).get(`/api/itineraries/${itineraryId}`).set(pia.authorization)).body as ItineraryDto;
+    const { app, pia, tripId, suggestion } = await rainyTrip();
+    const trip = (await request(app).get(`/api/trips/${tripId}`).set(pia.authorization)).body as TripDto;
     await request(app)
-      .post(`/api/itineraries/${itineraryId}/adjust`)
+      .post(`/api/trips/${tripId}/adjust`)
       .set(pia.authorization)
       .send({ action: 'lock', version: 0, dayIndex: 0, activityId: trip.days.at(0)?.stops.at(0)?.activityId });
 
@@ -172,12 +172,12 @@ describe('Unmocked: POST /api/suggestions/:suggestionId/dismiss', () => {
   // Expected behavior: the trip stays as it is and the suggestion is no longer listed
   // Expected output: no body; version 0 with Harbour Park; then { error: "This suggestion was already answered" }
   test('Dismissing leaves the trip as it is', async () => {
-    const { app, pia, itineraryId, list, suggestion } = await rainyTrip();
+    const { app, pia, tripId, list, suggestion } = await rainyTrip();
 
     const response = await request(app).post(`/api/suggestions/${suggestion.id}/dismiss`).set(pia.authorization);
     const again = await request(app).post(`/api/suggestions/${suggestion.id}/dismiss`).set(pia.authorization);
 
-    const trip = (await request(app).get(`/api/itineraries/${itineraryId}`).set(pia.authorization)).body as ItineraryDto;
+    const trip = (await request(app).get(`/api/trips/${tripId}`).set(pia.authorization)).body as TripDto;
     expect(response.status).toBe(204);
     expect(trip.version).toBe(0);
     expect(trip.days.at(0)?.stops.map((stop) => stop.name)).toContain('Harbour Park');
@@ -197,11 +197,11 @@ describe('Unmocked: Disruption timer: checkActiveTrips()', () => {
     const { app, authService, activityService, disruptionService } = createTestApp({ now: () => new Date('2026-10-24T08:00:00Z') });
     await seedTestville(activityService);
     const { userId, authorization } = await signedInUser(authService, 'Pia Planner');
-    const itineraryId = await storeTestvilleTrip(userId, ['Morning Bakery', 'Harbour Park']);
+    const tripId = await storeTestvilleTrip(userId, ['Morning Bakery', 'Harbour Park']);
 
     const made = await disruptionService.checkActiveTrips();
 
     expect(made).toBe(0);
-    expect(suggestionsIn(await request(app).get(`/api/suggestions?itineraryId=${itineraryId}`).set(authorization))).toEqual([]);
+    expect(suggestionsIn(await request(app).get(`/api/suggestions?tripId=${tripId}`).set(authorization))).toEqual([]);
   });
 });

@@ -6,20 +6,20 @@ import { repairDay } from './engine/adjust';
 import { type RankedCandidate, windowsOn } from './engine/candidates';
 import { type DayContext, type SimulatedDay, simulateDay } from './engine/daySchedule';
 import type { Candidate } from './engine/types';
-import type { ItineraryDay, ItineraryStop } from './itineraryModel';
+import type { TripDay, TripStop } from './tripModel';
 import { clockFromMinutes, minutesFromClock } from './tripCalendar';
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-/** One change a traveller makes to a day of an itinerary. `version` is the itinerary version they last saw. */
-export type ItineraryAdjustment =
+/** One change a traveller makes to a day of a trip. `version` is the trip version they last saw. */
+export type TripAdjustment =
   | { action: 'lock' | 'unlock' | 'remove' | 'add' | 'visit' | 'unvisit'; version: number; dayIndex: number; activityId: string }
   | { action: 'move'; version: number; dayIndex: number; activityId: string; toIndex: number }
   | { action: 'replan'; version: number; dayIndex: number; fromTime?: string | undefined };
 
-/** Everything needed to repair one day of a stored itinerary. */
+/** Everything needed to repair one day of a stored trip. */
 export interface RepairInputs {
-  day: ItineraryDay;
+  day: TripDay;
   /** The whole day's context: from the lodging, back to the lodging, within the day's hours. */
   context: DayContext;
   /** Ranked candidates for the trip (vetoed activities already left out), by activity id. */
@@ -31,13 +31,13 @@ export interface RepairInputs {
 }
 
 export interface RepairedDay {
-  stops: ItineraryStop[];
+  stops: TripStop[];
   returnTravelMinutes: number;
   /** What changed, said after the traveller's name: "removed Stanley Park Seawall". */
   summary: string;
 }
 
-export const STALE_ITINERARY = 'This itinerary changed since you loaded it; reload it and try again';
+export const STALE_TRIP = 'This trip changed since you loaded it; reload it and try again';
 
 export function toCandidate(activity: ActivityDto): Candidate {
   return {
@@ -54,7 +54,7 @@ export function toCandidate(activity: ActivityDto): Candidate {
  * A locked stop keeps its start time: its only opening window becomes its current visit, if that visit is inside the
  * place's real opening hours, and none otherwise. The day is then repaired around it rather than moving it.
  */
-function pinned(candidate: RankedCandidate, stop: ItineraryStop, weekday: number): RankedCandidate {
+function pinned(candidate: RankedCandidate, stop: TripStop, weekday: number): RankedCandidate {
   const openMinute = minutesFromClock(stop.startTime);
   const closeMinute = openMinute + candidate.durationMinutes;
   const fits = windowsOn(candidate.openingHours, weekday).some((window) => window.openMinute <= openMinute && closeMinute <= window.closeMinute);
@@ -62,12 +62,12 @@ function pinned(candidate: RankedCandidate, stop: ItineraryStop, weekday: number
 }
 
 /** The candidate for a stop already in the plan (pinned in time if `pin`), even if it has left the ranked candidates. */
-function candidateFor(stop: ItineraryStop, inputs: RepairInputs, pin = false): RankedCandidate {
+function candidateFor(stop: TripStop, inputs: RepairInputs, pin = false): RankedCandidate {
   const candidate = unpinnedCandidateFor(stop, inputs);
   return pin ? pinned(candidate, stop, inputs.context.weekday) : candidate;
 }
 
-function unpinnedCandidateFor(stop: ItineraryStop, inputs: RepairInputs): RankedCandidate {
+function unpinnedCandidateFor(stop: TripStop, inputs: RepairInputs): RankedCandidate {
   const id = stop.activityId.toString();
   const ranked = inputs.ranked.get(id);
   if (ranked) {
@@ -91,8 +91,8 @@ function unpinnedCandidateFor(stop: ItineraryStop, inputs: RepairInputs): Ranked
 export function timedStops(
   simulation: SimulatedDay,
   catalogue: ReadonlyMap<string, ActivityDto>,
-  previous: readonly ItineraryStop[],
-): ItineraryStop[] {
+  previous: readonly TripStop[],
+): TripStop[] {
   const previousById = new Map(previous.map((stop) => [stop.activityId.toString(), stop]));
   return simulation.stops.map((scheduled) => {
     const before = previousById.get(scheduled.candidateId);
@@ -113,7 +113,7 @@ export function timedStops(
   });
 }
 
-function stopIndex(day: ItineraryDay, activityId: string): number {
+function stopIndex(day: TripDay, activityId: string): number {
   const index = day.stops.findIndex((stop) => stop.activityId.toString() === activityId);
   if (index === -1) {
     throw new HttpError(404, 'That stop is not in this day');
@@ -203,7 +203,7 @@ function cheapestInsertion(kept: readonly RankedCandidate[], added: RankedCandid
 
 interface AddOption {
   simulation: SimulatedDay;
-  dropped: ItineraryStop[];
+  dropped: TripStop[];
   droppedUtility: number;
 }
 
@@ -289,7 +289,7 @@ function replanDay(inputs: RepairInputs, fromTime: string | undefined): Repaired
 }
 
 /** Applies one adjustment to a day and returns the new day. */
-export function applyAdjustment(change: ItineraryAdjustment, inputs: RepairInputs): RepairedDay {
+export function applyAdjustment(change: TripAdjustment, inputs: RepairInputs): RepairedDay {
   switch (change.action) {
     case 'lock':
     case 'unlock':
