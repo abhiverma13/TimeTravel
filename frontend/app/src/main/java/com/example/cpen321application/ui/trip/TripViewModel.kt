@@ -30,6 +30,9 @@ sealed interface TripUiState {
     data class Failed(val message: String) : TripUiState
 }
 
+/** Shown on the trip and its map once the traveller is no longer in the trip's group. */
+const val ACCESS_LOST_MESSAGE = "You're no longer in this trip's group, so it is not available any more."
+
 private const val HTTP_CONFLICT = 409
 private val CLOCK: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
@@ -70,6 +73,7 @@ class TripViewModel(private val dependencies: TripDependencies, private val trip
         onStatus = ::onLiveStatus,
         onChange = ::onLiveChange,
         onSuggestion = { suggestion -> mutableSuggestions.update { list -> list.filterNot { it.id == suggestion.id } + suggestion } },
+        onAccessLost = ::onAccessLost,
     )
 
     init {
@@ -180,6 +184,12 @@ class TripViewModel(private val dependencies: TripDependencies, private val trip
         if (current == null || trip.version > current.version) {
             mutableState.value = TripUiState.Loaded(trip)
         }
+    }
+
+    private fun onAccessLost() {
+        mutableLive.value = LiveStatus.OFFLINE
+        mutableSuggestions.value = emptyList()
+        mutableState.value = TripUiState.Failed(ACCESS_LOST_MESSAGE)
     }
 
     private fun onLiveStatus(status: LiveStatus) {

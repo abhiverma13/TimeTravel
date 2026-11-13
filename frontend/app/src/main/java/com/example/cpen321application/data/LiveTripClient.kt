@@ -36,6 +36,7 @@ private const val TRIP_UPDATED = "tripUpdated"
 private const val MEMBER_LOCATION = "memberLocation"
 private const val MEMBER_LOCATION_STOPPED = "memberLocationStopped"
 private const val SUGGESTION_ADDED = "suggestionAdded"
+private const val TRIP_ACCESS_LOST = "tripAccessLost"
 
 /**
  * Live trip updates from the Trip Sync & Disruption Service, over Socket.io on the API's own address and with the
@@ -46,7 +47,8 @@ class LiveTripClient(private val baseUrl: String, private val sessionStore: Sess
 
     /**
      * Subscribes to one trip. Every callback runs on a background thread; the member callbacks report other members'
-     * shared positions, and their user id when they stop sharing; `onSuggestion` gets new disruption suggestions.
+     * shared positions, and their user id when they stop sharing; `onSuggestion` gets new disruption suggestions;
+     * `onAccessLost` runs when the traveller leaves the trip's group, is removed, or the group is deleted.
      */
     fun open(
         tripId: String,
@@ -55,6 +57,7 @@ class LiveTripClient(private val baseUrl: String, private val sessionStore: Sess
         onMemberLocation: (MemberLocation) -> Unit = {},
         onMemberGone: (String) -> Unit = {},
         onSuggestion: (Suggestion) -> Unit = {},
+        onAccessLost: () -> Unit = {},
     ): LiveTrip {
         val options = IO.Options.builder()
             .setAuth(mapOf("token" to sessionStore.token.orEmpty()))
@@ -74,6 +77,7 @@ class LiveTripClient(private val baseUrl: String, private val sessionStore: Sess
         socket.on(MEMBER_LOCATION) { args -> parse(args.firstOrNull(), MemberLocation::class.java)?.let(onMemberLocation) }
         socket.on(MEMBER_LOCATION_STOPPED) { args -> (args.firstOrNull() as? JSONObject)?.optString("userId")?.let(onMemberGone) }
         socket.on(SUGGESTION_ADDED) { args -> parse(args.firstOrNull(), Suggestion::class.java)?.let(onSuggestion) }
+        socket.on(TRIP_ACCESS_LOST) { onAccessLost() }
         onStatus(LiveStatus.CONNECTING)
         socket.connect()
         return LiveTrip(socket, tripId)

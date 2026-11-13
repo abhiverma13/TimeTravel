@@ -10,6 +10,7 @@ import com.example.cpen321application.data.LiveTrip
 import com.example.cpen321application.data.LiveTripClient
 import com.example.cpen321application.data.MemberLocation
 import com.example.cpen321application.data.TimeTravelRepository
+import com.example.cpen321application.ui.trip.ACCESS_LOST_MESSAGE
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,6 +58,8 @@ class MapViewModel(
         onChange = { change -> mutableState.update { it.copy(trip = change.trip) } },
         onMemberLocation = { member -> mutableState.update { it.copy(members = it.members + (member.userId to member)) } },
         onMemberGone = { userId -> mutableState.update { it.copy(members = it.members - userId) } },
+        // Stops sharing too: positions are only sent while `sharing` is on.
+        onAccessLost = { mutableState.update { it.copy(trip = null, members = emptyMap(), sharing = false, error = ACCESS_LOST_MESSAGE) } },
     )
 
     init {
