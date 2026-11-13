@@ -18,6 +18,7 @@
 | 2026-10-27 | 4.2 | The Generate Itinerary test's unknown lodging is now "no such place zzzz", because Google Places matched the old one to real Vancouver hotels. |
 | 2026-11-02 | All | Shortened the wording after CP1 feedback, and renumbered the Generate Itinerary test steps to match the CP2 use case. |
 | 2026-11-12 | 2.1, 2.5, 3, 4 | Renamed itineraries to trips in the interfaces, test files and end-to-end tests (`PlanTripTest`, `ViewAdjustTripTest`) to match the code. |
+| 2026-11-12 | 2.1.1 | Added the tests for losing access to a group trip (`tripAccessLost`), which fix the peer review's major fault. |
 
 ---
 
@@ -46,9 +47,10 @@
 | **GET /api/trips/:tripId** | [`backend/tests/no-mock/trips.test.ts#L393`](../backend/tests/no-mock/trips.test.ts#L393) | [`backend/tests/mock/trips.test.ts#L136`](../backend/tests/mock/trips.test.ts#L136) | Trip DB |
 | **GET /api/trips** | [`backend/tests/no-mock/trips.test.ts#L442`](../backend/tests/no-mock/trips.test.ts#L442) | [`backend/tests/mock/trips.test.ts#L157`](../backend/tests/mock/trips.test.ts#L157) | Trip DB |
 | **POST /api/trips/:tripId/adjust** | [`backend/tests/no-mock/adjust.test.ts#L41`](../backend/tests/no-mock/adjust.test.ts#L41) | [`backend/tests/mock/adjust.test.ts#L32`](../backend/tests/mock/adjust.test.ts#L32) | Trip DB (a concurrent change saved first, write failure), Activity DB, live-update push |
-| **Socket.io trip updates** | [`backend/tests/no-mock/tripSync.test.ts#L40`](../backend/tests/no-mock/tripSync.test.ts#L40) | [`backend/tests/mock/tripSync.test.ts#L19`](../backend/tests/mock/tripSync.test.ts#L19) | Trip DB (access check on subscribe) |
-| **Socket.io location sharing** | [`backend/tests/no-mock/tripSync.test.ts#L144`](../backend/tests/no-mock/tripSync.test.ts#L144) | [`backend/tests/mock/tripSync.test.ts#L46`](../backend/tests/mock/tripSync.test.ts#L46) | User DB (looking up the sharer) |
-| **Socket.io suggestions** | [`backend/tests/no-mock/tripSync.test.ts#L229`](../backend/tests/no-mock/tripSync.test.ts#L229) | [`backend/tests/mock/tripSync.test.ts#L75`](../backend/tests/mock/tripSync.test.ts#L75) | Suggestion push (a device that cannot be reached) |
+| **Socket.io trip updates** | [`backend/tests/no-mock/tripSync.test.ts#L41`](../backend/tests/no-mock/tripSync.test.ts#L41) | [`backend/tests/mock/tripSync.test.ts#L22`](../backend/tests/mock/tripSync.test.ts#L22) | Trip DB (access check on subscribe) |
+| **Socket.io location sharing** | [`backend/tests/no-mock/tripSync.test.ts#L150`](../backend/tests/no-mock/tripSync.test.ts#L150) | [`backend/tests/mock/tripSync.test.ts#L49`](../backend/tests/mock/tripSync.test.ts#L49) | User DB (looking up the sharer) |
+| **Socket.io suggestions** | [`backend/tests/no-mock/tripSync.test.ts#L321`](../backend/tests/no-mock/tripSync.test.ts#L321) | [`backend/tests/mock/tripSync.test.ts#L78`](../backend/tests/mock/tripSync.test.ts#L78) | Suggestion push (a device that cannot be reached) |
+| **Socket.io losing access to a group trip** | [`backend/tests/no-mock/tripSync.test.ts#L236`](../backend/tests/no-mock/tripSync.test.ts#L236) | [`backend/tests/mock/tripSync.test.ts#L104`](../backend/tests/mock/tripSync.test.ts#L104) | Trip access check (a traveller removed but still subscribed), membership push (a device that cannot be reached) |
 | **GET /api/travellers** | [`backend/tests/no-mock/friends.test.ts#L37`](../backend/tests/no-mock/friends.test.ts#L37) | [`backend/tests/mock/friends.test.ts#L33`](../backend/tests/mock/friends.test.ts#L33) | User DB |
 | **GET /api/travellers/:userId** | [`backend/tests/no-mock/friends.test.ts#L133`](../backend/tests/no-mock/friends.test.ts#L133) | [`backend/tests/mock/friends.test.ts#L51`](../backend/tests/mock/friends.test.ts#L51) | Friendship DB |
 | **GET /api/friends** | [`backend/tests/no-mock/friends.test.ts#L186`](../backend/tests/no-mock/friends.test.ts#L186) | [`backend/tests/mock/friends.test.ts#L69`](../backend/tests/mock/friends.test.ts#L69) | Friendship DB |

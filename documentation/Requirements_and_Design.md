@@ -19,6 +19,7 @@
 | 2026-10-26 | 3.2, 3.4, 4.5, 4.6 | Redrew the use case and dependency diagrams for CP2, and updated the sequence diagrams to match the implementation. |
 | 2026-11-02 | All | Shortened the wording after CP1 feedback, and removed the legends from the use case and dependency diagrams. |
 | 2026-11-12 | All | Called every planned trip a "trip": the word "itinerary" is gone from the use cases, interfaces (`/api/trips`), components (Trip Service, Trip Engine) and database (`trips`), because two words for one thing confused readers. |
+| 2026-11-12 | 4.1 | Fixed the peer review's major fault: a member removed from a group kept receiving its live locations. The Group Service now announces who lost access, and the hub disconnects them from the group's trips at once (`tripAccessLost`); every shared position also re-checks access. |
 
 ---
 
@@ -363,24 +364,28 @@ Screens from the CP1 build:
             - **Purpose**: Adds a traveller with their profile interests in one atomic update (409 if full); used when joining by code and by the Nearby Service.
         10. `GroupTripPreferences preferencesOf(ObjectId groupId)`
             - **Purpose**: Returns the combined preferences without an access check, for callers already checked and for the timer.
+        11. `void onMembersLeft(MembersLeft left)`, with `MembersLeft` `{ groupId, userIds, tripIds }`
+            - **Purpose**: Tells the Trip Sync & Disruption Service who lost access to which trips after a member leaves or is removed, or the group is deleted.
 5. **Trip Sync & Disruption Service**
     - **Purpose**: A Socket.io hub with one room per trip, plus a timer that detects disruptions and asks the Trip Engine for proposed changes. A persistent socket, rather than polling, delivers a change to every device within seconds (NFR 2).
     - **Interfaces**:
         1. Socket.io handshake `auth: { token }`; client event `subscribe { tripId }` (acknowledged with `{ ok: true }` or `{ ok: false, error }`) and `unsubscribe { tripId }`; server event `tripUpdated { trip: TripDto, actorId, summary }`
             - **Purpose**: A device subscribes to the trips its user may see and receives every saved change with a summary such as "Ava removed English Bay Beach". Changes themselves go through the REST API, so each is validated and versioned in one place.
         2. Socket.io client events `shareLocation { tripId, lat, lng }` (acknowledged) and `stopSharingLocation { tripId }`; server events `memberLocation { tripId, userId, name, lat, lng, at }` and `memberLocationStopped { tripId, userId }`
-            - **Purpose**: Relays a subscribed device's position to the trip's other subscribers. The server stores nothing.
-        3. `void onTripChanged(TripChange change)`
+            - **Purpose**: Relays a subscribed device's position to the trip's other subscribers, after checking again that its traveller can still see the trip. The server stores nothing.
+        3. Server event `tripAccessLost { tripId }`
+            - **Purpose**: Sent to every device of a traveller who left the trip's group, was removed, or whose group was deleted. Those devices leave the trip's room and stop sharing their position at once, so a removed member sees nothing more.
+        4. `void onTripChanged(TripChange change)`
             - **Purpose**: Called by the Trip Engine after each saved change; broadcasts it to the trip's room.
-        4. `int checkActiveTrips()`
+        5. `int checkActiveTrips()`
             - **Purpose**: Runs every 30 minutes: checks the forecast and venue status of stops starting within 36 hours on trips under way, and makes a suggestion for each disrupted stop. One trip's failure never stops the others.
-        5. `boolean suggest(ObjectId tripId, int dayIndex, String activityId, String reason)` and server event `suggestionAdded { suggestion: SuggestionDto }`
+        6. `boolean suggest(ObjectId tripId, int dayIndex, String activityId, String reason)` and server event `suggestionAdded { suggestion: SuggestionDto }`
             - **Purpose**: Asks the Trip Engine for the day without the disrupted stop, saves it as a suggestion for 12 hours, and pushes it to the room, unless one is already waiting for that stop.
-        6. `GET /api/suggestions?tripId=<id>` returns `{ suggestions: SuggestionDto[] }`
+        7. `GET /api/suggestions?tripId=<id>` returns `{ suggestions: SuggestionDto[] }`
             - **Purpose**: Returns the trip's waiting suggestions for its current version. `SuggestionDto` is `{ id, tripId, dayIndex, date, activityId, activityName, reason, message, proposedStops, createdAt, expiresAt }`.
-        7. `POST /api/suggestions/{suggestionId}/accept` returns `TripDto`
+        8. `POST /api/suggestions/{suggestionId}/accept` returns `TripDto`
             - **Purpose**: Saves the proposed day if the trip is unchanged (409 otherwise) and pushes it like any adjustment.
-        8. `POST /api/suggestions/{suggestionId}/dismiss` returns 204
+        9. `POST /api/suggestions/{suggestionId}/dismiss` returns 204
             - **Purpose**: Turns the suggestion down. Each suggestion is answered once (409 after that).
 
 6. **Friend Service**
