@@ -20,6 +20,7 @@
 | 2026-11-02 | All | Shortened the wording after CP1 feedback, and removed the legends from the use case and dependency diagrams. |
 | 2026-11-12 | All | Called every planned trip a "trip": the word "itinerary" is gone from the use cases, interfaces (`/api/trips`), components (Trip Service, Trip Engine) and database (`trips`), because two words for one thing confused readers. |
 | 2026-11-12 | 4.1 | Fixed the peer review's major fault: a member removed from a group kept receiving its live locations. The Group Service now announces who lost access, and the hub disconnects them from the group's trips at once (`tripAccessLost`); every shared position also re-checks access. |
+| 2026-11-12 | 3.1, 4.1 | Added live updates for friends, groups, join requests, posts and suggestions (`liveEvent`), after CP2 feedback asked for friends being added and members joining to appear without a refresh. Each traveller's devices share a room, so one event reaches all of them. |
 
 ---
 
@@ -38,9 +39,9 @@ Planning a trip is a scheduling problem, but every tool treats it as a search pr
 1. **F1 Sign in with Google** (CP1): the back-end verifies the Google ID token and issues its own session token. The profile's home city and interests prefill searches and trips.
 2. **F2 Explore & review activities** (CP1, extended in CP2): browse a city's activities, rate and tag them, and read others' reviews. A review written at the place during the reviewer's trip is verified and counts double.
 3. **F3 Trip generation** (CP1, extended in CP2): our own algorithm turns trip details into a ranked, time-feasible, day-by-day plan. It uses the traveller's way of getting around, budget, and places to see or avoid, with travel times from Google Routes. A place found in Explore can be added to a trip.
-4. **F4 Collaborative trips, live** (CP2): friends join a group with an invite code, and every member's interests and vetoes shape its plans. Any member can adjust a stop or re-plan a day, and every member's open app updates within seconds.
+4. **F4 Collaborative trips, live** (CP2): friends join a group with an invite code, and every member's interests and vetoes shape its plans. Any member can adjust a stop or re-plan a day, and every member's open app updates within seconds. Members joining or leaving, and join requests and their answers, also reach every member's app as they happen.
 5. **F5 Disruption-aware re-planning** (CP2): a back-end timer checks the forecast and venue status for trips under way, and suggests a change for rain during an outdoor stop or a closed venue. Nothing changes until a member accepts.
-6. **F6 Friends and the trip feed** (CP2): travellers become friends by request and share trips with a rating and caption to the Friends and Everyone feeds; a private account's posts reach friends only. Posts can be liked, commented on and copied onto new dates.
+6. **F6 Friends and the trip feed** (CP2): travellers become friends by request and share trips with a rating and caption to the Friends and Everyone feeds; a private account's posts reach friends only. Posts can be liked, commented on and copied onto new dates. Friend requests and their answers, and likes and comments on a traveller's posts, reach them as they happen.
 7. **F7 Trip map and live location** (CP2): a map of each day's stops and route with the traveller's position. On the trip's day, arriving within 100 m ticks a stop off. Group members can share their positions while the map is open; positions are never stored.
 8. **F8 Nearby trips** (CP2): a group's owner opens a group trip to nearby travellers, who see its plan (never the lodging or anyone's position) and can ask to join.
 
@@ -367,7 +368,7 @@ Screens from the CP1 build:
         11. `void onMembersLeft(MembersLeft left)`, with `MembersLeft` `{ groupId, userIds, tripIds }`
             - **Purpose**: Tells the Trip Sync & Disruption Service who lost access to which trips after a member leaves or is removed, or the group is deleted.
 5. **Trip Sync & Disruption Service**
-    - **Purpose**: A Socket.io hub with one room per trip, plus a timer that detects disruptions and asks the Trip Engine for proposed changes. A persistent socket, rather than polling, delivers a change to every device within seconds (NFR 2).
+    - **Purpose**: A Socket.io hub with one room per trip and one per signed-in traveller, plus a timer that detects disruptions and asks the Trip Engine for proposed changes. A persistent socket, rather than polling, delivers a change to every device within seconds (NFR 2).
     - **Interfaces**:
         1. Socket.io handshake `auth: { token }`; client event `subscribe { tripId }` (acknowledged with `{ ok: true }` or `{ ok: false, error }`) and `unsubscribe { tripId }`; server event `tripUpdated { trip: TripDto, actorId, summary }`
             - **Purpose**: A device subscribes to the trips its user may see and receives every saved change with a summary such as "Ava removed English Bay Beach". Changes themselves go through the REST API, so each is validated and versioned in one place.
@@ -375,17 +376,21 @@ Screens from the CP1 build:
             - **Purpose**: Relays a subscribed device's position to the trip's other subscribers, after checking again that its traveller can still see the trip. The server stores nothing.
         3. Server event `tripAccessLost { tripId }`
             - **Purpose**: Sent to every device of a traveller who left the trip's group, was removed, or whose group was deleted. Those devices leave the trip's room and stop sharing their position at once, so a removed member sees nothing more.
-        4. `void onTripChanged(TripChange change)`
+        4. Server event `liveEvent { type, text, actorId, groupId?, tripId?, postId?, at }`
+            - **Purpose**: Tells every device of a traveller, wherever they are in the app, about something another traveller (or the disruption timer) did that concerns them: a friend request sent, accepted, declined or cancelled, or a friendship removed; a member joining, leaving or being removed, or the group being deleted; a join request and its answer; a like or comment on their post; a new suggestion for their trip. `text` is ready to show, such as "Ava joined Crew". The traveller who acted never gets their own event.
+        5. `void publish(String[] recipientIds, LiveEvent event)`
+            - **Purpose**: Called by the Friend, Group, Nearby, Feed and Disruption services after each change that concerns another traveller. A push that fails is logged and never fails the change itself.
+        6. `void onTripChanged(TripChange change)`
             - **Purpose**: Called by the Trip Engine after each saved change; broadcasts it to the trip's room.
-        5. `int checkActiveTrips()`
+        7. `int checkActiveTrips()`
             - **Purpose**: Runs every 30 minutes: checks the forecast and venue status of stops starting within 36 hours on trips under way, and makes a suggestion for each disrupted stop. One trip's failure never stops the others.
-        6. `boolean suggest(ObjectId tripId, int dayIndex, String activityId, String reason)` and server event `suggestionAdded { suggestion: SuggestionDto }`
+        8. `boolean suggest(ObjectId tripId, int dayIndex, String activityId, String reason)` and server event `suggestionAdded { suggestion: SuggestionDto }`
             - **Purpose**: Asks the Trip Engine for the day without the disrupted stop, saves it as a suggestion for 12 hours, and pushes it to the room, unless one is already waiting for that stop.
-        7. `GET /api/suggestions?tripId=<id>` returns `{ suggestions: SuggestionDto[] }`
+        9. `GET /api/suggestions?tripId=<id>` returns `{ suggestions: SuggestionDto[] }`
             - **Purpose**: Returns the trip's waiting suggestions for its current version. `SuggestionDto` is `{ id, tripId, dayIndex, date, activityId, activityName, reason, message, proposedStops, createdAt, expiresAt }`.
-        8. `POST /api/suggestions/{suggestionId}/accept` returns `TripDto`
+        10. `POST /api/suggestions/{suggestionId}/accept` returns `TripDto`
             - **Purpose**: Saves the proposed day if the trip is unchanged (409 otherwise) and pushes it like any adjustment.
-        9. `POST /api/suggestions/{suggestionId}/dismiss` returns 204
+        11. `POST /api/suggestions/{suggestionId}/dismiss` returns 204
             - **Purpose**: Turns the suggestion down. Each suggestion is answered once (409 after that).
 
 6. **Friend Service**

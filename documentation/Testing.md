@@ -19,6 +19,7 @@
 | 2026-11-02 | All | Shortened the wording after CP1 feedback, and renumbered the Generate Itinerary test steps to match the CP2 use case. |
 | 2026-11-12 | 2.1, 2.5, 3, 4 | Renamed itineraries to trips in the interfaces, test files and end-to-end tests (`PlanTripTest`, `ViewAdjustTripTest`) to match the code. |
 | 2026-11-12 | 2.1.1 | Added the tests for losing access to a group trip (`tripAccessLost`), which fix the peer review's major fault. |
+| 2026-11-12 | 2.1.1 | Added the live event interfaces (`liveEvent`) for friends, groups, join requests, posts and suggestions. |
 
 ---
 
@@ -51,6 +52,11 @@
 | **Socket.io location sharing** | [`backend/tests/no-mock/tripSync.test.ts#L150`](../backend/tests/no-mock/tripSync.test.ts#L150) | [`backend/tests/mock/tripSync.test.ts#L49`](../backend/tests/mock/tripSync.test.ts#L49) | User DB (looking up the sharer) |
 | **Socket.io suggestions** | [`backend/tests/no-mock/tripSync.test.ts#L321`](../backend/tests/no-mock/tripSync.test.ts#L321) | [`backend/tests/mock/tripSync.test.ts#L78`](../backend/tests/mock/tripSync.test.ts#L78) | Suggestion push (a device that cannot be reached) |
 | **Socket.io losing access to a group trip** | [`backend/tests/no-mock/tripSync.test.ts#L236`](../backend/tests/no-mock/tripSync.test.ts#L236) | [`backend/tests/mock/tripSync.test.ts#L104`](../backend/tests/mock/tripSync.test.ts#L104) | Trip access check (a traveller removed but still subscribed), membership push (a device that cannot be reached) |
+| **Socket.io live events for friends** | [`backend/tests/no-mock/liveEvents.test.ts#L58`](../backend/tests/no-mock/liveEvents.test.ts#L58) | [`backend/tests/mock/liveEvents.test.ts#L17`](../backend/tests/mock/liveEvents.test.ts#L17) | Live event push (a device that cannot be reached), name lookup (the User DB fails) |
+| **Socket.io live events for groups** | [`backend/tests/no-mock/liveEvents.test.ts#L107`](../backend/tests/no-mock/liveEvents.test.ts#L107) | Covered by the mocked tests for friends | None |
+| **Socket.io live events for join requests** | [`backend/tests/no-mock/liveEvents.test.ts#L150`](../backend/tests/no-mock/liveEvents.test.ts#L150) | Covered by the mocked tests for friends | None |
+| **Socket.io live events for posts** | [`backend/tests/no-mock/liveEvents.test.ts#L189`](../backend/tests/no-mock/liveEvents.test.ts#L189) | Covered by the mocked tests for friends | None |
+| **Socket.io live events for suggestions** | [`backend/tests/no-mock/liveEvents.test.ts#L222`](../backend/tests/no-mock/liveEvents.test.ts#L222) | Covered by the mocked tests for friends | None |
 | **GET /api/travellers** | [`backend/tests/no-mock/friends.test.ts#L37`](../backend/tests/no-mock/friends.test.ts#L37) | [`backend/tests/mock/friends.test.ts#L33`](../backend/tests/mock/friends.test.ts#L33) | User DB |
 | **GET /api/travellers/:userId** | [`backend/tests/no-mock/friends.test.ts#L133`](../backend/tests/no-mock/friends.test.ts#L133) | [`backend/tests/mock/friends.test.ts#L51`](../backend/tests/mock/friends.test.ts#L51) | Friendship DB |
 | **GET /api/friends** | [`backend/tests/no-mock/friends.test.ts#L186`](../backend/tests/no-mock/friends.test.ts#L186) | [`backend/tests/mock/friends.test.ts#L69`](../backend/tests/mock/friends.test.ts#L69) | Friendship DB |
