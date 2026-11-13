@@ -3,10 +3,12 @@ import { Types, isValidObjectId } from 'mongoose';
 import { ActivityModel } from '../activities/activityModel';
 import type { ActivityDto } from '../activities/activityService';
 import type { PlacesClient } from '../activities/placesClient';
+import { GroupModel } from '../groups/groupModel';
 import type { RankedCandidate } from '../trips/engine/candidates';
 import { type TripDocument, TripModel } from '../trips/tripModel';
 import type { TripDto, TripService } from '../trips/tripService';
 import { HttpError } from '../middleware/errorHandler';
+import { LiveEvents } from '../sync/liveEvents';
 import { type SuggestionDocument, SuggestionModel, type SuggestionReason } from './suggestionModel';
 import type { Forecast, WeatherClient } from './weatherClient';
 
@@ -114,6 +116,7 @@ export class DisruptionService {
     private readonly tripService: TripService,
     private readonly weatherClient: WeatherClient | null,
     private readonly placesClient: PlacesClient | null,
+    private readonly events: LiveEvents = new LiveEvents(),
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -173,6 +176,9 @@ export class DisruptionService {
         console.error('Failed to push a suggestion', error);
       }
     }
+    const group = trip?.groupId ? await GroupModel.findById(trip.groupId) : null;
+    const members = group ? group.members.map((member) => member.userId) : [trip?.userId ?? ''];
+    this.events.publish(members, { type: 'suggestion', actorId: '', tripId: tripId.toString(), text: `${problem} There is a suggestion for your ${trip?.city ?? ''} trip.` });
     return true;
   }
 

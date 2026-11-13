@@ -7,6 +7,7 @@ import type { Pace, TransportMode } from '../trips/engine/types';
 import type { TripDto, TripService } from '../trips/tripService';
 import type { Budget } from '../trips/tripOptions';
 import { HttpError } from '../middleware/errorHandler';
+import { LiveEvents, firstNameOf } from '../sync/liveEvents';
 import { type CommentDocument, CommentModel, type PostDocument, PostModel } from './postModel';
 
 export const FEEDS = ['friends', 'everyone'] as const;
@@ -118,6 +119,7 @@ export class PostService {
   constructor(
     private readonly tripService: TripService,
     private readonly friendService: FriendService,
+    private readonly events: LiveEvents = new LiveEvents(),
   ) {}
 
   /** Shares a frozen copy of one of the caller's trips, with a rating and a caption. */
@@ -177,6 +179,14 @@ export class PostService {
     if (!updated) {
       throw new HttpError(404, 'Post not found');
     }
+    if (liked && !post.likedBy.some((id) => id.equals(viewer))) {
+      this.events.publish([post.authorId], {
+        type: 'postLiked',
+        actorId: viewerId,
+        postId,
+        text: `${await firstNameOf(viewerId)} liked your ${post.trip.city} trip`,
+      });
+    }
     return { likeCount: updated.likedBy.length, likedByMe: liked };
   }
 
@@ -191,6 +201,12 @@ export class PostService {
   async addComment(viewerId: string, postId: string, text: string): Promise<CommentDto> {
     const post = await this.requireVisible(viewerId, postId);
     const comment = await CommentModel.create({ postId: post._id, authorId: new Types.ObjectId(viewerId), text });
+    this.events.publish([post.authorId], {
+      type: 'postCommented',
+      actorId: viewerId,
+      postId,
+      text: `${await firstNameOf(viewerId)} commented on your ${post.trip.city} trip`,
+    });
     return this.toCommentDto(viewerId, comment, await authorNames([comment.authorId]));
   }
 

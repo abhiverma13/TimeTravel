@@ -16,6 +16,7 @@ import type { RoutesClient } from '../../src/trips/routesClient';
 import { TravelTimeService } from '../../src/trips/travelTimes';
 import { NearbyService } from '../../src/nearby/nearbyService';
 import { PostService } from '../../src/posts/postService';
+import { LiveEvents } from '../../src/sync/liveEvents';
 
 export const TEST_JWT_SECRET = 'test-jwt-secret';
 export const TEST_GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com';
@@ -43,6 +44,7 @@ export interface TestApp {
   postService: PostService;
   nearbyService: NearbyService;
   disruptionService: DisruptionService;
+  liveEvents: LiveEvents;
 }
 
 export function createTestApp(options: TestAppOptions = {}): TestApp {
@@ -52,12 +54,13 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   );
   const placesClient = options.placesClient ?? null;
   const activityService = new ActivityService(placesClient, options.now);
-  const groupService = new GroupService();
+  const liveEvents = new LiveEvents(options.now);
+  const groupService = new GroupService(liveEvents);
   const tripService = new TripService(activityService, placesClient, groupService, new TravelTimeService(options.routesClient ?? null));
-  const friendService = new FriendService();
-  const postService = new PostService(tripService, friendService);
-  const nearbyService = new NearbyService(groupService, options.now);
-  const disruptionService = new DisruptionService(tripService, options.weatherClient ?? null, placesClient, options.now);
+  const friendService = new FriendService(liveEvents);
+  const postService = new PostService(tripService, friendService, liveEvents);
+  const nearbyService = new NearbyService(groupService, liveEvents, options.now);
+  const disruptionService = new DisruptionService(tripService, options.weatherClient ?? null, placesClient, liveEvents, options.now);
   return {
     app: createApp({ authService, activityService, groupService, tripService, friendService, postService, nearbyService, disruptionService }),
     authService,
@@ -68,6 +71,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     postService,
     nearbyService,
     disruptionService,
+    liveEvents,
   };
 }
 

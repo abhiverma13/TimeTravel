@@ -9,6 +9,7 @@ import type { DisruptionService, SuggestionDto } from '../disruptions/disruption
 import { UserModel } from '../auth/userModel';
 import type { GroupService, MembersLeft } from '../groups/groupService';
 import type { TripChange, TripService } from '../trips/tripService';
+import type { LiveEvent, LiveEvents } from './liveEvents';
 import { HttpError } from '../middleware/errorHandler';
 
 export type SubscribeReply = { ok: true } | { ok: false; error: string };
@@ -32,6 +33,8 @@ export interface ServerToClientEvents {
   suggestionAdded: (suggestion: SuggestionDto) => void;
   /** The traveller left the trip's group, was removed, or the group was deleted: no more updates for this trip. */
   tripAccessLost: (lost: { tripId: string }) => void;
+  /** Something another traveller did that concerns this one: a friend request, a member joining a group, a like. */
+  liveEvent: (event: LiveEvent) => void;
 }
 
 /** Messages the app sends. All take `{ tripId }`; `shareLocation` also takes `{ lat, lng }`. */
@@ -62,10 +65,16 @@ export interface TripSyncServices {
   tripService: TripService;
   groupService: GroupService;
   disruptionService: DisruptionService;
+  liveEvents: LiveEvents;
 }
 
 function roomFor(tripId: string): string {
   return `trip:${tripId}`;
+}
+
+/** Every device of a signed-in traveller is in their own room, for the live events that concern them. */
+function userRoom(userId: string): string {
+  return `user:${userId}`;
 }
 
 async function subscribe(socket: TripSocket, tripService: TripService, payload: unknown, acknowledge: Acknowledge): Promise<void> {
@@ -148,10 +157,11 @@ function revokeAccess(io: TripSyncServer, left: MembersLeft): void {
  * after every saved adjustment, so every member's device shows the same plan without polling. Members can also share
  * where they are with the trip's other members while its map is open (`shareLocation`, `memberLocation`), and receive
  * the disruption suggestions made for the trip (`suggestionAdded`). A traveller who leaves a group, is removed, or whose
- * group is deleted stops receiving its trips at once (`tripAccessLost`).
+ * group is deleted stops receiving its trips at once (`tripAccessLost`). Every connected device also receives the live
+ * events that concern its traveller (`liveEvent`), such as a friend request or a member joining one of their groups.
  */
 export function attachTripSync(server: HttpServer | HttpsServer, services: TripSyncServices): TripSyncServer {
-  const { authService, tripService, groupService, disruptionService } = services;
+  const { authService, tripService, groupService, disruptionService, liveEvents } = services;
   const io: TripSyncServer = new Server(server);
   io.use((socket, next) => {
     const token: unknown = socket.handshake.auth.token;
@@ -163,6 +173,9 @@ export function attachTripSync(server: HttpServer | HttpsServer, services: TripS
     }
   });
   io.on('connection', (socket) => {
+    Promise.resolve(socket.join(userRoom(socket.data.userId))).catch((error: unknown) => {
+      console.error('Live event subscription failed', error);
+    });
     socket.on('subscribe', (payload, acknowledge) => {
       subscribe(socket, tripService, payload, acknowledge ?? (() => undefined)).catch((error: unknown) => {
         console.error('Live update subscription failed', error);
@@ -202,6 +215,9 @@ export function attachTripSync(server: HttpServer | HttpsServer, services: TripS
   });
   groupService.onMembersLeft((left) => {
     revokeAccess(io, left);
+  });
+  liveEvents.subscribe((recipientIds, event) => {
+    io.to(recipientIds.map(userRoom)).emit('liveEvent', event);
   });
   return io;
 }

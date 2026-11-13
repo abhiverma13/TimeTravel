@@ -2,6 +2,7 @@ import { Types, isValidObjectId } from 'mongoose';
 
 import { type UserDocument, UserModel } from '../auth/userModel';
 import { HttpError } from '../middleware/errorHandler';
+import { LiveEvents, firstNameOf } from '../sync/liveEvents';
 import { type FriendshipDocument, FriendshipModel, pairKey } from './friendshipModel';
 
 const SEARCH_LIMIT = 20;
@@ -79,6 +80,8 @@ function describe(viewerId: string, user: UserDocument, friendship: FriendshipDo
 
 /** Friend Service: finding travellers, friend requests and friendships, and each account's privacy. */
 export class FriendService {
+  constructor(private readonly events: LiveEvents = new LiveEvents()) {}
+
   /** Travellers whose name contains the text, or whose email is exactly it, by name; not the caller. */
   async searchTravellers(viewerId: string, text: string): Promise<TravellerDto[]> {
     const users = await UserModel.find({
@@ -130,6 +133,10 @@ export class FriendService {
       }
     } else if (existing.status === 'pending' && existing.recipientId.toString() === userId) {
       await FriendshipModel.updateOne({ _id: existing._id }, { $set: { status: 'accepted' } });
+      this.events.publish([targetId], { type: 'friendAccepted', actorId: userId, text: `${await firstNameOf(userId)} accepted your friend request` });
+    }
+    if (created) {
+      this.events.publish([targetId], { type: 'friendRequest', actorId: userId, text: `${await firstNameOf(userId)} sent you a friend request` });
     }
     return { traveller: await this.toTraveller(userId, target), created };
   }
@@ -144,15 +151,25 @@ export class FriendService {
     if (!accepted) {
       throw new HttpError(404, 'Friend request not found');
     }
+    this.events.publish([requesterId], { type: 'friendAccepted', actorId: userId, text: `${await firstNameOf(userId)} accepted your friend request` });
     return this.toTraveller(userId, await this.requireUser(requesterId));
   }
 
   /** Unfriends the traveller, cancels a request sent to them, or declines one from them. */
   async removeFriendship(userId: string, otherId: string): Promise<void> {
-    const { deletedCount } = await FriendshipModel.deleteOne({ pair: pairKey(userId, otherId) });
-    if (deletedCount === 0) {
+    const removed = await FriendshipModel.findOne({ pair: pairKey(userId, otherId) });
+    if (!removed) {
       throw new HttpError(404, 'You have no friendship or request with this traveller');
     }
+    await FriendshipModel.deleteOne({ _id: removed._id });
+    const name = await firstNameOf(userId);
+    let text = `${name} declined your friend request`;
+    if (removed.status === 'accepted') {
+      text = `${name} removed you as a friend`;
+    } else if (removed.requesterId.toString() === userId) {
+      text = `${name} cancelled their friend request`;
+    }
+    this.events.publish([otherId], { type: 'friendRemoved', actorId: userId, text });
   }
 
   async setPrivacy(userId: string, isPrivate: boolean): Promise<{ isPrivate: boolean }> {

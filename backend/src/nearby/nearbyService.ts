@@ -9,6 +9,7 @@ import type { GeoPoint } from '../trips/engine/types';
 import { type TripDocument, TripModel } from '../trips/tripModel';
 import { addDays } from '../trips/tripCalendar';
 import { HttpError } from '../middleware/errorHandler';
+import { LiveEvents, firstNameOf } from '../sync/liveEvents';
 import { type JoinRequestDocument, JoinRequestModel, type JoinRequestStatus } from './joinRequestModel';
 
 /** Trips with a stop this close to the traveller count as nearby. */
@@ -83,6 +84,7 @@ function roleOf(group: GroupDocument, userId: string): string | undefined {
 export class NearbyService {
   constructor(
     private readonly groupService: GroupService,
+    private readonly events: LiveEvents = new LiveEvents(),
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -167,6 +169,15 @@ export class NearbyService {
       throw new HttpError(409, 'You already asked to join this trip');
     }
     const request = await JoinRequestModel.create({ groupId, tripId: trip._id, requesterId, note });
+    const group = await GroupModel.findById(groupId);
+    const ownerIds = group?.members.filter((member) => member.role === 'owner').map((member) => member.userId) ?? [];
+    this.events.publish(ownerIds, {
+      type: 'joinRequest',
+      actorId: userId,
+      groupId: groupId.toString(),
+      tripId,
+      text: `${await firstNameOf(userId)} asked to join ${group?.name ?? 'your group'}`,
+    });
     return describe(request, await requesterNames([request]));
   }
 
@@ -200,6 +211,13 @@ export class NearbyService {
     }
     request.status = accept ? 'accepted' : 'declined';
     await request.save();
+    this.events.publish([request.requesterId], {
+      type: 'joinAnswered',
+      actorId: userId,
+      groupId: group._id.toString(),
+      tripId: request.tripId.toString(),
+      text: `${await firstNameOf(userId)} ${request.status} your request to join ${group.name}`,
+    });
     return describe(request, await requesterNames([request]));
   }
 }

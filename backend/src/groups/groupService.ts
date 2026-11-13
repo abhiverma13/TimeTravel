@@ -6,6 +6,7 @@ import { UserModel } from '../auth/userModel';
 import { TripModel } from '../trips/tripModel';
 import { HttpError } from '../middleware/errorHandler';
 import { INTEREST_TAGS, type InterestTag } from '../shared/interestTags';
+import { LiveEvents, firstNameOf } from '../sync/liveEvents';
 import { type GroupDocument, type GroupMember, GroupModel, type GroupRole } from './groupModel';
 
 /** Larger parties rarely move around a city together; the planner is tuned for small groups. */
@@ -73,6 +74,10 @@ function isDuplicateKeyError(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === DUPLICATE_KEY_ERROR;
 }
 
+function memberIds(group: GroupDocument): string[] {
+  return group.members.map((member) => member.userId.toString());
+}
+
 function memberOf(group: GroupDocument, userId: string): GroupMember | undefined {
   return group.members.find((member) => member.userId.toString() === userId);
 }
@@ -100,6 +105,8 @@ function knownInterests(tags: readonly string[]): InterestTag[] {
 /** Group Service: travel groups, their members, invite codes and each member's trip preferences. */
 export class GroupService {
   private readonly membersLeftListeners: MembersLeftListener[] = [];
+
+  constructor(private readonly events: LiveEvents = new LiveEvents()) {}
 
   /** Called after members lose access to a group's trips; the Trip Sync & Disruption Service cuts their live updates. */
   onMembersLeft(listener: MembersLeftListener): void {
@@ -174,6 +181,7 @@ export class GroupService {
     if (!joined) {
       throw new HttpError(409, 'This group is full');
     }
+    this.events.publish(memberIds(joined), { type: 'memberJoined', actorId: userId, groupId: joined._id.toString(), text: `${await firstNameOf(userId)} joined ${joined.name}` });
     return joined;
   }
 
@@ -214,6 +222,15 @@ export class GroupService {
     await GroupModel.updateOne({ _id: group._id }, { $pull: { members: { userId: target.userId } } });
     const trips = await TripModel.find({ groupId: group._id }, { _id: 1 });
     this.announceMembersLeft(group, [memberId], trips);
+    const name = await firstNameOf(userId);
+    const remaining = memberIds(group).filter((id) => id !== memberId);
+    if (memberId === userId) {
+      this.events.publish(remaining, { type: 'memberLeft', actorId: userId, groupId, text: `${name} left ${group.name}` });
+      return;
+    }
+    this.events.publish([memberId], { type: 'removedFromGroup', actorId: userId, groupId, text: `${name} removed you from ${group.name}` });
+    const removedName = await firstNameOf(memberId);
+    this.events.publish(remaining, { type: 'memberLeft', actorId: userId, groupId, text: `${name} removed ${removedName} from ${group.name}` });
   }
 
   /** Deletes the group and its trips. Owner only. */
@@ -225,7 +242,8 @@ export class GroupService {
     const trips = await TripModel.find({ groupId: group._id }, { _id: 1 });
     await TripModel.deleteMany({ groupId: group._id });
     await GroupModel.deleteOne({ _id: group._id });
-    this.announceMembersLeft(group, group.members.map((member) => member.userId.toString()), trips);
+    this.announceMembersLeft(group, memberIds(group), trips);
+    this.events.publish(memberIds(group), { type: 'groupDeleted', actorId: userId, groupId: group._id.toString(), text: `${await firstNameOf(userId)} deleted ${group.name}` });
   }
 
   /** Every member's interests and vetoes, combined; the caller must be a member. */
