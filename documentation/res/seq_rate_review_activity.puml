@@ -6,7 +6,7 @@ actor Traveller
 participant "Android App" as App
 participant "Auth & Profile\nService" as Auth
 participant "Activity & Review\nService" as Activities
-participant "Itinerary\nEngine" as Engine
+participant "Trip\nEngine" as Engine
 database MongoDB
 
 Traveller -> App : taps Rate on an activity
@@ -29,7 +29,7 @@ end
 Activities -> MongoDB : findReview(activityId, userId): Review | null
 opt no verified review yet, and the position is within 150 m of the place
   Activities -> Engine : isScheduledOn(userId, activityId, today): boolean
-  Engine -> MongoDB : findItinerary(the traveller's or their groups' trips with this stop today)
+  Engine -> MongoDB : findTrip(the traveller's or their groups' trips with this stop today)
 end
 note right of Activities : verified when both hold;\na verified review stays verified when edited
 alt traveller already reviewed this activity

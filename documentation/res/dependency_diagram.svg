@@ -12,7 +12,7 @@
 <rect x="50" y="302" width="340" height="66" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
 <text x="220.0" y="342" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Trips &amp; Trip Builder</text>
 <rect x="50" y="384" width="340" height="66" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
-<text x="220.0" y="424" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Itinerary, Map &amp; Suggestions</text>
+<text x="220.0" y="424" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Trip, Map &amp; Suggestions</text>
 <rect x="50" y="466" width="340" height="66" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
 <text x="220.0" y="506" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Explore &amp; Review</text>
 <rect x="50" y="548" width="340" height="66" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
@@ -45,7 +45,7 @@
 <text x="605" y="460" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Shared trips, likes, comments,</text>
 <text x="605" y="480" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">copying a shared trip.</text>
 <rect x="1045" y="590" width="390" height="132" fill="#3F6E55" stroke="#3F6E55" stroke-width="2"/>
-<text x="1065" y="624" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" font-style="normal" fill="#FFFFFF" text-anchor="start">Itinerary Engine</text>
+<text x="1065" y="624" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" font-style="normal" fill="#FFFFFF" text-anchor="start">Trip Engine</text>
 <text x="1065" y="650" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#E4ECE0" text-anchor="start">Our own logic: candidate pruning, scoring,</text>
 <text x="1065" y="670" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#E4ECE0" text-anchor="start">constrained day scheduling, adjustments</text>
 <text x="1065" y="690" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#E4ECE0" text-anchor="start">and re-planning.</text>
@@ -114,7 +114,7 @@
 <text x="1010.0" y="1180" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="bold" font-style="normal" fill="#FFFFFF" text-anchor="middle">MongoDB</text>
 <path d="M 1010.0 1050 L 1010.0 1108" fill="none" stroke="#3C6850" stroke-width="2.2" marker-end="url(#head)"/>
 <text x="1490" y="1140" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">users · friendships · activities · citycatalogues</text>
-<text x="1490" y="1164" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">reviews · groups · itineraries · traveltimes</text>
+<text x="1490" y="1164" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">reviews · groups · trips · traveltimes</text>
 <text x="1490" y="1188" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">posts · comments · joinrequests · suggestions</text>
 <text x="1490" y="1222" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">2dsphere index on activities</text>
 </svg>

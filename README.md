@@ -2,7 +2,7 @@
 
 Crowd-rated activities, scheduled into a trip that actually fits your days.
 
-TimeTravel is an Android app (Kotlin, Jetpack Compose) with a Node.js and TypeScript back-end (Express, MongoDB, Socket.io). Travellers rate and tag the activities they have done; a visitor describes their trip, and TimeTravel's itinerary engine builds a day-by-day plan around opening hours, travel time and the traveller's pace. Friends plan together in groups and see each other's changes live, follow the trip on a map, share trips to a feed, find open trips nearby to join, and get suggestions when rain or a closed venue disrupts a stop. Requirements and design: [`documentation/Requirements_and_Design.md`](documentation/Requirements_and_Design.md). Tests: [`documentation/Testing.md`](documentation/Testing.md).
+TimeTravel is an Android app (Kotlin, Jetpack Compose) with a Node.js and TypeScript back-end (Express, MongoDB, Socket.io). Travellers rate and tag the activities they have done; a visitor describes their trip, and TimeTravel's trip engine builds a day-by-day plan around opening hours, travel time and the traveller's pace. Friends plan together in groups and see each other's changes live, follow the trip on a map, share trips to a feed, find open trips nearby to join, and get suggestions when rain or a closed venue disrupts a stop. Requirements and design: [`documentation/Requirements_and_Design.md`](documentation/Requirements_and_Design.md). Tests: [`documentation/Testing.md`](documentation/Testing.md).
 
 ## Prerequisites
 
@@ -130,7 +130,7 @@ The back-end tests start their own in-memory MongoDB, so they need neither Docke
 
 On macOS / Linux, run `./scripts/run-frontend-e2e-tests.sh` and `./scripts/run-frontend-nfr-tests.sh`.
 
-They need Docker running, `frontend/local.properties` set up as in section 2, and the `Pixel_9` emulator. Each script starts the back-end, installs and launches the app, and waits: sign in inside the app, then press Enter in the terminal to run the tests. A suite with no test files is skipped. The end-to-end tests cover Generate Itinerary, Rate & Review Activity and View & Adjust Itinerary; each creates the trip it needs.
+They need Docker running, `frontend/local.properties` set up as in section 2, and the `Pixel_9` emulator. Each script starts the back-end, installs and launches the app, and waits: sign in inside the app, then press Enter in the terminal to run the tests. A suite with no test files is skipped. The end-to-end tests cover Plan Trip, Rate & Review Activity and View & Adjust Trip; each creates the trip it needs.
 
 See [`documentation/Testing.md`](documentation/Testing.md) for details.
 

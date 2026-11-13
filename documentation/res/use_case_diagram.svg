@@ -15,7 +15,7 @@
 <text x="280.0" y="264.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">F2 Explore &amp; review</text>
 <path d="M 272 420 L 272 398 L 455 398 L 463 420 Z" fill="#EEE8D6" stroke="#9AA093" stroke-width="1.2"/>
 <rect x="272" y="420" width="1280" height="112" fill="#FBF8EF" stroke="#9AA093" stroke-width="1.2"/>
-<text x="280.0" y="414.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">F3 Itinerary generation</text>
+<text x="280.0" y="414.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">F3 Trip generation</text>
 <path d="M 272 570 L 272 548 L 492 548 L 500 570 Z" fill="#EEE8D6" stroke="#9AA093" stroke-width="1.2"/>
 <rect x="272" y="570" width="1280" height="112" fill="#FBF8EF" stroke="#9AA093" stroke-width="1.2"/>
 <text x="280.0" y="564.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" font-style="normal" fill="#2F5D46" text-anchor="start">F4 Collaborative trips, live</text>
@@ -160,12 +160,12 @@
 <text x="547.0" y="341.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Activity</text>
 <ellipse cx="365" cy="478" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
 <text x="365.0" y="474.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">7. Add Place</text>
-<text x="365.0" y="491.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">to Itinerary</text>
+<text x="365.0" y="491.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">to Trip</text>
 <ellipse cx="729" cy="478" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
 <text x="729.0" y="483.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">4. Create Trip</text>
 <ellipse cx="911" cy="478" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
-<text x="911.0" y="474.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">5. Generate</text>
-<text x="911.0" y="491.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Itinerary</text>
+<text x="911.0" y="474.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">5. Plan</text>
+<text x="911.0" y="491.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Trip</text>
 <ellipse cx="1457" cy="478" rx="80" ry="30" fill="#E4ECE0" stroke="#2F5D46" stroke-width="2"/>
 <text x="1457.0" y="474.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">6. Rank &amp; Schedule</text>
 <text x="1457.0" y="491.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Day Plan</text>
@@ -180,14 +180,14 @@
 <text x="911.0" y="633.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">11. Leave Group</text>
 <ellipse cx="1093" cy="628" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
 <text x="1093.0" y="624.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">12. View &amp; Adjust</text>
-<text x="1093.0" y="641.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Itinerary</text>
+<text x="1093.0" y="641.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">Trip</text>
 <ellipse cx="1275" cy="628" rx="80" ry="30" fill="#E4ECE0" stroke="#2F5D46" stroke-width="2"/>
 <text x="1275.0" y="633.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">13. Notify Trip Party</text>
 <ellipse cx="1093" cy="778" rx="80" ry="30" fill="#E4ECE0" stroke="#2F5D46" stroke-width="2"/>
 <text x="1093.0" y="774.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">14. Monitor Trip</text>
 <text x="1093.0" y="791.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">Conditions</text>
 <ellipse cx="1457" cy="778" rx="80" ry="30" fill="#E4ECE0" stroke="#2F5D46" stroke-width="2"/>
-<text x="1457.0" y="783.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">15. Re-plan Itinerary</text>
+<text x="1457.0" y="783.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" font-style="normal" fill="#1C382C" text-anchor="middle">15. Re-plan Trip</text>
 <ellipse cx="365" cy="928" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>
 <text x="365.0" y="933.0" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#1C382C" text-anchor="middle">23. View Trip Map</text>
 <ellipse cx="547" cy="928" rx="80" ry="30" fill="#FCF8F4" stroke="#2F5D46" stroke-width="2"/>

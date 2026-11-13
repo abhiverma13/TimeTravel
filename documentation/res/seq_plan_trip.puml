@@ -1,22 +1,22 @@
-@startuml seq_generate_itinerary
+@startuml seq_plan_trip
 !include style.iuml
-title Generate Itinerary
+title Plan Trip
 
 actor "Trip Organizer" as Organizer
 participant "Android App" as App
 participant "Auth & Profile\nService" as Auth
-participant "Itinerary\nEngine" as Engine
+participant "Trip\nEngine" as Engine
 participant "Group\nService" as Groups
 participant "Activity & Review\nService" as Activities
 database MongoDB
 participant "Google Places API" as Places
 participant "Google Routes API" as Routes
 
-Organizer -> App : fills in the Trip Builder, taps Generate itinerary
+Organizer -> App : fills in the Trip Builder, taps Generate trip
 alt no city, no dates, longer than 7 days, or a day shorter than 2 hours
   App --> Organizer : explains what to fix; nothing is sent
 end
-App -> Engine : POST /api/itineraries/generate { city, startDate, endDate, dayStart, dayEnd,\n arrivalTime, departureTime, interests, pace, lodging, transportMode, budget,\n mustSeeIds, avoidIds, groupId? }
+App -> Engine : POST /api/trips/generate { city, startDate, endDate, dayStart, dayEnd,\n arrivalTime, departureTime, interests, pace, lodging, transportMode, budget,\n mustSeeIds, avoidIds, groupId? }
 Engine -> Auth : verifySessionToken(token): userId
 opt a group trip
   Engine -> Groups : tripPreferences(userId, groupId): interest shares, vetoes
@@ -52,7 +52,7 @@ loop for each trip day
   Engine -> Engine : planDay: greedy insertion by score density (3 starts),\nthen reorder and swap moves within 200 ms
 end
 Engine -> Engine : adds a warning for each must-see that could not be included
-Engine -> MongoDB : saveItinerary(userId, groupId, trip, days, warnings): Itinerary
-Engine --> App : 201 ItineraryDto
+Engine -> MongoDB : saveTrip(userId, groupId, trip, days, warnings): Trip
+Engine --> App : 201 TripDto
 App --> Organizer : day-by-day timeline with travel times and warnings
 @enduml

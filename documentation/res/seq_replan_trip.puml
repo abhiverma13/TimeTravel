@@ -1,17 +1,17 @@
-@startuml seq_replan_itinerary
+@startuml seq_replan_trip
 !include style.iuml
-title Re-plan Itinerary: disruption suggestions
+title Re-plan Trip: disruption suggestions
 
 actor Time
 participant "Trip Sync &\nDisruption Service" as Sync
 participant "OpenWeather API" as Weather
 participant "Google Places API" as Places
-participant "Itinerary\nEngine" as Engine
+participant "Trip\nEngine" as Engine
 database MongoDB
 participant "Members'\nAndroid Apps" as Apps
 
 Time -> Sync : checkActiveTrips() every 30 minutes
-Sync -> MongoDB : findItineraries(under way from yesterday to the day after tomorrow): Itinerary[]
+Sync -> MongoDB : findTrips(under way from yesterday to the day after tomorrow): Trip[]
 loop for each trip (one trip's failure does not stop the others)
   opt an OpenWeather key is set
     Sync -> Weather : GET forecast(lodging lat, lng): utcOffsetSeconds, 3-hour slots
@@ -25,10 +25,10 @@ loop for each trip (one trip's failure does not stop the others)
       Sync -> MongoDB : saveActivity(businessStatus, statusCheckedAt)
     end
     alt rain likely (60% or more) during an outdoor stop, or the venue is closed
-      Sync -> MongoDB : countWaitingSuggestions(itineraryId, activityId)
+      Sync -> MongoDB : countWaitingSuggestions(tripId, activityId)
       opt none waiting
-        Sync -> Engine : proposeReplacement(itineraryId, dayIndex, activityId, indoor only if rain): ProposedDay | null
-        Engine -> MongoDB : findItinerary, listActivities(city), cached travel times
+        Sync -> Engine : proposeReplacement(tripId, dayIndex, activityId, indoor only if rain): ProposedDay | null
+        Engine -> MongoDB : findTrip, listActivities(city), cached travel times
         Engine --> Sync : the day without the stop, its time given to another activity (not saved)
         Sync -> MongoDB : saveSuggestion(proposed day, based on version, expires in 12 hours)
         Sync -> Apps : Socket.io suggestionAdded { suggestion } to the trip's room
@@ -40,17 +40,17 @@ end
 
 alt a member taps Accept
   Apps -> Sync : POST /api/suggestions/{suggestionId}/accept
-  Sync -> Engine : applyProposedDay(userId, itineraryId, proposal, dayIndex, summary): ItineraryDto
+  Sync -> Engine : applyProposedDay(userId, tripId, proposal, dayIndex, summary): TripDto
   alt the trip changed since the suggestion, or it expired
     Engine --> Sync : 409
     Sync -> MongoDB : markSuggestion(expired)
     Sync --> Apps : 409 { error: "The trip changed since this suggestion; it no longer applies" }
   else
     Engine -> MongoDB : saveDay(if version unchanged), version + 1
-    Engine -> Sync : itinerary changed (itinerary, actorId, summary)
-    Sync -> Apps : Socket.io itineraryUpdated { itinerary, actorId, summary }
+    Engine -> Sync : trip changed (trip, actorId, summary)
+    Sync -> Apps : Socket.io tripUpdated { trip, actorId, summary }
     Sync -> MongoDB : markSuggestion(accepted)
-    Sync --> Apps : 200 ItineraryDto
+    Sync --> Apps : 200 TripDto
   end
 else a member taps Dismiss
   Apps -> Sync : POST /api/suggestions/{suggestionId}/dismiss
