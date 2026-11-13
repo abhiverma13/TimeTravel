@@ -56,6 +56,15 @@ export interface GroupTripPreferences {
   vetoedActivityIds: Set<string>;
 }
 
+/** Travellers who lost access to a group's trips: they left or were removed, or the group was deleted. */
+export interface MembersLeft {
+  groupId: string;
+  userIds: string[];
+  tripIds: string[];
+}
+
+export type MembersLeftListener = (left: MembersLeft) => void;
+
 function randomInviteCode(): string {
   return Array.from({ length: INVITE_CODE_LENGTH }, () => INVITE_CODE_ALPHABET.charAt(randomInt(INVITE_CODE_ALPHABET.length))).join('');
 }
@@ -90,6 +99,13 @@ function knownInterests(tags: readonly string[]): InterestTag[] {
 
 /** Group Service: travel groups, their members, invite codes and each member's trip preferences. */
 export class GroupService {
+  private readonly membersLeftListeners: MembersLeftListener[] = [];
+
+  /** Called after members lose access to a group's trips; the Trip Sync & Disruption Service cuts their live updates. */
+  onMembersLeft(listener: MembersLeftListener): void {
+    this.membersLeftListeners.push(listener);
+  }
+
   /** Creates a group owned by the caller, with a fresh invite code. */
   async createGroup(userId: string, name: string): Promise<GroupDto> {
     const owner: GroupMember = {
@@ -196,6 +212,8 @@ export class GroupService {
       throw new HttpError(403, 'Only the group owner can remove members');
     }
     await GroupModel.updateOne({ _id: group._id }, { $pull: { members: { userId: target.userId } } });
+    const trips = await TripModel.find({ groupId: group._id }, { _id: 1 });
+    this.announceMembersLeft(group, [memberId], trips);
   }
 
   /** Deletes the group and its trips. Owner only. */
@@ -204,8 +222,10 @@ export class GroupService {
     if (memberOf(group, userId)?.role !== 'owner') {
       throw new HttpError(403, 'Only the group owner can delete the group');
     }
+    const trips = await TripModel.find({ groupId: group._id }, { _id: 1 });
     await TripModel.deleteMany({ groupId: group._id });
     await GroupModel.deleteOne({ _id: group._id });
+    this.announceMembersLeft(group, group.members.map((member) => member.userId.toString()), trips);
   }
 
   /** Every member's interests and vetoes, combined; the caller must be a member. */
@@ -235,6 +255,17 @@ export class GroupService {
       throw new HttpError(404, 'Group not found');
     }
     return group;
+  }
+
+  private announceMembersLeft(group: GroupDocument, userIds: string[], trips: { _id: Types.ObjectId }[]): void {
+    const left: MembersLeft = { groupId: group._id.toString(), userIds, tripIds: trips.map((trip) => trip._id.toString()) };
+    for (const listener of this.membersLeftListeners) {
+      try {
+        listener(left);
+      } catch (error) {
+        console.error('Failed to push a membership change', error);
+      }
+    }
   }
 
   private async profileInterests(userId: string): Promise<InterestTag[]> {

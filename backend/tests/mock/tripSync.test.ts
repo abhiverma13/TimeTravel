@@ -1,7 +1,10 @@
 import { Types } from 'mongoose';
+import request from 'supertest';
 
 import { ActivityModel } from '../../src/activities/activityModel';
 import { UserModel } from '../../src/auth/userModel';
+import type { GroupDto } from '../../src/groups/groupService';
+import { HttpError } from '../../src/middleware/errorHandler';
 import { TripModel } from '../../src/trips/tripModel';
 import { storeTestvilleTrip, seedTestville } from '../helpers/testville';
 import { connectClient, startLiveServer, subscribeTo } from '../helpers/liveServer';
@@ -93,5 +96,54 @@ describe('Mocked: Socket.io suggestions', () => {
 
     expect(made).toBe(true);
     expect(consoleError).toHaveBeenCalledWith('Failed to push a suggestion', expect.any(Error));
+  });
+});
+
+// Interface Socket.io: shareLocation { tripId, lat, lng } and tripAccessLost { tripId }, after
+// DELETE /api/groups/:groupId/members/:userId
+describe('Mocked: Socket.io losing access to a group trip', () => {
+  // Mocked behavior: the traveller can no longer see the trip, but their device is still subscribed (as between a
+  //                  removal and the hub hearing of it)
+  // Input: the device shares its location
+  // Expected status code: none; the share is acknowledged with { ok: false }
+  // Expected behavior: the position is not passed on; nothing is logged, since this is the traveller's error
+  // Expected output: { ok: false, error: "Trip not found" }
+  test('Access is checked again for every shared position', async () => {
+    const testApp = createTestApp();
+    const { userId, authorization } = await signedInUser(testApp.authService);
+    await seedTestville(testApp.activityService);
+    const tripId = await storeTestvilleTrip(userId, ['Harbour Park']);
+    const live = await startLiveServer(testApp);
+    const socket = await connectClient(live.url, authorization);
+    await subscribeTo(socket, tripId);
+    jest.spyOn(testApp.tripService, 'getTrip').mockRejectedValue(new HttpError(404, 'Trip not found'));
+
+    const reply = await socket.emitWithAck('shareLocation', { tripId, lat: 49.28, lng: -123.12 });
+
+    expect(reply).toEqual({ ok: false, error: 'Trip not found' });
+    socket.disconnect();
+    await live.close();
+  });
+
+  // Mocked behavior: telling the live-update hub about a removed member fails
+  // Input: the owner removes a member from the group
+  // Expected status code: 204
+  // Expected behavior: the member is still removed, and the failure is logged
+  // Expected output: an empty body; "Failed to push a membership change" is logged
+  test('Pushing a membership change fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const testApp = createTestApp();
+    const owner = await signedInUser(testApp.authService, 'Owner');
+    const member = await signedInUser(testApp.authService, 'Member');
+    const group = (await request(testApp.app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
+    await request(testApp.app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
+    testApp.groupService.onMembersLeft(() => {
+      throw new Error('Simulated socket failure');
+    });
+
+    const response = await request(testApp.app).delete(`/api/groups/${group.id}/members/${member.userId}`).set(owner.authorization);
+
+    expect(response.status).toBe(204);
+    expect(consoleError).toHaveBeenCalledWith('Failed to push a membership change', expect.any(Error));
   });
 });

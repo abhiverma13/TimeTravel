@@ -50,7 +50,7 @@ async function main(): Promise<void> {
     ? createHttpsServer({ cert: readFileSync(env.tlsCertPath), key: readFileSync(env.tlsKeyPath) }, app)
     : createHttpServer(app);
   // Live trip updates share the API's port (and its TLS), so the app needs no second address.
-  attachTripSync(server, authService, tripService, disruptionService);
+  attachTripSync(server, { authService, tripService, groupService, disruptionService });
   // Checks trips under way for rain and closed venues; suggestions reach the members live.
   const disruptionTimer = setInterval(() => {
     disruptionService.checkActiveTrips().catch((error: unknown) => {

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { AuthService } from '../auth/authService';
 import type { DisruptionService, SuggestionDto } from '../disruptions/disruptionService';
 import { UserModel } from '../auth/userModel';
+import type { GroupService, MembersLeft } from '../groups/groupService';
 import type { TripChange, TripService } from '../trips/tripService';
 import { HttpError } from '../middleware/errorHandler';
 
@@ -29,6 +30,8 @@ export interface ServerToClientEvents {
   memberLocation: (location: MemberLocation) => void;
   memberLocationStopped: (member: { tripId: string; userId: string }) => void;
   suggestionAdded: (suggestion: SuggestionDto) => void;
+  /** The traveller left the trip's group, was removed, or the group was deleted: no more updates for this trip. */
+  tripAccessLost: (lost: { tripId: string }) => void;
 }
 
 /** Messages the app sends. All take `{ tripId }`; `shareLocation` also takes `{ lat, lng }`. */
@@ -53,6 +56,14 @@ export type TripSyncServer = Server<ClientToServerEvents, ServerToClientEvents, 
 const subscription = z.object({ tripId: z.string() });
 const locationUpdate = z.object({ tripId: z.string(), lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) });
 
+/** What the hub needs from the other services. */
+export interface TripSyncServices {
+  authService: AuthService;
+  tripService: TripService;
+  groupService: GroupService;
+  disruptionService: DisruptionService;
+}
+
 function roomFor(tripId: string): string {
   return `trip:${tripId}`;
 }
@@ -76,8 +87,9 @@ async function subscribe(socket: TripSocket, tripService: TripService, payload: 
   }
 }
 
-// Passes the device's position to the trip's other members. Only a device subscribed to the trip may share with it.
-async function shareLocation(socket: TripSocket, payload: unknown, acknowledge: Acknowledge): Promise<void> {
+// Passes the device's position to the trip's other members. Only a device subscribed to the trip, whose traveller can
+// still see it, may share with it.
+async function shareLocation(socket: TripSocket, tripService: TripService, payload: unknown, acknowledge: Acknowledge): Promise<void> {
   const parsed = locationUpdate.safeParse(payload);
   if (!parsed.success) {
     acknowledge({ ok: false, error: 'Send { tripId, lat, lng } to share your location' });
@@ -89,8 +101,13 @@ async function shareLocation(socket: TripSocket, payload: unknown, acknowledge: 
     return;
   }
   try {
+    await tripService.getTrip(socket.data.userId, tripId);
     socket.data.name ??= (await UserModel.findById(socket.data.userId))?.name ?? 'A traveller';
   } catch (error) {
+    if (error instanceof HttpError) {
+      acknowledge({ ok: false, error: error.message });
+      return;
+    }
     console.error('Location sharing failed', error);
     acknowledge({ ok: false, error: 'Internal server error' });
     return;
@@ -107,19 +124,34 @@ function stopSharing(socket: TripSocket, tripId: string): void {
   }
 }
 
+// Cuts the live updates of travellers who can no longer see a group's trips: each of their devices stops sharing its
+// position with those trips, leaves their rooms, and is told the trip is gone.
+function revokeAccess(io: TripSyncServer, left: MembersLeft): void {
+  const leaving = new Set(left.userIds);
+  for (const socket of io.of('/').sockets.values()) {
+    if (!leaving.has(socket.data.userId)) {
+      continue;
+    }
+    for (const tripId of left.tripIds.filter((id) => socket.rooms.has(roomFor(id)))) {
+      stopSharing(socket, tripId);
+      Promise.resolve(socket.leave(roomFor(tripId))).catch((error: unknown) => {
+        console.error('Live update unsubscribe failed', error);
+      });
+      socket.emit('tripAccessLost', { tripId });
+    }
+  }
+}
+
 /**
  * Trip Sync & Disruption Service, live updates: a Socket.io hub on the API's own server. The app connects with its
  * session token, subscribes to the trips on screen, and receives `tripUpdated { trip, actorId, summary }`
  * after every saved adjustment, so every member's device shows the same plan without polling. Members can also share
  * where they are with the trip's other members while its map is open (`shareLocation`, `memberLocation`), and receive
- * the disruption suggestions made for the trip (`suggestionAdded`).
+ * the disruption suggestions made for the trip (`suggestionAdded`). A traveller who leaves a group, is removed, or whose
+ * group is deleted stops receiving its trips at once (`tripAccessLost`).
  */
-export function attachTripSync(
-  server: HttpServer | HttpsServer,
-  authService: AuthService,
-  tripService: TripService,
-  disruptionService: DisruptionService,
-): TripSyncServer {
+export function attachTripSync(server: HttpServer | HttpsServer, services: TripSyncServices): TripSyncServer {
+  const { authService, tripService, groupService, disruptionService } = services;
   const io: TripSyncServer = new Server(server);
   io.use((socket, next) => {
     const token: unknown = socket.handshake.auth.token;
@@ -146,7 +178,7 @@ export function attachTripSync(
       }
     });
     socket.on('shareLocation', (payload, acknowledge) => {
-      shareLocation(socket, payload, acknowledge ?? (() => undefined)).catch((error: unknown) => {
+      shareLocation(socket, tripService, payload, acknowledge ?? (() => undefined)).catch((error: unknown) => {
         console.error('Location sharing failed', error);
       });
     });
@@ -167,6 +199,9 @@ export function attachTripSync(
   });
   disruptionService.onSuggestion((suggestion) => {
     io.to(roomFor(suggestion.tripId)).emit('suggestionAdded', suggestion);
+  });
+  groupService.onMembersLeft((left) => {
+    revokeAccess(io, left);
   });
   return io;
 }

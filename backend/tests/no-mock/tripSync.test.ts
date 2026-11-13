@@ -1,3 +1,4 @@
+import type { Express } from 'express';
 import { Types } from 'mongoose';
 import request from 'supertest';
 import { io } from 'socket.io-client';
@@ -133,6 +134,11 @@ describe('Unmocked: Socket.io trip updates', () => {
   });
 });
 
+/** The id of the group a group trip belongs to. */
+async function groupOf(app: Express, authorization: { Authorization: string }, tripId: string): Promise<string> {
+  return ((await request(app).get(`/api/trips/${tripId}`).set(authorization)).body as TripDto).groupId ?? '';
+}
+
 async function nextEvent<T>(socket: ReturnType<typeof io>, event: string): Promise<T> {
   return new Promise((resolve) => {
     socket.once(event, resolve);
@@ -219,6 +225,92 @@ describe('Unmocked: Socket.io location sharing', () => {
     expect(notSubscribed).toEqual({ ok: false, error: 'Subscribe to the trip before sharing your location' });
     expect(offTheMap).toEqual({ ok: false, error: 'Send { tripId, lat, lng } to share your location' });
     expect(received).not.toHaveBeenCalled();
+    ownerSocket.disconnect();
+    memberSocket.disconnect();
+    await live.close();
+  });
+});
+
+// Interface Socket.io: tripAccessLost { tripId }, after DELETE /api/groups/:groupId/members/:userId and
+// DELETE /api/groups/:groupId
+describe('Unmocked: Socket.io losing access to a group trip', () => {
+  // Input: the owner and a member have the group trip's map open; the owner removes the member, then shares their
+  //        location; the removed member tries to share theirs and to subscribe again
+  // Expected status code: none (Socket.io); the removal itself returns 204
+  // Expected behavior: the removed member's device is told at once and receives nothing more from the trip; its shares
+  //                    and subscriptions are refused, as for any traveller outside the group
+  // Expected output: tripAccessLost { tripId }; no memberLocation; the share is refused because the device no longer
+  //                  follows the trip, and subscribing again with { ok: false, error: "Trip not found" }
+  test('A removed member stops receiving the trip', async () => {
+    const { app, owner, member, tripId, live } = await sharedTrip();
+    const groupId = await groupOf(app, owner.authorization, tripId);
+    const ownerSocket = await connectClient(live.url, owner.authorization);
+    const memberSocket = await connectClient(live.url, member.authorization);
+    await subscribeTo(ownerSocket, tripId);
+    await subscribeTo(memberSocket, tripId);
+    const located = jest.fn();
+    memberSocket.on('memberLocation', located);
+
+    const lost = nextEvent(memberSocket, 'tripAccessLost');
+    const removal = await request(app).delete(`/api/groups/${groupId}/members/${member.userId}`).set(owner.authorization);
+    const lostTrip = await lost;
+    await ownerSocket.emitWithAck('shareLocation', { tripId, lat: 49.2827, lng: -123.1207 });
+    const memberShare = await memberSocket.emitWithAck('shareLocation', { tripId, lat: 49.28, lng: -123.12 });
+    const resubscribe = await subscribeTo(memberSocket, tripId);
+    await ownerSocket.emitWithAck('shareLocation', { tripId, lat: 49.2828, lng: -123.1208 });
+
+    expect(removal.status).toBe(204);
+    expect(lostTrip).toEqual({ tripId });
+    expect(located).not.toHaveBeenCalled();
+    expect(memberShare).toEqual({ ok: false, error: 'Subscribe to the trip before sharing your location' });
+    expect(resubscribe).toEqual({ ok: false, error: 'Trip not found' });
+    ownerSocket.disconnect();
+    memberSocket.disconnect();
+    await live.close();
+  });
+
+  // Input: a member shares their location with the owner, then leaves the group
+  // Expected status code: none (Socket.io); leaving returns 204
+  // Expected behavior: the owner stops seeing the member's position, and the member's device is told it left the trip
+  // Expected output: memberLocationStopped { tripId, userId } to the owner; tripAccessLost { tripId } to the member
+  test("A member who leaves stops sharing their location", async () => {
+    const { app, owner, member, tripId, live } = await sharedTrip();
+    const groupId = await groupOf(app, owner.authorization, tripId);
+    const ownerSocket = await connectClient(live.url, owner.authorization);
+    const memberSocket = await connectClient(live.url, member.authorization);
+    await subscribeTo(ownerSocket, tripId);
+    await subscribeTo(memberSocket, tripId);
+    await memberSocket.emitWithAck('shareLocation', { tripId, lat: 49.28, lng: -123.12 });
+
+    const stopped = nextEvent(ownerSocket, 'memberLocationStopped');
+    const lost = nextEvent(memberSocket, 'tripAccessLost');
+    const leaving = await request(app).delete(`/api/groups/${groupId}/members/${member.userId}`).set(member.authorization);
+
+    expect(leaving.status).toBe(204);
+    expect(await stopped).toEqual({ tripId, userId: member.userId });
+    expect(await lost).toEqual({ tripId });
+    ownerSocket.disconnect();
+    memberSocket.disconnect();
+    await live.close();
+  });
+
+  // Input: the owner and a member have the group trip open; the owner deletes the group
+  // Expected status code: none (Socket.io); the deletion returns 204
+  // Expected behavior: every member's device is told the trip is gone
+  // Expected output: tripAccessLost { tripId } to both devices
+  test("Deleting the group ends every member's live updates", async () => {
+    const { app, owner, member, tripId, live } = await sharedTrip();
+    const groupId = await groupOf(app, owner.authorization, tripId);
+    const ownerSocket = await connectClient(live.url, owner.authorization);
+    const memberSocket = await connectClient(live.url, member.authorization);
+    await subscribeTo(ownerSocket, tripId);
+    await subscribeTo(memberSocket, tripId);
+
+    const lost = Promise.all([nextEvent(ownerSocket, 'tripAccessLost'), nextEvent(memberSocket, 'tripAccessLost')]);
+    const deletion = await request(app).delete(`/api/groups/${groupId}`).set(owner.authorization);
+
+    expect(deletion.status).toBe(204);
+    expect(await lost).toEqual([{ tripId }, { tripId }]);
     ownerSocket.disconnect();
     memberSocket.disconnect();
     await live.close();
