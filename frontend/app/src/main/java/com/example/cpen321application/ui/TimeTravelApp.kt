@@ -14,11 +14,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -121,7 +124,7 @@ private val TABS = listOf(
 /** Shows sign-in until there is a session, then the signed-in screens. */
 @Composable
 fun TimeTravelApp() {
-    val session = appViewModel { SessionViewModel(it.repository) }
+    val session = appViewModel { SessionViewModel(it.repository, it.liveEvents) }
     val state by session.state.collectAsState()
     val activity = LocalActivity.current
 
@@ -148,12 +151,18 @@ fun TimeTravelApp() {
     }
 }
 
-// The tabs show the bottom bar; screens opened from them cover it until the traveller goes back.
+// The tabs show the bottom bar; screens opened from them cover it until the traveller goes back. Live events from other
+// travellers ("Ava joined Crew") show briefly over whichever screen is open.
 @Composable
 private fun SignedInScreens(session: SessionState.SignedIn, viewModel: SessionViewModel) {
     val navController = rememberNavController()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    val notices = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) {
+        viewModel.liveEvents.collect { event -> notices.showSnackbar(event.text) }
+    }
     Scaffold(
+        snackbarHost = { SnackbarHost(notices, modifier = Modifier.testTag(TestTags.LIVE_EVENT_NOTICE)) },
         bottomBar = {
             if (TABS.any { it.route == currentRoute }) {
                 TabBar(currentRoute) { route ->
@@ -197,7 +206,7 @@ private fun TabBar(currentRoute: String?, onSelect: (String) -> Unit) {
 
 private fun NavGraphBuilder.tabScreens(navController: NavHostController, session: SessionState.SignedIn, viewModel: SessionViewModel) {
     composable(Routes.HOME) {
-        val home = appViewModel { HomeViewModel(it.repository) }
+        val home = appViewModel { HomeViewModel(it.repository, it.liveEvents.events) }
         val recentTrips by home.recentTrips.collectAsState()
         LaunchedEffect(Unit) { home.refresh() }
         HomeScreen(
@@ -215,12 +224,12 @@ private fun NavGraphBuilder.tabScreens(navController: NavHostController, session
         ExploreScreen(viewModel = appViewModel { ExploreViewModel(it.repository, startCity) })
     }
     composable(Routes.NEARBY) {
-        NearbyScreen(viewModel = appViewModel { NearbyViewModel(it.nearby) })
+        NearbyScreen(viewModel = appViewModel { NearbyViewModel(it.nearby, it.liveEvents.events) })
     }
     composable(Routes.PROFILE) {
         ProfileScreen(
             user = session.user,
-            viewModel = appViewModel { ProfileViewModel(it.friends) },
+            viewModel = appViewModel { ProfileViewModel(it.friends, it.liveEvents.events) },
             actions = ProfileActions(
                 onEditProfile = viewModel::editProfile,
                 onSignOut = viewModel::signOut,
@@ -242,7 +251,7 @@ private fun NavGraphBuilder.friendScreens(navController: NavHostController) {
     composable(Routes.TRAVELLER) { entry ->
         val userId = entry.arguments?.getString(Routes.USER_ID).orEmpty()
         TravellerScreen(
-            viewModel = appViewModel(key = "traveller-$userId") { TravellerViewModel(it.friends, it.posts, userId) },
+            viewModel = appViewModel(key = "traveller-$userId") { TravellerViewModel(it.friends, it.posts, userId, it.liveEvents.events) },
             onBack = navController::popBackStack,
             onOpenPost = { navController.navigate(Routes.post(it)) },
         )
@@ -260,7 +269,7 @@ private fun NavGraphBuilder.feedScreens(navController: NavHostController) {
     composable(Routes.POST) { entry ->
         val postId = entry.arguments?.getString(Routes.POST_ID).orEmpty()
         PostScreen(
-            viewModel = appViewModel(key = "post-$postId") { PostViewModel(it.posts, postId) },
+            viewModel = appViewModel(key = "post-$postId") { PostViewModel(it.posts, postId, it.liveEvents.events) },
             navigation = PostNavigation(
                 onBack = navController::popBackStack,
                 onOpenTraveller = { navController.navigate(Routes.traveller(it)) },
@@ -314,7 +323,7 @@ private fun NavGraphBuilder.tripScreens(navController: NavHostController, sessio
 private fun NavGraphBuilder.groupScreens(navController: NavHostController, session: SessionState.SignedIn) {
     composable(Routes.GROUPS) {
         GroupsScreen(
-            viewModel = appViewModel { GroupsViewModel(it.groups) },
+            viewModel = appViewModel { GroupsViewModel(it.groups, it.liveEvents.events) },
             onBack = navController::popBackStack,
             onOpenGroup = { groupId -> navController.navigate(Routes.group(groupId)) },
         )
@@ -322,7 +331,7 @@ private fun NavGraphBuilder.groupScreens(navController: NavHostController, sessi
     composable(Routes.GROUP) { entry ->
         val groupId = entry.arguments?.getString(Routes.GROUP_ID).orEmpty()
         GroupDetailScreen(
-            viewModel = appViewModel(key = "group-$groupId") { GroupDetailViewModel(it.groups, it.repository, it.nearby, groupId, session.user.id) },
+            viewModel = appViewModel(key = "group-$groupId") { GroupDetailViewModel(it.groups, it.repository, it.nearby, groupId, session.user.id, it.liveEvents.events) },
             actions = GroupDetailActions(
                 onBack = navController::popBackStack,
                 onPlanTrip = { id, name -> navController.navigate(Routes.tripBuilder(TripGroup(id, name))) },

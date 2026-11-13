@@ -4,6 +4,7 @@ package com.example.cpen321application.ui.common
 object TestTags {
     const val SIGN_IN_BUTTON = "signInButton"
     const val SIGN_OUT_BUTTON = "signOutButton"
+    const val LIVE_EVENT_NOTICE = "liveEventNotice"
 
     const val PROFILE_CARD = "profileCard"
     const val PROFILE_EDIT_BUTTON = "profileEditButton"

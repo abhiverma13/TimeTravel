@@ -5,13 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.Group
 import com.example.cpen321application.data.GroupMember
 import com.example.cpen321application.data.GroupRepository
-import com.example.cpen321application.data.TripSummary
 import com.example.cpen321application.data.JoinRequest
+import com.example.cpen321application.data.LiveEvent
+import com.example.cpen321application.data.LiveEventTypes
 import com.example.cpen321application.data.NearbyRepository
 import com.example.cpen321application.data.TimeTravelRepository
+import com.example.cpen321application.data.TripSummary
+import com.example.cpen321application.ui.common.refreshOn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -49,9 +53,16 @@ class GroupDetailViewModel(
     private val nearby: NearbyRepository,
     private val groupId: String,
     private val myUserId: String,
+    liveEvents: Flow<LiveEvent>,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(GroupDetailUiState())
     val state: StateFlow<GroupDetailUiState> = mutableState.asStateFlow()
+
+    init {
+        // Members joining or leaving, and (for the owner) join requests, show up while the page is open.
+        val types = LiveEventTypes.GROUPS + LiveEventTypes.JOIN_REQUEST
+        refreshOn(liveEvents, types, matches = { it.groupId == groupId }) { load() }
+    }
 
     fun load() {
         viewModelScope.launch {

@@ -4,12 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.FriendLists
 import com.example.cpen321application.data.FriendRepository
+import com.example.cpen321application.data.LiveEvent
+import com.example.cpen321application.data.LiveEventTypes
 import com.example.cpen321application.data.Traveller
+import com.example.cpen321application.ui.common.refreshOn
 import com.example.cpen321application.ui.friends.FriendAction
 import com.example.cpen321application.ui.friends.perform
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -24,9 +28,13 @@ data class ProfileUiState(
 )
 
 /** The Profile tab's friends: requests to answer, friends, requests sent, and whether the account is private. */
-class ProfileViewModel(private val friends: FriendRepository) : ViewModel() {
+class ProfileViewModel(private val friends: FriendRepository, liveEvents: Flow<LiveEvent>) : ViewModel() {
     private val mutableState = MutableStateFlow(ProfileUiState())
     val state: StateFlow<ProfileUiState> = mutableState.asStateFlow()
+
+    init {
+        refreshOn(liveEvents, LiveEventTypes.FRIENDS) { refresh() }
+    }
 
     fun refresh() {
         viewModelScope.launch {

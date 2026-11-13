@@ -3,12 +3,16 @@ package com.example.cpen321application.ui.nearby
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.GeoPoint
+import com.example.cpen321application.data.LiveEvent
+import com.example.cpen321application.data.LiveEventTypes
 import com.example.cpen321application.data.NearbyRepository
 import com.example.cpen321application.data.NearbyTrip
 import com.example.cpen321application.data.REQUEST_PENDING
+import com.example.cpen321application.ui.common.refreshOn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -24,9 +28,16 @@ data class NearbyUiState(
 )
 
 /** The Nearby tab: group trips opened to travellers within 10 km, and asking to join them. */
-class NearbyViewModel(private val nearby: NearbyRepository) : ViewModel() {
+class NearbyViewModel(private val nearby: NearbyRepository, liveEvents: Flow<LiveEvent>) : ViewModel() {
     private val mutableState = MutableStateFlow(NearbyUiState())
     val state: StateFlow<NearbyUiState> = mutableState.asStateFlow()
+
+    // Where the list was last found for, so an answer to a join request can refresh it.
+    private var lastPosition: GeoPoint? = null
+
+    init {
+        refreshOn(liveEvents, setOf(LiveEventTypes.JOIN_ANSWERED)) { lastPosition?.let(::onPosition) }
+    }
 
     fun locating() = mutableState.update { it.copy(loading = true, error = null) }
 
@@ -36,6 +47,7 @@ class NearbyViewModel(private val nearby: NearbyRepository) : ViewModel() {
             mutableState.update { it.copy(loading = false, error = "Couldn't find where you are. Check that location is on, then refresh.") }
             return
         }
+        lastPosition = position
         viewModelScope.launch {
             val result = nearby.trips(position)
             mutableState.update { current ->

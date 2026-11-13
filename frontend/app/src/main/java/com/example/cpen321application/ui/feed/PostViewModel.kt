@@ -2,13 +2,17 @@ package com.example.cpen321application.ui.feed
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.cpen321application.data.LiveEvent
+import com.example.cpen321application.data.LiveEventTypes
 import com.example.cpen321application.data.PostComment
 import com.example.cpen321application.data.PostDetail
 import com.example.cpen321application.data.PostRepository
+import com.example.cpen321application.ui.common.refreshOn
 import java.time.LocalDate
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -27,12 +31,13 @@ data class PostUiState(
 )
 
 /** One shared trip in full: its plan, likes and comments, copying it, and deleting it if it is yours. */
-class PostViewModel(private val posts: PostRepository, private val postId: String) : ViewModel() {
+class PostViewModel(private val posts: PostRepository, private val postId: String, liveEvents: Flow<LiveEvent>) : ViewModel() {
     private val mutableState = MutableStateFlow(PostUiState())
     val state: StateFlow<PostUiState> = mutableState.asStateFlow()
 
     init {
         load()
+        refreshOn(liveEvents, LiveEventTypes.POSTS, matches = { it.postId == postId }) { load() }
     }
 
     fun load() {

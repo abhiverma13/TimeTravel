@@ -3,13 +3,17 @@ package com.example.cpen321application.ui.friends
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.FriendRepository
+import com.example.cpen321application.data.LiveEvent
+import com.example.cpen321application.data.LiveEventTypes
 import com.example.cpen321application.data.Post
 import com.example.cpen321application.data.PostRepository
 import com.example.cpen321application.data.Traveller
+import com.example.cpen321application.ui.common.refreshOn
 import com.example.cpen321application.ui.feed.toggleLike
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -24,12 +28,18 @@ data class TravellerUiState(
 )
 
 /** Another traveller's profile, their shared trips, and the friendship actions that fit it. */
-class TravellerViewModel(private val friends: FriendRepository, private val posts: PostRepository, private val userId: String) : ViewModel() {
+class TravellerViewModel(
+    private val friends: FriendRepository,
+    private val posts: PostRepository,
+    private val userId: String,
+    liveEvents: Flow<LiveEvent>,
+) : ViewModel() {
     private val mutableState = MutableStateFlow(TravellerUiState())
     val state: StateFlow<TravellerUiState> = mutableState.asStateFlow()
 
     init {
         load()
+        refreshOn(liveEvents, LiveEventTypes.FRIENDS, matches = { it.actorId == userId }) { load() }
     }
 
     fun load() {
