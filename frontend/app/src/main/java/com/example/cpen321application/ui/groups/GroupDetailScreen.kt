@@ -59,7 +59,7 @@ import com.example.cpen321application.ui.common.countText
 data class GroupDetailActions(
     val onBack: () -> Unit,
     val onPlanTrip: (groupId: String, groupName: String) -> Unit,
-    val onOpenItinerary: (String) -> Unit,
+    val onOpenTrip: (String) -> Unit,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -120,7 +120,7 @@ private fun GroupContent(
         if (state.trips.isNotEmpty()) {
             SectionLabel("Group trips")
             state.trips.forEach { trip ->
-                TripCard(trip, onClick = { actions.onOpenItinerary(trip.id) }, modifier = Modifier.testTag(TestTags.GROUP_TRIP))
+                TripCard(trip, onClick = { actions.onOpenTrip(trip.id) }, modifier = Modifier.testTag(TestTags.GROUP_TRIP))
                 if (group.isOwner) {
                     OpenToJoinRow(trip.openToJoin, onChange = { open -> viewModel.setOpen(trip, open) })
                 }

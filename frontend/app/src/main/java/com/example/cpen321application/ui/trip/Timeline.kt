@@ -1,4 +1,4 @@
-package com.example.cpen321application.ui.itinerary
+package com.example.cpen321application.ui.trip
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -36,7 +36,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import com.example.cpen321application.data.ItineraryStop
+import com.example.cpen321application.data.TripStop
 import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.SectionLabel
 import com.example.cpen321application.ui.common.TestTags
@@ -87,10 +87,10 @@ data class StopAction(val label: String, val testTag: String, val onClick: () ->
 
 /** One stop: time, place name in serif, and its score in gold, in a cream card beside the timeline. */
 @Composable
-fun StopRow(stop: ItineraryStop, actions: List<StopAction> = emptyList()) {
+fun StopRow(stop: TripStop, actions: List<StopAction> = emptyList()) {
     Row(modifier = Modifier.height(IntrinsicSize.Min)) {
         TimelineGutter(hasDot = true)
-        BrandCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.ITINERARY_STOP)) {
+        BrandCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.TRIP_STOP)) {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f).padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
@@ -148,7 +148,7 @@ private fun StopMenu(stopName: String, actions: List<StopAction>) {
 }
 
 @Composable
-private fun StopDetails(stop: ItineraryStop) {
+private fun StopDetails(stop: TripStop) {
     val gold = MaterialTheme.colorScheme.tertiary
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Text(

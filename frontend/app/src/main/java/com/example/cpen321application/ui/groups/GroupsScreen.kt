@@ -57,7 +57,7 @@ fun GroupsScreen(viewModel: GroupsViewModel, onBack: () -> Unit, onOpenGroup: (S
             modifier = Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Plan trips together. Everyone's interests and vetoes shape the group's itineraries.", style = MaterialTheme.typography.bodyMedium)
+            Text("Plan trips together. Everyone's interests and vetoes shape the group's trips.", style = MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick = { viewModel.showDialog(GroupsDialog.CREATE) },

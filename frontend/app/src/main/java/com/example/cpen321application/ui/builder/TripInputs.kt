@@ -1,4 +1,4 @@
-package com.example.cpen321application.ui.trip
+package com.example.cpen321application.ui.builder
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height

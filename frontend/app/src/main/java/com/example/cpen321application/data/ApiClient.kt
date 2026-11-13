@@ -8,7 +8,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object ApiClient {
     private const val CONNECT_TIMEOUT_SECONDS = 10L
-    // Itinerary generation can take a few seconds on a cold catalogue.
+    // Trip generation can take a few seconds on a cold catalogue.
     private const val READ_TIMEOUT_SECONDS = 30L
 
     /** Builds the Retrofit client every API interface shares; each request carries the stored session token. */

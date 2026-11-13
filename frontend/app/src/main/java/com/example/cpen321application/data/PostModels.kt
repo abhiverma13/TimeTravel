@@ -76,7 +76,7 @@ data class PostDetail(
 
 data class PostsResponse(val posts: List<Post>)
 
-data class CreatePostRequest(val itineraryId: String, val rating: Int, val caption: String)
+data class CreatePostRequest(val tripId: String, val rating: Int, val caption: String)
 
 data class LikeState(val likeCount: Int, val likedByMe: Boolean)
 

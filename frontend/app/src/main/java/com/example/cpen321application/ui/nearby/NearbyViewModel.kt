@@ -55,14 +55,14 @@ class NearbyViewModel(private val nearby: NearbyRepository) : ViewModel() {
         val trip = state.value.asking ?: return
         mutableState.update { it.copy(sending = true) }
         viewModelScope.launch {
-            val result = nearby.askToJoin(trip.itineraryId, note)
+            val result = nearby.askToJoin(trip.tripId, note)
             mutableState.update { current ->
                 result.fold(
                     onSuccess = {
                         current.copy(
                             sending = false,
                             asking = null,
-                            trips = current.trips.map { if (it.itineraryId == trip.itineraryId) it.copy(myRequest = REQUEST_PENDING) else it },
+                            trips = current.trips.map { if (it.tripId == trip.tripId) it.copy(myRequest = REQUEST_PENDING) else it },
                             message = "Asked to join ${trip.groupName}. ${trip.organizer} will answer from the group's page.",
                         )
                     },

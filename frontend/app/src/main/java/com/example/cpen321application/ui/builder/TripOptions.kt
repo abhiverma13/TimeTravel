@@ -1,4 +1,4 @@
-package com.example.cpen321application.ui.trip
+package com.example.cpen321application.ui.builder
 
 /** How the traveller gets around, with the labels the Trip Builder shows. */
 val TRANSPORT_MODES = listOf("walk" to "Walk", "transit" to "Transit", "drive" to "Drive")

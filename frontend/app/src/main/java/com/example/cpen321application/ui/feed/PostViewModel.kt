@@ -21,7 +21,7 @@ data class PostUiState(
     val working: Boolean = false,
     val actionError: String? = null,
     /** Set once the trip is copied, so the screen can open the copy. */
-    val copiedItineraryId: String? = null,
+    val copiedTripId: String? = null,
     /** Set once the post is deleted, so the screen can close. */
     val deleted: Boolean = false,
 )
@@ -80,11 +80,11 @@ class PostViewModel(private val posts: PostRepository, private val postId: Strin
     )
 
     fun copy(startDate: LocalDate) =
-        work(call = { posts.copy(postId, startDate.toString()) }, onDone = { current, copy -> current.copy(copiedItineraryId = copy.id) })
+        work(call = { posts.copy(postId, startDate.toString()) }, onDone = { current, copy -> current.copy(copiedTripId = copy.id) })
 
     fun delete() = work(call = { posts.delete(postId) }, onDone = { current, _ -> current.copy(deleted = true) })
 
-    fun copyOpened() = mutableState.update { it.copy(copiedItineraryId = null) }
+    fun copyOpened() = mutableState.update { it.copy(copiedTripId = null) }
 
     private fun <T> work(call: suspend () -> Result<T>, onDone: (PostUiState, T) -> PostUiState) {
         mutableState.update { it.copy(working = true, actionError = null) }

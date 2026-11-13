@@ -1,15 +1,15 @@
-package com.example.cpen321application.ui.itinerary
+package com.example.cpen321application.ui.trip
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.AdjustRequest
 import com.example.cpen321application.data.ApiException
 import com.example.cpen321application.data.GroupRepository
-import com.example.cpen321application.data.Itinerary
-import com.example.cpen321application.data.ItineraryChange
-import com.example.cpen321application.data.ItineraryStop
-import com.example.cpen321application.data.LiveItinerary
-import com.example.cpen321application.data.LiveItineraryClient
+import com.example.cpen321application.data.Trip
+import com.example.cpen321application.data.TripChange
+import com.example.cpen321application.data.TripStop
+import com.example.cpen321application.data.LiveTrip
+import com.example.cpen321application.data.LiveTripClient
 import com.example.cpen321application.data.LiveStatus
 import com.example.cpen321application.data.Suggestion
 import com.example.cpen321application.data.TimeTravelRepository
@@ -22,32 +22,32 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-sealed interface ItineraryUiState {
-    data object Loading : ItineraryUiState
+sealed interface TripUiState {
+    data object Loading : TripUiState
 
-    data class Loaded(val itinerary: Itinerary) : ItineraryUiState
+    data class Loaded(val trip: Trip) : TripUiState
 
-    data class Failed(val message: String) : ItineraryUiState
+    data class Failed(val message: String) : TripUiState
 }
 
 private const val HTTP_CONFLICT = 409
 private val CLOCK: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
-/** What the itinerary screen needs besides the trip itself. */
-data class ItineraryDependencies(
+/** What the trip screen needs besides the trip itself. */
+data class TripDependencies(
     val repository: TimeTravelRepository,
     val groups: GroupRepository,
-    val live: LiveItineraryClient,
+    val live: LiveTripClient,
     val myUserId: String,
 )
 
 /**
- * View & Adjust Itinerary: shows one personal or group plan, keeps it live while it is on screen, and sends the
+ * View & Adjust Trip: shows one personal or group plan, keeps it live while it is on screen, and sends the
  * traveller's adjustments. Every member's change arrives here within seconds.
  */
-class ItineraryViewModel(private val dependencies: ItineraryDependencies, private val itineraryId: String) : ViewModel() {
-    private val mutableState = MutableStateFlow<ItineraryUiState>(ItineraryUiState.Loading)
-    val state: StateFlow<ItineraryUiState> = mutableState.asStateFlow()
+class TripViewModel(private val dependencies: TripDependencies, private val tripId: String) : ViewModel() {
+    private val mutableState = MutableStateFlow<TripUiState>(TripUiState.Loading)
+    val state: StateFlow<TripUiState> = mutableState.asStateFlow()
 
     private val mutableLive = MutableStateFlow(LiveStatus.CONNECTING)
     val live: StateFlow<LiveStatus> = mutableLive.asStateFlow()
@@ -65,8 +65,8 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
     /** Changes proposed after a disruption, waiting for someone in the trip to accept or dismiss them. */
     val suggestions: StateFlow<List<Suggestion>> = mutableSuggestions.asStateFlow()
 
-    private val connection: LiveItinerary = dependencies.live.open(
-        itineraryId,
+    private val connection: LiveTrip = dependencies.live.open(
+        tripId,
         onStatus = ::onLiveStatus,
         onChange = ::onLiveChange,
         onSuggestion = { suggestion -> mutableSuggestions.update { list -> list.filterNot { it.id == suggestion.id } + suggestion } },
@@ -77,20 +77,20 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
     }
 
     fun load() {
-        mutableState.value = ItineraryUiState.Loading
+        mutableState.value = TripUiState.Loading
         refresh()
     }
 
-    fun setLocked(dayIndex: Int, stop: ItineraryStop, locked: Boolean) =
+    fun setLocked(dayIndex: Int, stop: TripStop, locked: Boolean) =
         adjust { version -> AdjustRequest(if (locked) "lock" else "unlock", version, dayIndex, stop.activityId) }
 
-    fun move(dayIndex: Int, stop: ItineraryStop, toIndex: Int) =
+    fun move(dayIndex: Int, stop: TripStop, toIndex: Int) =
         adjust { version -> AdjustRequest("move", version, dayIndex, stop.activityId, toIndex = toIndex) }
 
-    fun setVisited(dayIndex: Int, stop: ItineraryStop, visited: Boolean) =
+    fun setVisited(dayIndex: Int, stop: TripStop, visited: Boolean) =
         adjust { version -> AdjustRequest(if (visited) "visit" else "unvisit", version, dayIndex, stop.activityId) }
 
-    fun remove(dayIndex: Int, stop: ItineraryStop) = adjust { version -> AdjustRequest("remove", version, dayIndex, stop.activityId) }
+    fun remove(dayIndex: Int, stop: TripStop) = adjust { version -> AdjustRequest("remove", version, dayIndex, stop.activityId) }
 
     /** Re-plans a day: today from now on (stops already started stay), any other day in full. Locked stops stay. */
     fun replanDay(dayIndex: Int, date: String) {
@@ -99,8 +99,8 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
     }
 
     /** Adds the stop to the traveller's vetoes for the trip's group, so the group's next plans leave it out. */
-    fun veto(stop: ItineraryStop) {
-        val groupId = loadedItinerary()?.groupId ?: return
+    fun veto(stop: TripStop) {
+        val groupId = loadedTrip()?.groupId ?: return
         viewModelScope.launch {
             mutableMessage.value = dependencies.groups.veto(groupId, dependencies.myUserId, stop.activityId).fold(
                 onSuccess = { "Vetoed ${stop.name}: this group's next plans leave it out." },
@@ -114,8 +114,8 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
         mutableBusy.value = true
         viewModelScope.launch {
             dependencies.repository.acceptSuggestion(suggestion.id).fold(
-                onSuccess = { itinerary ->
-                    showIfNewer(itinerary)
+                onSuccess = { trip ->
+                    showIfNewer(trip)
                     mutableMessage.value = "Done: the plan is updated for everyone in the trip."
                 },
                 onFailure = { error -> mutableMessage.value = error.message },
@@ -141,10 +141,10 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
     }
 
     private fun adjust(request: (version: Int) -> AdjustRequest) {
-        val current = loadedItinerary() ?: return
+        val current = loadedTrip() ?: return
         mutableBusy.value = true
         viewModelScope.launch {
-            dependencies.repository.adjustItinerary(itineraryId, request(current.version)).fold(
+            dependencies.repository.adjustTrip(tripId, request(current.version)).fold(
                 onSuccess = ::showIfNewer,
                 onFailure = { error ->
                     if ((error as? ApiException)?.status == HTTP_CONFLICT) {
@@ -162,12 +162,12 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
     private fun refresh() {
         viewModelScope.launch {
             // Suggestions are made for one version of the trip, so they are reloaded with it.
-            dependencies.repository.suggestions(itineraryId).onSuccess { mutableSuggestions.value = it }
-            dependencies.repository.itinerary(itineraryId).fold(
-                onSuccess = { itinerary -> mutableState.value = ItineraryUiState.Loaded(itinerary) },
+            dependencies.repository.suggestions(tripId).onSuccess { mutableSuggestions.value = it }
+            dependencies.repository.trip(tripId).fold(
+                onSuccess = { trip -> mutableState.value = TripUiState.Loaded(trip) },
                 onFailure = { error ->
-                    if (loadedItinerary() == null) {
-                        mutableState.value = ItineraryUiState.Failed(error.message ?: "Could not load this itinerary.")
+                    if (loadedTrip() == null) {
+                        mutableState.value = TripUiState.Failed(error.message ?: "Could not load this trip.")
                     }
                 },
             )
@@ -175,10 +175,10 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
     }
 
     // The REST reply and the live push for the same change can arrive in either order; keep the newest version.
-    private fun showIfNewer(itinerary: Itinerary) {
-        val current = loadedItinerary()
-        if (current == null || itinerary.version > current.version) {
-            mutableState.value = ItineraryUiState.Loaded(itinerary)
+    private fun showIfNewer(trip: Trip) {
+        val current = loadedTrip()
+        if (current == null || trip.version > current.version) {
+            mutableState.value = TripUiState.Loaded(trip)
         }
     }
 
@@ -190,16 +190,16 @@ class ItineraryViewModel(private val dependencies: ItineraryDependencies, privat
         }
     }
 
-    private fun onLiveChange(change: ItineraryChange) {
-        val wasNewer = (loadedItinerary()?.version ?: -1) < change.itinerary.version
-        showIfNewer(change.itinerary)
+    private fun onLiveChange(change: TripChange) {
+        val wasNewer = (loadedTrip()?.version ?: -1) < change.trip.version
+        showIfNewer(change.trip)
         if (wasNewer) {
-            viewModelScope.launch { dependencies.repository.suggestions(itineraryId).onSuccess { mutableSuggestions.value = it } }
+            viewModelScope.launch { dependencies.repository.suggestions(tripId).onSuccess { mutableSuggestions.value = it } }
         }
         if (wasNewer && change.actorId != dependencies.myUserId) {
             mutableMessage.value = change.summary
         }
     }
 
-    private fun loadedItinerary(): Itinerary? = (state.value as? ItineraryUiState.Loaded)?.itinerary
+    private fun loadedTrip(): Trip? = (state.value as? TripUiState.Loaded)?.trip
 }

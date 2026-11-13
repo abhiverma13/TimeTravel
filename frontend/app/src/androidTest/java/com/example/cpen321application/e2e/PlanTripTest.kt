@@ -22,9 +22,9 @@ private const val TRIP_DAYS = 3
 private const val FIRST_DAY_OFFSET = 7L
 private const val TOO_LONG_EXTRA_DAYS = 8L
 
-/** Use Case 3, Generate Itinerary, as designed in documentation/Testing.md section 4.2. */
+/** Use Case 3, Plan Trip, as designed in documentation/Testing.md section 4.2. */
 @RunWith(AndroidJUnit4::class)
-class GenerateItineraryTest : E2eTest() {
+class PlanTripTest : E2eTest() {
     @Test
     fun generatesADayByDayPlanAndExplainsWhatIsMissing() {
         val firstDay = LocalDate.now().plusDays(FIRST_DAY_OFFSET)
@@ -34,7 +34,7 @@ class GenerateItineraryTest : E2eTest() {
         // 1-2. "Plan a trip" opens the Trip Builder.
         clickTag(TestTags.HOME_PLAN_TRIP)
         tagged(TestTags.TRIP_CITY_FIELD).assertIsDisplayed()
-        tagged(TestTags.GENERATE_BUTTON).performScrollTo().assertTextContains("Generate itinerary")
+        tagged(TestTags.GENERATE_BUTTON).performScrollTo().assertTextContains("Generate trip")
 
         // 3a. No destination.
         tagged(TestTags.TRIP_CITY_FIELD).performScrollTo().performTextClearance()
@@ -69,7 +69,7 @@ class GenerateItineraryTest : E2eTest() {
 
         // 5-7. Generate, and see a three-day timeline whose first day starts after the arrival.
         clickTag(TestTags.GENERATE_BUTTON)
-        waitFor(hasTestTag(TestTags.ITINERARY_DAY))
+        waitFor(hasTestTag(TestTags.TRIP_DAY))
         waitFor(stopTime())
         val firstStart = LocalTime.parse(stopTimes().first().substringBefore(" to "))
         assertTrue("The first stop starts at $firstStart, before the 13:00 arrival", firstStart >= LocalTime.of(13, 0))
@@ -86,8 +86,8 @@ class GenerateItineraryTest : E2eTest() {
         chooseTripDates(firstDay, lastDay)
         typeInto(TestTags.TRIP_LODGING_FIELD, "no such place zzzz")
         clickTag(TestTags.GENERATE_BUTTON)
-        waitFor(hasTestTag(TestTags.ITINERARY_WARNING))
-        compose.onNode(hasText("Could not find", substring = true) and hasAnyAncestor(hasTestTag(TestTags.ITINERARY_WARNING)))
+        waitFor(hasTestTag(TestTags.TRIP_WARNING))
+        compose.onNode(hasText("Could not find", substring = true) and hasAnyAncestor(hasTestTag(TestTags.TRIP_WARNING)))
             .assertIsDisplayed()
         compose.onNode(hasText("From Vancouver centre")).assertIsDisplayed()
     }

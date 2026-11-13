@@ -9,21 +9,21 @@ import io.socket.engineio.client.transports.WebSocket
 import java.net.URI
 import org.json.JSONObject
 
-/** Whether live updates for the itinerary on screen are arriving. */
+/** Whether live updates for the trip on screen are arriving. */
 enum class LiveStatus { CONNECTING, LIVE, OFFLINE }
 
 /** Where a member of the trip is, as their device last reported it. */
-data class MemberLocation(val itineraryId: String, val userId: String, val name: String, val lat: Double, val lng: Double, val at: String)
+data class MemberLocation(val tripId: String, val userId: String, val name: String, val lat: Double, val lng: Double, val at: String)
 
-/** An open live connection for one itinerary. */
-class LiveItinerary internal constructor(private val socket: Socket, private val itineraryId: String) {
+/** An open live connection for one trip. */
+class LiveTrip internal constructor(private val socket: Socket, private val tripId: String) {
     /** Sends this device's position to the trip's other members; it is passed on, never stored. */
     fun shareLocation(lat: Double, lng: Double) {
-        socket.emit("shareLocation", JSONObject().put("itineraryId", itineraryId).put("lat", lat).put("lng", lng))
+        socket.emit("shareLocation", JSONObject().put("tripId", tripId).put("lat", lat).put("lng", lng))
     }
 
     fun stopSharingLocation() {
-        socket.emit("stopSharingLocation", JSONObject().put("itineraryId", itineraryId))
+        socket.emit("stopSharingLocation", JSONObject().put("tripId", tripId))
     }
 
     fun close() {
@@ -32,37 +32,37 @@ class LiveItinerary internal constructor(private val socket: Socket, private val
     }
 }
 
-private const val ITINERARY_UPDATED = "itineraryUpdated"
+private const val TRIP_UPDATED = "tripUpdated"
 private const val MEMBER_LOCATION = "memberLocation"
 private const val MEMBER_LOCATION_STOPPED = "memberLocationStopped"
 private const val SUGGESTION_ADDED = "suggestionAdded"
 
 /**
- * Live itinerary updates from the Trip Sync & Disruption Service, over Socket.io on the API's own address and with the
+ * Live trip updates from the Trip Sync & Disruption Service, over Socket.io on the API's own address and with the
  * same session token. Reconnects by itself and re-subscribes each time it does.
  */
-class LiveItineraryClient(private val baseUrl: String, private val sessionStore: SessionStore) {
+class LiveTripClient(private val baseUrl: String, private val sessionStore: SessionStore) {
     private val gson = Gson()
 
     /**
-     * Subscribes to one itinerary. Every callback runs on a background thread; the member callbacks report other members'
+     * Subscribes to one trip. Every callback runs on a background thread; the member callbacks report other members'
      * shared positions, and their user id when they stop sharing; `onSuggestion` gets new disruption suggestions.
      */
     fun open(
-        itineraryId: String,
+        tripId: String,
         onStatus: (LiveStatus) -> Unit,
-        onChange: (ItineraryChange) -> Unit,
+        onChange: (TripChange) -> Unit,
         onMemberLocation: (MemberLocation) -> Unit = {},
         onMemberGone: (String) -> Unit = {},
         onSuggestion: (Suggestion) -> Unit = {},
-    ): LiveItinerary {
+    ): LiveTrip {
         val options = IO.Options.builder()
             .setAuth(mapOf("token" to sessionStore.token.orEmpty()))
             .setTransports(arrayOf(WebSocket.NAME))
             .build()
         val socket = IO.socket(URI.create(baseUrl), options)
         socket.on(Socket.EVENT_CONNECT) {
-            val subscription = JSONObject().put("itineraryId", itineraryId)
+            val subscription = JSONObject().put("tripId", tripId)
             socket.emit("subscribe", subscription, Ack { replies ->
                 val accepted = (replies.firstOrNull() as? JSONObject)?.optBoolean("ok") == true
                 onStatus(if (accepted) LiveStatus.LIVE else LiveStatus.OFFLINE)
@@ -70,13 +70,13 @@ class LiveItineraryClient(private val baseUrl: String, private val sessionStore:
         }
         socket.on(Socket.EVENT_DISCONNECT) { onStatus(LiveStatus.OFFLINE) }
         socket.on(Socket.EVENT_CONNECT_ERROR) { onStatus(LiveStatus.OFFLINE) }
-        socket.on(ITINERARY_UPDATED) { args -> parse(args.firstOrNull(), ItineraryChange::class.java)?.let(onChange) }
+        socket.on(TRIP_UPDATED) { args -> parse(args.firstOrNull(), TripChange::class.java)?.let(onChange) }
         socket.on(MEMBER_LOCATION) { args -> parse(args.firstOrNull(), MemberLocation::class.java)?.let(onMemberLocation) }
         socket.on(MEMBER_LOCATION_STOPPED) { args -> (args.firstOrNull() as? JSONObject)?.optString("userId")?.let(onMemberGone) }
         socket.on(SUGGESTION_ADDED) { args -> parse(args.firstOrNull(), Suggestion::class.java)?.let(onSuggestion) }
         onStatus(LiveStatus.CONNECTING)
         socket.connect()
-        return LiveItinerary(socket, itineraryId)
+        return LiveTrip(socket, tripId)
     }
 
     private fun <T> parse(payload: Any?, type: Class<T>): T? {

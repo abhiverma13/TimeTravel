@@ -1,4 +1,4 @@
-package com.example.cpen321application.ui.itinerary
+package com.example.cpen321application.ui.trip
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,9 +38,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
-import com.example.cpen321application.data.Itinerary
-import com.example.cpen321application.data.ItineraryDay
-import com.example.cpen321application.data.ItineraryStop
+import com.example.cpen321application.data.Trip
+import com.example.cpen321application.data.TripDay
+import com.example.cpen321application.data.TripStop
 import com.example.cpen321application.data.LiveStatus
 import com.example.cpen321application.data.Suggestion
 import com.example.cpen321application.ui.common.BrandCard
@@ -50,10 +50,10 @@ import com.example.cpen321application.ui.common.clockTime
 import com.example.cpen321application.ui.common.interestLabel
 import com.example.cpen321application.ui.feed.SharePostDialog
 import com.example.cpen321application.ui.feed.SharePostViewModel
-import com.example.cpen321application.ui.trip.BUDGETS
-import com.example.cpen321application.ui.trip.PACES
-import com.example.cpen321application.ui.trip.TRANSPORT_MODES
-import com.example.cpen321application.ui.trip.labelFor
+import com.example.cpen321application.ui.builder.BUDGETS
+import com.example.cpen321application.ui.builder.PACES
+import com.example.cpen321application.ui.builder.TRANSPORT_MODES
+import com.example.cpen321application.ui.builder.labelFor
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -62,7 +62,7 @@ private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, M
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ItineraryScreen(viewModel: ItineraryViewModel, share: SharePostViewModel, onBack: () -> Unit, onOpenMap: () -> Unit) {
+fun TripScreen(viewModel: TripViewModel, share: SharePostViewModel, onBack: () -> Unit, onOpenMap: () -> Unit) {
     val state by viewModel.state.collectAsState()
     val sharing by share.state.collectAsState()
     val message by viewModel.message.collectAsState()
@@ -84,20 +84,20 @@ fun ItineraryScreen(viewModel: ItineraryViewModel, share: SharePostViewModel, on
     }
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
-        topBar = { ItineraryTopBar((state as? ItineraryUiState.Loaded)?.itinerary, onBack, onOpenMap, share::open) },
+        topBar = { TripTopBar((state as? TripUiState.Loaded)?.trip, onBack, onOpenMap, share::open) },
     ) { innerPadding ->
         val modifier = Modifier.fillMaxSize().padding(innerPadding)
         when (val current = state) {
-            ItineraryUiState.Loading -> Box(modifier, contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            is ItineraryUiState.Failed -> Column(modifier.padding(20.dp)) {
+            TripUiState.Loading -> Box(modifier, contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            is TripUiState.Failed -> Column(modifier.padding(20.dp)) {
                 Text(current.message, color = MaterialTheme.colorScheme.error)
                 TextButton(onClick = viewModel::load) { Text("Try again") }
             }
-            is ItineraryUiState.Loaded -> Column(modifier) {
+            is TripUiState.Loaded -> Column(modifier) {
                 if (busy) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
-                Timeline(current.itinerary, live, suggestions, viewModel)
+                Timeline(current.trip, live, suggestions, viewModel)
             }
         }
     }
@@ -107,21 +107,21 @@ fun ItineraryScreen(viewModel: ItineraryViewModel, share: SharePostViewModel, on
 }
 
 @Composable
-private fun Timeline(itinerary: Itinerary, live: LiveStatus, suggestions: List<Suggestion>, viewModel: ItineraryViewModel) {
+private fun Timeline(trip: Trip, live: LiveStatus, suggestions: List<Suggestion>, viewModel: TripViewModel) {
     LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
         item { LiveBanner(live) }
         items(suggestions, key = { "suggestion-${it.id}" }) { suggestion ->
             SuggestionCard(suggestion, onAccept = { viewModel.acceptSuggestion(suggestion) }, onDismiss = { viewModel.dismissSuggestion(suggestion) })
         }
-        item { Summary(itinerary) }
-        itinerary.days.forEachIndexed { dayIndex, day ->
+        item { Summary(trip) }
+        trip.days.forEachIndexed { dayIndex, day ->
             dayTimeline(
                 day,
-                DayHeading(dayIndex + 1, itinerary.days.size, itinerary.city),
-                itinerary.transportMode,
+                DayHeading(dayIndex + 1, trip.days.size, trip.city),
+                trip.transportMode,
                 onReplan = { viewModel.replanDay(dayIndex, day.date) },
             ) { stopIndex, stop ->
-                stopActions(viewModel, StopPosition(dayIndex, stopIndex, day.stops.size), stop, isGroupTrip = itinerary.groupId != null)
+                stopActions(viewModel, StopPosition(dayIndex, stopIndex, day.stops.size), stop, isGroupTrip = trip.groupId != null)
             }
         }
     }
@@ -130,7 +130,7 @@ private fun Timeline(itinerary: Itinerary, live: LiveStatus, suggestions: List<S
 /** Where a stop sits in the trip, for the actions that depend on it. */
 private data class StopPosition(val dayIndex: Int, val stopIndex: Int, val stopCount: Int)
 
-private fun stopActions(viewModel: ItineraryViewModel, at: StopPosition, stop: ItineraryStop, isGroupTrip: Boolean): List<StopAction> =
+private fun stopActions(viewModel: TripViewModel, at: StopPosition, stop: TripStop, isGroupTrip: Boolean): List<StopAction> =
     buildList {
         add(
             if (stop.locked) {
@@ -161,14 +161,14 @@ private fun stopActions(viewModel: ItineraryViewModel, at: StopPosition, stop: I
 // The trip's city, back, and once the plan is loaded, its map and sharing it to the feed.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ItineraryTopBar(itinerary: Itinerary?, onBack: () -> Unit, onOpenMap: () -> Unit, onShare: () -> Unit) {
+private fun TripTopBar(trip: Trip?, onBack: () -> Unit, onOpenMap: () -> Unit, onShare: () -> Unit) {
     TopAppBar(
-        title = { Text(itinerary?.city?.let { "$it itinerary" } ?: "Itinerary") },
+        title = { Text(trip?.city?.let { "$it trip" } ?: "Trip") },
         navigationIcon = {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
         },
         actions = {
-            if (itinerary != null) {
+            if (trip != null) {
                 IconButton(onClick = onOpenMap, modifier = Modifier.testTag(TestTags.MAP_BUTTON)) {
                     Icon(Icons.Filled.Place, contentDescription = "Map")
                 }
@@ -197,18 +197,18 @@ private fun LiveBanner(live: LiveStatus) {
 }
 
 @Composable
-private fun Summary(itinerary: Itinerary) {
+private fun Summary(trip: Trip) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 8.dp)) {
         BrandCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                SectionLabel(if (itinerary.groupId != null) "Your group's trip" else "Your trip")
-                Text("From ${itinerary.lodging.label}", style = MaterialTheme.typography.titleMedium)
-                val pace = PACES.firstOrNull { it.first == itinerary.pace }?.second ?: itinerary.pace
-                val interests = itinerary.interests.joinToString(", ") { interestLabel(it) }.ifEmpty { "all interests" }
+                SectionLabel(if (trip.groupId != null) "Your group's trip" else "Your trip")
+                Text("From ${trip.lodging.label}", style = MaterialTheme.typography.titleMedium)
+                val pace = PACES.firstOrNull { it.first == trip.pace }?.second ?: trip.pace
+                val interests = trip.interests.joinToString(", ") { interestLabel(it) }.ifEmpty { "all interests" }
                 Text("$pace pace · $interests", style = MaterialTheme.typography.bodyMedium)
-                val travelTimes = if (itinerary.travelTimeSource == "google-routes") "travel times from Google Maps" else "estimated travel times"
+                val travelTimes = if (trip.travelTimeSource == "google-routes") "travel times from Google Maps" else "estimated travel times"
                 Text(
-                    text = "${labelFor(TRANSPORT_MODES, itinerary.transportMode)} · budget ${labelFor(BUDGETS, itinerary.budget)} · $travelTimes",
+                    text = "${labelFor(TRANSPORT_MODES, trip.transportMode)} · budget ${labelFor(BUDGETS, trip.budget)} · $travelTimes",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
@@ -218,15 +218,15 @@ private fun Summary(itinerary: Itinerary) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = "Planned in ${itinerary.generationMs} ms from ${itinerary.candidateCount} candidate activities.",
+                    text = "Planned in ${trip.generationMs} ms from ${trip.candidateCount} candidate activities.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-        itinerary.warnings.forEach { warning ->
+        trip.warnings.forEach { warning ->
             BrandCard(
-                modifier = Modifier.fillMaxWidth().testTag(TestTags.ITINERARY_WARNING),
+                modifier = Modifier.fillMaxWidth().testTag(TestTags.TRIP_WARNING),
                 containerColor = MaterialTheme.colorScheme.errorContainer,
             ) {
                 Text(warning, color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.padding(14.dp))
@@ -239,14 +239,14 @@ private fun Summary(itinerary: Itinerary) {
 private data class DayHeading(val dayNumber: Int, val dayCount: Int, val city: String)
 
 private fun LazyListScope.dayTimeline(
-    day: ItineraryDay,
+    day: TripDay,
     heading: DayHeading,
     transportMode: String,
     onReplan: () -> Unit,
-    stopActions: (Int, ItineraryStop) -> List<StopAction>,
+    stopActions: (Int, TripStop) -> List<StopAction>,
 ) {
     item(key = "day-${day.date}") {
-        Column(modifier = Modifier.padding(top = 16.dp, bottom = 4.dp).testTag(TestTags.ITINERARY_DAY)) {
+        Column(modifier = Modifier.padding(top = 16.dp, bottom = 4.dp).testTag(TestTags.TRIP_DAY)) {
             SectionLabel("Day ${heading.dayNumber} of ${heading.dayCount} · ${heading.city}")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -278,7 +278,7 @@ private fun transitText(minutes: Int, transportMode: String, fromLodging: Boolea
     else -> "$minutes min $transportMode"
 }
 
-private fun backAt(day: ItineraryDay): String {
+private fun backAt(day: TripDay): String {
     val (hours, minutes) = day.stops.last().endTime.split(':').map(String::toInt)
     return clockTime(hours * MINUTES_PER_HOUR + minutes + day.returnTravelMinutes)
 }

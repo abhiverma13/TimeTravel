@@ -37,8 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import com.example.cpen321application.data.Itinerary
-import com.example.cpen321application.data.ItineraryDay
+import com.example.cpen321application.data.Trip
+import com.example.cpen321application.data.TripDay
 import com.example.cpen321application.data.MemberLocation
 import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.TestTags
@@ -83,17 +83,17 @@ fun MapScreen(viewModel: MapViewModel, onBack: () -> Unit) {
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text(state.itinerary?.city?.let { "$it map" } ?: "Map") },
+                title = { Text(state.trip?.city?.let { "$it map" } ?: "Map") },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
             )
         },
     ) { innerPadding ->
-        val itinerary = state.itinerary
+        val trip = state.trip
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             when {
-                itinerary != null -> {
-                    DayChips(itinerary, state.dayIndex, viewModel::selectDay)
-                    TripMap(itinerary.days[state.dayIndex], itinerary, state.members.values.toList(), permitted, Modifier.weight(1f))
+                trip != null -> {
+                    DayChips(trip, state.dayIndex, viewModel::selectDay)
+                    TripMap(trip.days[state.dayIndex], trip, state.members.values.toList(), permitted, Modifier.weight(1f))
                     MapPanel(state, viewModel, permitted, onAllow = { askPermission.launch(LOCATION_PERMISSIONS) })
                 }
                 state.error != null -> Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(20.dp))
@@ -104,22 +104,22 @@ fun MapScreen(viewModel: MapViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun DayChips(itinerary: Itinerary, selected: Int, onSelect: (Int) -> Unit) {
+private fun DayChips(trip: Trip, selected: Int, onSelect: (Int) -> Unit) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 4.dp),
     ) {
-        itinerary.days.forEachIndexed { index, day ->
+        trip.days.forEachIndexed { index, day ->
             FilterChip(selected = index == selected, onClick = { onSelect(index) }, label = { Text(LocalDate.parse(day.date).format(CHIP_FORMAT)) })
         }
     }
 }
 
 @Composable
-private fun TripMap(day: ItineraryDay, itinerary: Itinerary, members: List<MemberLocation>, showMyLocation: Boolean, modifier: Modifier) {
+private fun TripMap(day: TripDay, trip: Trip, members: List<MemberLocation>, showMyLocation: Boolean, modifier: Modifier) {
     val camera = rememberCameraPositionState()
     var loaded by remember { mutableStateOf(false) }
-    val lodging = LatLng(itinerary.lodging.lat, itinerary.lodging.lng)
+    val lodging = LatLng(trip.lodging.lat, trip.lodging.lng)
     val stops = day.stops.map { LatLng(it.location.lat, it.location.lng) }
     LaunchedEffect(loaded, day.date) { if (loaded) fitTo(camera, listOf(lodging) + stops) }
     GoogleMap(
@@ -132,7 +132,7 @@ private fun TripMap(day: ItineraryDay, itinerary: Itinerary, members: List<Membe
         Polyline(points = listOf(lodging) + stops + lodging, color = MaterialTheme.colorScheme.secondary, width = 8f)
         Marker(
             state = rememberMarkerState(key = "lodging", position = lodging),
-            title = itinerary.lodging.label,
+            title = trip.lodging.label,
             icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET),
         )
         day.stops.forEachIndexed { index, stop ->
@@ -186,7 +186,7 @@ private fun MapPanel(state: MapUiState, viewModel: MapViewModel, permitted: Bool
                 Text("Allow location to see where you are on the map.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                 TextButton(onClick = onAllow) { Text("Allow") }
             }
-        } else if (state.itinerary?.groupId != null) {
+        } else if (state.trip?.groupId != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Share my location with the group", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                 Switch(checked = state.sharing, onCheckedChange = viewModel::setSharing, modifier = Modifier.testTag(TestTags.MAP_SHARE_SWITCH))

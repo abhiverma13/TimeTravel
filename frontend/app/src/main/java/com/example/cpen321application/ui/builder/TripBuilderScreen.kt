@@ -1,4 +1,4 @@
-package com.example.cpen321application.ui.trip
+package com.example.cpen321application.ui.builder
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -59,14 +59,14 @@ private fun datesText(start: LocalDate?, end: LocalDate?): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TripBuilderScreen(viewModel: TripBuilderViewModel, onBack: () -> Unit, onItineraryReady: (String) -> Unit) {
+fun TripBuilderScreen(viewModel: TripBuilderViewModel, onBack: () -> Unit, onTripReady: (String) -> Unit) {
     val state by viewModel.state.collectAsState()
     var choosingDates by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(state.generatedItineraryId) {
-        val itineraryId = state.generatedItineraryId
-        if (itineraryId != null) {
-            viewModel.itineraryOpened()
-            onItineraryReady(itineraryId)
+    LaunchedEffect(state.generatedTripId) {
+        val tripId = state.generatedTripId
+        if (tripId != null) {
+            viewModel.tripOpened()
+            onTripReady(tripId)
         }
     }
 
@@ -103,7 +103,7 @@ fun TripBuilderScreen(viewModel: TripBuilderViewModel, onBack: () -> Unit, onIti
                 if (state.generating) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                 } else {
-                    Text("Generate itinerary")
+                    Text("Generate trip")
                 }
             }
         }

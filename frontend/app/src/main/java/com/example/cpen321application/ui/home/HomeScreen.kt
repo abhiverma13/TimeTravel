@@ -19,7 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import com.example.cpen321application.data.ItinerarySummary
+import com.example.cpen321application.data.TripSummary
 import com.example.cpen321application.data.UserProfile
 import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.SectionLabel
@@ -31,7 +31,7 @@ import com.example.cpen321application.ui.common.Wordmark
 @Composable
 fun HomeScreen(
     user: UserProfile,
-    recentTrips: List<ItinerarySummary>,
+    recentTrips: List<TripSummary>,
     actions: HomeActions,
 ) {
     Scaffold(
@@ -62,7 +62,7 @@ fun HomeScreen(
             if (recentTrips.isNotEmpty()) {
                 SectionLabel("Recent trips")
                 recentTrips.forEach { trip ->
-                    TripCard(trip, onClick = { actions.onOpenItinerary(trip.id) }, modifier = Modifier.testTag(TestTags.RECENT_TRIP))
+                    TripCard(trip, onClick = { actions.onOpenTrip(trip.id) }, modifier = Modifier.testTag(TestTags.RECENT_TRIP))
                 }
             }
         }
@@ -73,7 +73,7 @@ fun HomeScreen(
 data class HomeActions(
     val onPlanTrip: () -> Unit,
     val onGroups: () -> Unit,
-    val onOpenItinerary: (String) -> Unit,
+    val onOpenTrip: (String) -> Unit,
 )
 
 // A feature box like the presentation's: cream card, serif title, green bar along the bottom.
@@ -85,7 +85,7 @@ private fun HomeActionCard(
     modifier: Modifier = Modifier,
     highlighted: Boolean = false,
 ) {
-    // The highlighted card is filled green, like the presentation's itinerary-engine box.
+    // The highlighted card is filled green, like the presentation's trip-engine box.
     val container = if (highlighted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceContainerLowest
     val content = if (highlighted) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurface
     BrandCard(onClick = onClick, containerColor = container, modifier = modifier.fillMaxWidth()) {

@@ -55,9 +55,9 @@ import com.example.cpen321application.ui.home.HomeActions
 import com.example.cpen321application.ui.home.HomeScreen
 import com.example.cpen321application.ui.home.HomeViewModel
 import com.example.cpen321application.ui.home.ProfileDialog
-import com.example.cpen321application.ui.itinerary.ItineraryDependencies
-import com.example.cpen321application.ui.itinerary.ItineraryScreen
-import com.example.cpen321application.ui.itinerary.ItineraryViewModel
+import com.example.cpen321application.ui.trip.TripDependencies
+import com.example.cpen321application.ui.trip.TripScreen
+import com.example.cpen321application.ui.trip.TripViewModel
 import com.example.cpen321application.ui.map.MapScreen
 import com.example.cpen321application.ui.map.MapViewModel
 import com.example.cpen321application.ui.nearby.NearbyScreen
@@ -66,9 +66,9 @@ import com.example.cpen321application.ui.profile.ProfileActions
 import com.example.cpen321application.ui.profile.ProfileScreen
 import com.example.cpen321application.ui.profile.ProfileViewModel
 import com.example.cpen321application.ui.signin.SignInScreen
-import com.example.cpen321application.ui.trip.TripBuilderScreen
-import com.example.cpen321application.ui.trip.TripBuilderViewModel
-import com.example.cpen321application.ui.trip.TripGroup
+import com.example.cpen321application.ui.builder.TripBuilderScreen
+import com.example.cpen321application.ui.builder.TripBuilderViewModel
+import com.example.cpen321application.ui.builder.TripGroup
 
 private object Routes {
     const val HOME = "home"
@@ -86,13 +86,13 @@ private object Routes {
     const val GROUP_NAME = "groupName"
     const val GROUP = "group/{$GROUP_ID}"
     const val TRIP_BUILDER = "tripBuilder?$GROUP_ID={$GROUP_ID}&$GROUP_NAME={$GROUP_NAME}"
-    const val ITINERARY_ID = "itineraryId"
-    const val ITINERARY = "itinerary/{$ITINERARY_ID}"
-    const val ITINERARY_MAP = "itinerary/{$ITINERARY_ID}/map"
+    const val TRIP_ID = "tripId"
+    const val TRIP = "trip/{$TRIP_ID}"
+    const val TRIP_MAP = "trip/{$TRIP_ID}/map"
 
-    fun itinerary(itineraryId: String) = "itinerary/$itineraryId"
+    fun trip(tripId: String) = "trip/$tripId"
 
-    fun itineraryMap(itineraryId: String) = "itinerary/$itineraryId/map"
+    fun tripMap(tripId: String) = "trip/$tripId/map"
 
     fun group(groupId: String) = "group/$groupId"
 
@@ -206,7 +206,7 @@ private fun NavGraphBuilder.tabScreens(navController: NavHostController, session
             actions = HomeActions(
                 onPlanTrip = { navController.navigate(Routes.tripBuilder()) },
                 onGroups = { navController.navigate(Routes.GROUPS) },
-                onOpenItinerary = { navController.navigate(Routes.itinerary(it)) },
+                onOpenTrip = { navController.navigate(Routes.trip(it)) },
             ),
         )
     }
@@ -264,7 +264,7 @@ private fun NavGraphBuilder.feedScreens(navController: NavHostController) {
             navigation = PostNavigation(
                 onBack = navController::popBackStack,
                 onOpenTraveller = { navController.navigate(Routes.traveller(it)) },
-                onOpenItinerary = { navController.navigate(Routes.itinerary(it)) },
+                onOpenTrip = { navController.navigate(Routes.trip(it)) },
             ),
         )
     }
@@ -284,28 +284,28 @@ private fun NavGraphBuilder.tripScreens(navController: NavHostController, sessio
         TripBuilderScreen(
             viewModel = appViewModel(key = "trip-$groupId") { TripBuilderViewModel(it.repository, city, session.user.interests, group) },
             onBack = navController::popBackStack,
-            onItineraryReady = { itineraryId ->
-                navController.navigate(Routes.itinerary(itineraryId)) {
+            onTripReady = { tripId ->
+                navController.navigate(Routes.trip(tripId)) {
                     popUpTo(Routes.TRIP_BUILDER) { inclusive = true }
                 }
             },
         )
     }
-    composable(Routes.ITINERARY) { entry ->
-        val itineraryId = entry.arguments?.getString(Routes.ITINERARY_ID).orEmpty()
-        ItineraryScreen(
-            viewModel = appViewModel(key = itineraryId) {
-                ItineraryViewModel(ItineraryDependencies(it.repository, it.groups, it.liveItineraries, session.user.id), itineraryId)
+    composable(Routes.TRIP) { entry ->
+        val tripId = entry.arguments?.getString(Routes.TRIP_ID).orEmpty()
+        TripScreen(
+            viewModel = appViewModel(key = tripId) {
+                TripViewModel(TripDependencies(it.repository, it.groups, it.liveTrips, session.user.id), tripId)
             },
-            share = appViewModel(key = "share-$itineraryId") { SharePostViewModel(it.posts, itineraryId) },
+            share = appViewModel(key = "share-$tripId") { SharePostViewModel(it.posts, tripId) },
             onBack = navController::popBackStack,
-            onOpenMap = { navController.navigate(Routes.itineraryMap(itineraryId)) },
+            onOpenMap = { navController.navigate(Routes.tripMap(tripId)) },
         )
     }
-    composable(Routes.ITINERARY_MAP) { entry ->
-        val itineraryId = entry.arguments?.getString(Routes.ITINERARY_ID).orEmpty()
+    composable(Routes.TRIP_MAP) { entry ->
+        val tripId = entry.arguments?.getString(Routes.TRIP_ID).orEmpty()
         MapScreen(
-            viewModel = appViewModel(key = "map-$itineraryId") { MapViewModel(it.repository, it.liveItineraries, itineraryId) },
+            viewModel = appViewModel(key = "map-$tripId") { MapViewModel(it.repository, it.liveTrips, tripId) },
             onBack = navController::popBackStack,
         )
     }
@@ -326,7 +326,7 @@ private fun NavGraphBuilder.groupScreens(navController: NavHostController, sessi
             actions = GroupDetailActions(
                 onBack = navController::popBackStack,
                 onPlanTrip = { id, name -> navController.navigate(Routes.tripBuilder(TripGroup(id, name))) },
-                onOpenItinerary = { navController.navigate(Routes.itinerary(it)) },
+                onOpenTrip = { navController.navigate(Routes.trip(it)) },
             ),
         )
     }

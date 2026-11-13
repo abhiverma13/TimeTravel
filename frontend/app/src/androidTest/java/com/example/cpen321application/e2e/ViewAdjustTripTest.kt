@@ -21,9 +21,9 @@ import org.junit.runner.RunWith
 private const val FIRST_DAY_OFFSET = 10L
 private const val OPTIONS_FOR = "Options for "
 
-/** Use Case 4, View & Adjust Itinerary, as designed in documentation/Testing.md section 4.2. */
+/** Use Case 4, View & Adjust Trip, as designed in documentation/Testing.md section 4.2. */
 @RunWith(AndroidJUnit4::class)
-class ViewAdjustItineraryTest : E2eTest() {
+class ViewAdjustTripTest : E2eTest() {
     @Test
     fun locksMovesAndRemovesStops() {
         val firstDay = LocalDate.now().plusDays(FIRST_DAY_OFFSET)
@@ -35,7 +35,7 @@ class ViewAdjustItineraryTest : E2eTest() {
         chooseTripDates(firstDay, firstDay.plusDays(1))
         chooseTime("Start", "11:00")
         clickTag(TestTags.GENERATE_BUTTON)
-        waitFor(hasTestTag(TestTags.ITINERARY_DAY))
+        waitFor(hasTestTag(TestTags.TRIP_DAY))
         pressBack()
         startOnHome()
 

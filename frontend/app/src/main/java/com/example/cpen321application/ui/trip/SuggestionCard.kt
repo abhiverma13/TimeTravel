@@ -1,4 +1,4 @@
-package com.example.cpen321application.ui.itinerary
+package com.example.cpen321application.ui.trip
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

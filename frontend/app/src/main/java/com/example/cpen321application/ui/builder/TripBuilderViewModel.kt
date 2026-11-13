@@ -1,8 +1,8 @@
-package com.example.cpen321application.ui.trip
+package com.example.cpen321application.ui.builder
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.cpen321application.data.GenerateItineraryRequest
+import com.example.cpen321application.data.GenerateTripRequest
 import com.example.cpen321application.data.TimeTravelRepository
 import com.example.cpen321application.data.TravelActivity
 import java.time.LocalDate
@@ -48,7 +48,7 @@ data class TripBuilderUiState(
     val generating: Boolean = false,
     val error: String? = null,
     /** Set once the plan is generated, so the screen can open it. */
-    val generatedItineraryId: String? = null,
+    val generatedTripId: String? = null,
 )
 
 private fun minutes(clockTime: String): Int {
@@ -56,7 +56,7 @@ private fun minutes(clockTime: String): Int {
     return hours * MINUTES_PER_HOUR + minutes
 }
 
-/** Create Trip and Generate Itinerary: collects the trip details and asks the Itinerary Engine for a plan. */
+/** Create Trip and Plan Trip: collects the trip details and asks the Trip Engine for a plan. */
 class TripBuilderViewModel(
     private val repository: TimeTravelRepository,
     homeCity: String,
@@ -128,14 +128,14 @@ class TripBuilderViewModel(
         }
         mutableState.update { it.copy(generating = true, error = null) }
         viewModelScope.launch {
-            repository.generateItinerary(current.toRequest()).fold(
-                onSuccess = { itinerary -> mutableState.update { it.copy(generating = false, generatedItineraryId = itinerary.id) } },
+            repository.generateTrip(current.toRequest()).fold(
+                onSuccess = { trip -> mutableState.update { it.copy(generating = false, generatedTripId = trip.id) } },
                 onFailure = { error -> mutableState.update { it.copy(generating = false, error = error.message) } },
             )
         }
     }
 
-    fun itineraryOpened() = mutableState.update { it.copy(generatedItineraryId = null) }
+    fun tripOpened() = mutableState.update { it.copy(generatedTripId = null) }
 
     private fun validationProblem(trip: TripBuilderUiState): String? {
         val start = trip.startDate
@@ -150,7 +150,7 @@ class TripBuilderViewModel(
         }
     }
 
-    private fun TripBuilderUiState.toRequest() = GenerateItineraryRequest(
+    private fun TripBuilderUiState.toRequest() = GenerateTripRequest(
         city = city.trim(),
         startDate = startDate.toString(),
         endDate = endDate.toString(),
