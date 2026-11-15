@@ -190,11 +190,18 @@ data class Suggestion(
     val message: String,
     /** The day's stops if accepted, in order. */
     val proposedStops: List<String>,
+    /** The whole day if accepted, with times, for comparing with the day as it is. */
+    val proposedDay: ProposedDay,
     val createdAt: String,
     val expiresAt: String,
 )
 
 data class SuggestionsResponse(val suggestions: List<Suggestion>)
+
+/** The day a suggestion proposes. */
+data class ProposedDay(val stops: List<ProposedStop>, val returnTravelMinutes: Int)
+
+data class ProposedStop(val activityId: String, val name: String, val startTime: String, val endTime: String, val travelMinutes: Int)
 
 data class TripSummary(
     val id: String,

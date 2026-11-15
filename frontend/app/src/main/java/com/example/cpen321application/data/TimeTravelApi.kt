@@ -30,8 +30,8 @@ interface TimeTravelApi {
     @POST("api/suggestions/{suggestionId}/accept")
     suspend fun acceptSuggestion(@Path("suggestionId") suggestionId: String): Trip
 
-    @POST("api/suggestions/{suggestionId}/dismiss")
-    suspend fun dismissSuggestion(@Path("suggestionId") suggestionId: String)
+    @POST("api/suggestions/{suggestionId}/decline")
+    suspend fun declineSuggestion(@Path("suggestionId") suggestionId: String)
 
     @GET("api/activities/{activityId}/reviews")
     suspend fun reviews(@Path("activityId") activityId: String): ReviewsResponse

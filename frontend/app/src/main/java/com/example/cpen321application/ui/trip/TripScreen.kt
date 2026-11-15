@@ -112,7 +112,12 @@ private fun Timeline(trip: Trip, live: LiveStatus, suggestions: List<Suggestion>
     LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
         item { LiveBanner(live) }
         items(suggestions, key = { "suggestion-${it.id}" }) { suggestion ->
-            SuggestionCard(suggestion, onAccept = { viewModel.acceptSuggestion(suggestion) }, onDismiss = { viewModel.dismissSuggestion(suggestion) })
+            SuggestionCard(
+                suggestion,
+                currentDay = trip.days.getOrNull(suggestion.dayIndex),
+                onAccept = { viewModel.acceptSuggestion(suggestion) },
+                onDecline = { viewModel.declineSuggestion(suggestion) },
+            )
         }
         item { Summary(trip) }
         trip.days.forEachIndexed { dayIndex, day ->

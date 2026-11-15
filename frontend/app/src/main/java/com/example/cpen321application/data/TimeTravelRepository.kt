@@ -66,7 +66,7 @@ class TimeTravelRepository(
     /** Accepts a suggestion; the trip changes for every member. */
     suspend fun acceptSuggestion(suggestionId: String): Result<Trip> = apiCall { api.acceptSuggestion(suggestionId) }
 
-    suspend fun dismissSuggestion(suggestionId: String): Result<Unit> = apiCall { api.dismissSuggestion(suggestionId) }
+    suspend fun declineSuggestion(suggestionId: String): Result<Unit> = apiCall { api.declineSuggestion(suggestionId) }
 
     /** An activity's reviews, verified ones first. */
     suspend fun reviews(activityId: String): Result<List<ReviewListItem>> = apiCall { api.reviews(activityId) }.map { it.reviews }

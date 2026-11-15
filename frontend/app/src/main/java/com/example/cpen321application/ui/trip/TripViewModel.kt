@@ -65,7 +65,7 @@ class TripViewModel(private val dependencies: TripDependencies, private val trip
 
     private val mutableSuggestions = MutableStateFlow<List<Suggestion>>(emptyList())
 
-    /** Changes proposed after a disruption, waiting for someone in the trip to accept or dismiss them. */
+    /** Changes proposed after a disruption, waiting for someone in the trip to accept or decline them. */
     val suggestions: StateFlow<List<Suggestion>> = mutableSuggestions.asStateFlow()
 
     private val connection: LiveTrip = dependencies.live.open(
@@ -129,10 +129,10 @@ class TripViewModel(private val dependencies: TripDependencies, private val trip
         }
     }
 
-    fun dismissSuggestion(suggestion: Suggestion) {
+    fun declineSuggestion(suggestion: Suggestion) {
         mutableSuggestions.update { list -> list.filterNot { it.id == suggestion.id } }
         viewModelScope.launch {
-            dependencies.repository.dismissSuggestion(suggestion.id).onFailure { error -> mutableMessage.value = error.message }
+            dependencies.repository.declineSuggestion(suggestion.id).onFailure { error -> mutableMessage.value = error.message }
         }
     }
 
