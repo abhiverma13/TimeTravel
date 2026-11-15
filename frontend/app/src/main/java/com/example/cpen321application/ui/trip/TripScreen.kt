@@ -47,6 +47,7 @@ import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.SectionLabel
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.clockTime
+import com.example.cpen321application.ui.common.onTheGrid
 import com.example.cpen321application.ui.common.interestLabel
 import com.example.cpen321application.ui.feed.SharePostDialog
 import com.example.cpen321application.ui.feed.SharePostViewModel
@@ -280,7 +281,8 @@ private fun transitText(minutes: Int, transportMode: String, fromLodging: Boolea
 
 private fun backAt(day: TripDay): String {
     val (hours, minutes) = day.stops.last().endTime.split(':').map(String::toInt)
-    return clockTime(hours * MINUTES_PER_HOUR + minutes + day.returnTravelMinutes)
+    // Rounded up like the plan's own times: "back by 19:00" rather than "by 18:47".
+    return clockTime(onTheGrid(hours * MINUTES_PER_HOUR + minutes + day.returnTravelMinutes))
 }
 
 private const val MINUTES_PER_HOUR = 60

@@ -13,6 +13,12 @@ private const val DAYS_PER_WEEK = 7
 fun clockTime(minutes: Int): String =
     String.format(Locale.ROOT, "%02d:%02d", minutes / MINUTES_PER_HOUR, minutes % MINUTES_PER_HOUR)
 
+// Plan times sit on a 15-minute grid, as the back-end schedules them.
+private const val TIME_SLOT_MINUTES = 15
+
+/** The first quarter hour at or after `minutes`: 1127 (18:47) becomes 1140 (19:00). */
+fun onTheGrid(minutes: Int): Int = (minutes + TIME_SLOT_MINUTES - 1) / TIME_SLOT_MINUTES * TIME_SLOT_MINUTES
+
 /** 90 becomes "1 h 30", 120 becomes "2 h", 45 becomes "45 min" (the presentation's style). */
 fun durationText(minutes: Int): String {
     val hours = minutes / MINUTES_PER_HOUR
