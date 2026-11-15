@@ -1,6 +1,7 @@
 package com.example.cpen321application.data
 
 import android.app.Activity
+import kotlinx.coroutines.flow.Flow
 
 private const val HTTP_UNAUTHORIZED = 401
 private const val HTTP_NOT_FOUND = 404
@@ -11,6 +12,9 @@ class TimeTravelRepository(
     private val sessionStore: SessionStore,
     private val googleSignIn: GoogleSignInClient,
 ) {
+    /** Fires when the back-end turns the stored session down, so the app can ask the traveller to sign in again. */
+    val sessionExpired: Flow<Unit> = sessionStore.expired
+
     val isSignInConfigured: Boolean
         get() = googleSignIn.isConfigured
 

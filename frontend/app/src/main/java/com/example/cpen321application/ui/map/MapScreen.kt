@@ -1,5 +1,6 @@
 package com.example.cpen321application.ui.map
 
+import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
@@ -37,9 +38,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.example.cpen321application.data.MemberLocation
 import com.example.cpen321application.data.Trip
 import com.example.cpen321application.data.TripDay
-import com.example.cpen321application.data.MemberLocation
 import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.TestTags
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -67,11 +68,13 @@ fun MapScreen(viewModel: MapViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     var permitted by remember { mutableStateOf(hasLocationPermission(context)) }
+    var precise by remember { mutableStateOf(hasPreciseLocation(context)) }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
         permitted = results.values.any { it }
+        precise = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
     }
     LaunchedEffect(Unit) { if (!permitted) askPermission.launch(LOCATION_PERMISSIONS) }
-    LocationUpdates(enabled = permitted, onLocation = viewModel::onLocation)
+    LocationUpdates(enabled = permitted, onLocation = { viewModel.onLocation(it, precise) })
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -94,7 +97,7 @@ fun MapScreen(viewModel: MapViewModel, onBack: () -> Unit) {
                 trip != null -> {
                     DayChips(trip, state.dayIndex, viewModel::selectDay)
                     TripMap(trip.days[state.dayIndex], trip, state.members.values.toList(), permitted, Modifier.weight(1f))
-                    MapPanel(state, viewModel, permitted, onAllow = { askPermission.launch(LOCATION_PERMISSIONS) })
+                    MapPanel(state, viewModel, LocationAccess(permitted, precise), onAllow = { askPermission.launch(LOCATION_PERMISSIONS) })
                 }
                 state.error != null -> Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(20.dp))
                 else -> CircularProgressIndicator(modifier = Modifier.padding(20.dp))
@@ -160,8 +163,11 @@ private suspend fun fitTo(camera: CameraPositionState, points: List<LatLng>) {
 }
 
 // Below the map: the next stop and how far it is, location permission, and sharing your position with the group.
+/** What the app may know of the traveller's position. */
+private class LocationAccess(val permitted: Boolean, val precise: Boolean)
+
 @Composable
-private fun MapPanel(state: MapUiState, viewModel: MapViewModel, permitted: Boolean, onAllow: () -> Unit) {
+private fun MapPanel(state: MapUiState, viewModel: MapViewModel, access: LocationAccess, onAllow: () -> Unit) {
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BrandCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.MAP_NEXT_STOP)) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -181,12 +187,22 @@ private fun MapPanel(state: MapUiState, viewModel: MapViewModel, permitted: Bool
                 )
             }
         }
-        if (!permitted) {
+        if (!access.permitted) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Allow location to see where you are on the map.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                 TextButton(onClick = onAllow) { Text("Allow") }
             }
-        } else if (state.trip?.groupId != null) {
+        } else if (!access.precise && viewModel.isToday(state)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag(TestTags.MAP_PRECISE_HINT)) {
+                Text(
+                    "Ticking stops off as you arrive needs precise location; approximate location can be a kilometre out.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onAllow) { Text("Allow") }
+            }
+        }
+        if (access.permitted && state.trip?.groupId != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Share my location with the group", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                 Switch(checked = state.sharing, onCheckedChange = viewModel::setSharing, modifier = Modifier.testTag(TestTags.MAP_SHARE_SWITCH))

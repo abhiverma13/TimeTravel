@@ -10,8 +10,12 @@ object ApiClient {
     private const val CONNECT_TIMEOUT_SECONDS = 10L
     // Trip generation can take a few seconds on a cold catalogue.
     private const val READ_TIMEOUT_SECONDS = 30L
+    private const val HTTP_UNAUTHORIZED = 401
 
-    /** Builds the Retrofit client every API interface shares; each request carries the stored session token. */
+    /**
+     * Builds the Retrofit client every API interface shares; each request carries the stored session token. A request
+     * whose session is turned down (401) expires the session, so the app goes back to sign-in.
+     */
     fun create(baseUrl: String, sessionStore: SessionStore): Retrofit {
         val authorization = Interceptor { chain ->
             val token = sessionStore.token
@@ -20,7 +24,11 @@ object ApiClient {
             } else {
                 chain.request().newBuilder().header("Authorization", "Bearer $token").build()
             }
-            chain.proceed(request)
+            val response = chain.proceed(request)
+            if (token != null && response.code == HTTP_UNAUTHORIZED) {
+                sessionStore.expire()
+            }
+            response
         }
         val client = OkHttpClient.Builder()
             .addInterceptor(authorization)

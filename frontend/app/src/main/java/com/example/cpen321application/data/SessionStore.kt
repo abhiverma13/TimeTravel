@@ -1,6 +1,9 @@
 package com.example.cpen321application.data
 
 import android.content.Context
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 /** Keeps the TimeTravel session token across app restarts, so travellers stay signed in. */
 class SessionStore(context: Context) {
@@ -15,6 +18,17 @@ class SessionStore(context: Context) {
 
     fun clear() {
         preferences.edit().remove(KEY_TOKEN).apply()
+    }
+
+    private val expiredEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** Fires when the back-end turns the stored session down (it expired, or the server's secret changed). */
+    val expired: SharedFlow<Unit> = expiredEvents.asSharedFlow()
+
+    /** Forgets a session the back-end no longer accepts, and tells whoever shows the sign-in screen. */
+    fun expire() {
+        clear()
+        expiredEvents.tryEmit(Unit)
     }
 
     private companion object {

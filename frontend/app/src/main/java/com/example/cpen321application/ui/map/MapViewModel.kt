@@ -3,13 +3,14 @@ package com.example.cpen321application.ui.map
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.AdjustRequest
+import com.example.cpen321application.data.ApiException
 import com.example.cpen321application.data.GeoPoint
-import com.example.cpen321application.data.Trip
-import com.example.cpen321application.data.TripStop
 import com.example.cpen321application.data.LiveTrip
 import com.example.cpen321application.data.LiveTripClient
 import com.example.cpen321application.data.MemberLocation
 import com.example.cpen321application.data.TimeTravelRepository
+import com.example.cpen321application.data.Trip
+import com.example.cpen321application.data.TripStop
 import com.example.cpen321application.ui.trip.ACCESS_LOST_MESSAGE
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +18,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+private const val HTTP_CONFLICT = 409
 
 /** Being this close to a stop of today counts as having arrived there. */
 const val ARRIVAL_RADIUS_M = 100.0
@@ -76,6 +79,12 @@ class MapViewModel(
 
     fun selectDay(dayIndex: Int) = mutableState.update { it.copy(dayIndex = dayIndex) }
 
+    private fun reload() {
+        viewModelScope.launch {
+            repository.trip(tripId).onSuccess { trip -> mutableState.update { it.copy(trip = trip) } }
+        }
+    }
+
     /** True when the day on the map is today, the only day stops are ticked off by arriving. */
     fun isToday(state: MapUiState): Boolean = state.trip?.days?.getOrNull(state.dayIndex)?.date == today.toString()
 
@@ -84,12 +93,15 @@ class MapViewModel(
         return NextStop(stop, state.myLocation?.let { distanceMetres(it, stop.location) })
     }
 
-    fun onLocation(location: GeoPoint) {
+    /** A new position; stops are only ticked off from a precise one, since 100 m is finer than approximate location. */
+    fun onLocation(location: GeoPoint, precise: Boolean) {
         mutableState.update { it.copy(myLocation = location) }
         if (state.value.sharing) {
             connection.shareLocation(location.lat, location.lng)
         }
-        tickOffArrivals(location)
+        if (precise) {
+            tickOffArrivals(location)
+        }
     }
 
     fun setSharing(sharing: Boolean) {
@@ -119,8 +131,14 @@ class MapViewModel(
         viewModelScope.launch {
             repository.adjustTrip(tripId, AdjustRequest("visit", trip.version, dayIndex, arrived.activityId)).fold(
                 onSuccess = { updated -> mutableState.update { it.copy(trip = updated, message = "You're at ${arrived.name}: ticked off as visited.") } },
-                // Someone else changed the trip first; the next position update tries again with the new version.
-                onFailure = { visiting -= arrived.activityId },
+                // Someone else changed the trip first: fetch it again (the live update may not have arrived, if the
+                // connection is down), so the next position update tries with the new version rather than the stale one.
+                onFailure = { error ->
+                    visiting -= arrived.activityId
+                    if ((error as? ApiException)?.status == HTTP_CONFLICT) {
+                        reload()
+                    }
+                },
             )
         }
     }

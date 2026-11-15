@@ -27,6 +27,8 @@ sealed interface SessionState {
     ) : SessionState
 }
 
+private const val SESSION_EXPIRED = "Your session expired. Sign in again."
+
 /**
  * Who is signed in. Restores a stored session at launch so travellers do not sign in every time, and keeps the
  * traveller's live events connected while they are signed in.
@@ -42,8 +44,15 @@ class SessionViewModel(private val repository: TimeTravelRepository, private val
 
     init {
         viewModelScope.launch {
+            repository.sessionExpired.collect {
+                stream.stop()
+                mutableState.value = SessionState.SignedOut(SESSION_EXPIRED)
+            }
+        }
+        viewModelScope.launch {
             mutableState.value = repository.restoreSession().fold(
-                onSuccess = { user -> if (user == null) SessionState.SignedOut() else signedIn(user) },
+                // A stored session the back-end turned down has already shown why (SESSION_EXPIRED); keep that.
+                onSuccess = { user -> if (user == null) mutableState.value as? SessionState.SignedOut ?: SessionState.SignedOut() else signedIn(user) },
                 onFailure = { error -> SessionState.SignedOut(error.message) },
             )
         }

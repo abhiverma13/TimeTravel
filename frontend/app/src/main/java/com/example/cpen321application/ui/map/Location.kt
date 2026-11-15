@@ -37,6 +37,10 @@ val LOCATION_PERMISSIONS = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Man
 fun hasLocationPermission(context: Context): Boolean =
     LOCATION_PERMISSIONS.any { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }
 
+/** Precise location (within a few metres); approximate location can be off by a kilometre or more. */
+fun hasPreciseLocation(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
 /** Great-circle distance in metres. */
 fun distanceMetres(from: GeoPoint, to: GeoPoint): Double {
     val lat1 = Math.toRadians(from.lat)

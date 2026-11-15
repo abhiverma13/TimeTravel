@@ -34,6 +34,7 @@ object TestTags {
     const val SHARE_LINK_NO = "shareLinkNo"
     const val POST_TAKEN_BY = "postTakenBy"
     const val TAKER_ROW = "takerRow"
+    const val MAP_PRECISE_HINT = "mapPreciseHint"
 
     const val NEARBY_TRIP = "nearbyTrip"
     const val NEARBY_ASK_BUTTON = "nearbyAskButton"
