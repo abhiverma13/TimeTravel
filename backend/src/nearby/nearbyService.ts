@@ -171,7 +171,7 @@ export class NearbyService {
     const request = await JoinRequestModel.create({ groupId, tripId: trip._id, requesterId, note });
     const group = await GroupModel.findById(groupId);
     const ownerIds = group?.members.filter((member) => member.role === 'owner').map((member) => member.userId) ?? [];
-    this.events.publish(ownerIds, {
+    await this.events.publish(ownerIds, {
       type: 'joinRequest',
       actorId: userId,
       groupId: groupId.toString(),
@@ -211,7 +211,7 @@ export class NearbyService {
     }
     request.status = accept ? 'accepted' : 'declined';
     await request.save();
-    this.events.publish([request.requesterId], {
+    await this.events.publish([request.requesterId], {
       type: 'joinAnswered',
       actorId: userId,
       groupId: group._id.toString(),

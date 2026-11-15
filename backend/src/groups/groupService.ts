@@ -181,7 +181,7 @@ export class GroupService {
     if (!joined) {
       throw new HttpError(409, 'This group is full');
     }
-    this.events.publish(memberIds(joined), { type: 'memberJoined', actorId: userId, groupId: joined._id.toString(), text: `${await firstNameOf(userId)} joined ${joined.name}` });
+    await this.events.publish(memberIds(joined), { type: 'memberJoined', actorId: userId, groupId: joined._id.toString(), text: `${await firstNameOf(userId)} joined ${joined.name}` });
     return joined;
   }
 
@@ -225,12 +225,12 @@ export class GroupService {
     const name = await firstNameOf(userId);
     const remaining = memberIds(group).filter((id) => id !== memberId);
     if (memberId === userId) {
-      this.events.publish(remaining, { type: 'memberLeft', actorId: userId, groupId, text: `${name} left ${group.name}` });
+      await this.events.publish(remaining, { type: 'memberLeft', actorId: userId, groupId, text: `${name} left ${group.name}` });
       return;
     }
-    this.events.publish([memberId], { type: 'removedFromGroup', actorId: userId, groupId, text: `${name} removed you from ${group.name}` });
+    await this.events.publish([memberId], { type: 'removedFromGroup', actorId: userId, groupId, text: `${name} removed you from ${group.name}` });
     const removedName = await firstNameOf(memberId);
-    this.events.publish(remaining, { type: 'memberLeft', actorId: userId, groupId, text: `${name} removed ${removedName} from ${group.name}` });
+    await this.events.publish(remaining, { type: 'memberLeft', actorId: userId, groupId, text: `${name} removed ${removedName} from ${group.name}` });
   }
 
   /** Deletes the group and its trips. Owner only. */
@@ -243,7 +243,7 @@ export class GroupService {
     await TripModel.deleteMany({ groupId: group._id });
     await GroupModel.deleteOne({ _id: group._id });
     this.announceMembersLeft(group, memberIds(group), trips);
-    this.events.publish(memberIds(group), { type: 'groupDeleted', actorId: userId, groupId: group._id.toString(), text: `${await firstNameOf(userId)} deleted ${group.name}` });
+    await this.events.publish(memberIds(group), { type: 'groupDeleted', actorId: userId, groupId: group._id.toString(), text: `${await firstNameOf(userId)} deleted ${group.name}` });
   }
 
   /** Every member's interests and vetoes, combined; the caller must be a member. */

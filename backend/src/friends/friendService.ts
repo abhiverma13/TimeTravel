@@ -133,10 +133,10 @@ export class FriendService {
       }
     } else if (existing.status === 'pending' && existing.recipientId.toString() === userId) {
       await FriendshipModel.updateOne({ _id: existing._id }, { $set: { status: 'accepted' } });
-      this.events.publish([targetId], { type: 'friendAccepted', actorId: userId, text: `${await firstNameOf(userId)} accepted your friend request` });
+      await this.events.publish([targetId], { type: 'friendAccepted', actorId: userId, text: `${await firstNameOf(userId)} accepted your friend request` });
     }
     if (created) {
-      this.events.publish([targetId], { type: 'friendRequest', actorId: userId, text: `${await firstNameOf(userId)} sent you a friend request` });
+      await this.events.publish([targetId], { type: 'friendRequest', actorId: userId, text: `${await firstNameOf(userId)} sent you a friend request` });
     }
     return { traveller: await this.toTraveller(userId, target), created };
   }
@@ -151,7 +151,7 @@ export class FriendService {
     if (!accepted) {
       throw new HttpError(404, 'Friend request not found');
     }
-    this.events.publish([requesterId], { type: 'friendAccepted', actorId: userId, text: `${await firstNameOf(userId)} accepted your friend request` });
+    await this.events.publish([requesterId], { type: 'friendAccepted', actorId: userId, text: `${await firstNameOf(userId)} accepted your friend request` });
     return this.toTraveller(userId, await this.requireUser(requesterId));
   }
 
@@ -169,7 +169,7 @@ export class FriendService {
     } else if (removed.requesterId.toString() === userId) {
       text = `${name} cancelled their friend request`;
     }
-    this.events.publish([otherId], { type: 'friendRemoved', actorId: userId, text });
+    await this.events.publish([otherId], { type: 'friendRemoved', actorId: userId, text });
   }
 
   async setPrivacy(userId: string, isPrivate: boolean): Promise<{ isPrivate: boolean }> {

@@ -14,6 +14,7 @@ import { OpenWeatherClient } from './disruptions/weatherClient';
 import { FriendService } from './friends/friendService';
 import { GroupService } from './groups/groupService';
 import { NearbyService } from './nearby/nearbyService';
+import { NotificationService } from './notifications/notificationService';
 import { PostService } from './posts/postService';
 import { TripService } from './trips/tripService';
 import { GoogleRoutesClient } from './trips/routesClient';
@@ -46,7 +47,18 @@ async function main(): Promise<void> {
   }
   const weatherClient = env.openWeatherApiKey ? new OpenWeatherClient(env.openWeatherApiKey) : null;
   const disruptionService = new DisruptionService(tripService, weatherClient, placesClient, liveEvents);
-  const app = createApp({ authService, activityService, groupService, tripService, friendService, postService, nearbyService, disruptionService });
+  const notificationService = new NotificationService(liveEvents);
+  const app = createApp({
+    authService,
+    activityService,
+    groupService,
+    tripService,
+    friendService,
+    postService,
+    nearbyService,
+    disruptionService,
+    notificationService,
+  });
   const hasTlsConfiguration = Boolean(env.tlsCertPath && env.tlsKeyPath);
   const server = hasTlsConfiguration
     ? createHttpsServer({ cert: readFileSync(env.tlsCertPath), key: readFileSync(env.tlsKeyPath) }, app)

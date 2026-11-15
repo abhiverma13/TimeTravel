@@ -16,6 +16,8 @@ import type { TripService } from './trips/tripService';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { createNearbyRouter } from './nearby/nearbyRoutes';
 import type { NearbyService } from './nearby/nearbyService';
+import { createNotificationRouter } from './notifications/notificationRoutes';
+import type { NotificationService } from './notifications/notificationService';
 import { createPostRouter } from './posts/postRoutes';
 import type { PostService } from './posts/postService';
 
@@ -28,6 +30,7 @@ export interface AppDependencies {
   postService: PostService;
   nearbyService: NearbyService;
   disruptionService: DisruptionService;
+  notificationService: NotificationService;
 }
 
 export function createApp(dependencies: AppDependencies): Express {
@@ -48,6 +51,7 @@ export function createApp(dependencies: AppDependencies): Express {
   app.use('/api/posts', createPostRouter(dependencies.authService, dependencies.postService));
   app.use('/api/nearby', createNearbyRouter(dependencies.authService, dependencies.nearbyService));
   app.use('/api/suggestions', createSuggestionRouter(dependencies.authService, dependencies.disruptionService));
+  app.use('/api/notifications', createNotificationRouter(dependencies.authService, dependencies.notificationService));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

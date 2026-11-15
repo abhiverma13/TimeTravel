@@ -180,7 +180,7 @@ export class PostService {
       throw new HttpError(404, 'Post not found');
     }
     if (liked && !post.likedBy.some((id) => id.equals(viewer))) {
-      this.events.publish([post.authorId], {
+      await this.events.publish([post.authorId], {
         type: 'postLiked',
         actorId: viewerId,
         postId,
@@ -201,7 +201,7 @@ export class PostService {
   async addComment(viewerId: string, postId: string, text: string): Promise<CommentDto> {
     const post = await this.requireVisible(viewerId, postId);
     const comment = await CommentModel.create({ postId: post._id, authorId: new Types.ObjectId(viewerId), text });
-    this.events.publish([post.authorId], {
+    await this.events.publish([post.authorId], {
       type: 'postCommented',
       actorId: viewerId,
       postId,

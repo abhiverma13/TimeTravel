@@ -18,9 +18,29 @@ export const LIVE_EVENT_TYPES = [
 ] as const;
 export type LiveEventType = (typeof LIVE_EVENT_TYPES)[number];
 
+/** Where in the app an event belongs, for its red dot: the Trips, Groups, Feed or Profile tab. */
+export const LIVE_EVENT_AREAS = ['trips', 'groups', 'feed', 'profile'] as const;
+export type LiveEventArea = (typeof LIVE_EVENT_AREAS)[number];
+
+const AREA_OF: Record<LiveEventType, LiveEventArea> = {
+  friendRequest: 'profile',
+  friendAccepted: 'profile',
+  friendRemoved: 'profile',
+  memberJoined: 'groups',
+  memberLeft: 'groups',
+  removedFromGroup: 'groups',
+  groupDeleted: 'groups',
+  joinRequest: 'groups',
+  joinAnswered: 'groups',
+  postLiked: 'feed',
+  postCommented: 'feed',
+  suggestion: 'trips',
+};
+
 /** Something another traveller (or the disruption timer) did that concerns this traveller, pushed to their devices. */
 export interface LiveEvent {
   type: LiveEventType;
+  area: LiveEventArea;
   /** What happened, ready to show: "Ava joined Crew". */
   text: string;
   /** Who did it; empty for the disruption timer. */
@@ -31,7 +51,7 @@ export interface LiveEvent {
   at: string;
 }
 
-export type LiveEventListener = (recipientIds: string[], event: LiveEvent) => void;
+export type LiveEventListener = (recipientIds: string[], event: LiveEvent) => void | Promise<void>;
 
 const SOMEONE = 'Someone';
 
@@ -47,8 +67,9 @@ export async function firstNameOf(userId: string | Types.ObjectId): Promise<stri
 }
 
 /**
- * Carries live events from the services that cause them to the Trip Sync & Disruption Service, which pushes each to the
- * recipients' devices. The traveller who acted never gets their own event. Pushing never fails the action itself.
+ * Carries live events from the services that cause them to their listeners: the Trip Sync & Disruption Service pushes
+ * each to the recipients' devices, and the Notification Service keeps it for their red dots. The traveller who acted
+ * never gets their own event. A listener that fails never fails the action itself.
  */
 export class LiveEvents {
   private readonly listeners: LiveEventListener[] = [];
@@ -59,15 +80,15 @@ export class LiveEvents {
     this.listeners.push(listener);
   }
 
-  publish(recipientIds: readonly (string | Types.ObjectId)[], event: Omit<LiveEvent, 'at'>): void {
+  async publish(recipientIds: readonly (string | Types.ObjectId)[], event: Omit<LiveEvent, 'area' | 'at'>): Promise<void> {
     const recipients = [...new Set(recipientIds.map(String))].filter((id) => id !== event.actorId);
     if (recipients.length === 0) {
       return;
     }
-    const stamped: LiveEvent = { ...event, at: this.now().toISOString() };
+    const stamped: LiveEvent = { ...event, area: AREA_OF[event.type], at: this.now().toISOString() };
     for (const listener of this.listeners) {
       try {
-        listener(recipients, stamped);
+        await listener(recipients, stamped);
       } catch (error) {
         console.error('Failed to push a live event', error);
       }

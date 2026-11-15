@@ -178,7 +178,7 @@ export class DisruptionService {
     }
     const group = trip?.groupId ? await GroupModel.findById(trip.groupId) : null;
     const members = group ? group.members.map((member) => member.userId) : [trip?.userId ?? ''];
-    this.events.publish(members, { type: 'suggestion', actorId: '', tripId: tripId.toString(), text: `${problem} There is a suggestion for your ${trip?.city ?? ''} trip.` });
+    await this.events.publish(members, { type: 'suggestion', actorId: '', tripId: tripId.toString(), text: `${problem} There is a suggestion for your ${trip?.city ?? ''} trip.` });
     return true;
   }
 

@@ -15,6 +15,7 @@ import { TripService } from '../../src/trips/tripService';
 import type { RoutesClient } from '../../src/trips/routesClient';
 import { TravelTimeService } from '../../src/trips/travelTimes';
 import { NearbyService } from '../../src/nearby/nearbyService';
+import { NotificationService } from '../../src/notifications/notificationService';
 import { PostService } from '../../src/posts/postService';
 import { LiveEvents } from '../../src/sync/liveEvents';
 
@@ -45,6 +46,7 @@ export interface TestApp {
   nearbyService: NearbyService;
   disruptionService: DisruptionService;
   liveEvents: LiveEvents;
+  notificationService: NotificationService;
 }
 
 export function createTestApp(options: TestAppOptions = {}): TestApp {
@@ -61,8 +63,19 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   const postService = new PostService(tripService, friendService, liveEvents);
   const nearbyService = new NearbyService(groupService, liveEvents, options.now);
   const disruptionService = new DisruptionService(tripService, options.weatherClient ?? null, placesClient, liveEvents, options.now);
+  const notificationService = new NotificationService(liveEvents);
   return {
-    app: createApp({ authService, activityService, groupService, tripService, friendService, postService, nearbyService, disruptionService }),
+    app: createApp({
+      authService,
+      activityService,
+      groupService,
+      tripService,
+      friendService,
+      postService,
+      nearbyService,
+      disruptionService,
+      notificationService,
+    }),
     authService,
     activityService,
     groupService,
@@ -72,6 +85,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     nearbyService,
     disruptionService,
     liveEvents,
+    notificationService,
   };
 }
 
