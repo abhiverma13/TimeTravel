@@ -5,11 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,8 +17,14 @@ import com.example.cpen321application.data.FRIENDSHIP_INCOMING
 import com.example.cpen321application.data.FRIENDSHIP_NONE
 import com.example.cpen321application.data.FRIENDSHIP_REQUESTED
 import com.example.cpen321application.data.Traveller
-import com.example.cpen321application.ui.common.BrandCard
+import com.example.cpen321application.ui.common.NeoButton
+import com.example.cpen321application.ui.common.NeoCard
+import com.example.cpen321application.ui.common.SquareAvatar
 import com.example.cpen321application.ui.common.TestTags
+import com.example.cpen321application.ui.theme.Blue
+import com.example.cpen321application.ui.theme.Card
+import com.example.cpen321application.ui.theme.Ink
+import com.example.cpen321application.ui.theme.InkSoft
 
 /** "Toronto", or why there is no city to show. */
 fun travellerSubtitle(traveller: Traveller): String = when {
@@ -30,42 +33,59 @@ fun travellerSubtitle(traveller: Traveller): String = when {
     else -> "No home city yet"
 }
 
-/** A traveller in a list: name and city, and the friendship actions that fit. */
+/** A traveller in a list: their square, name and city, and the friendship actions that fit. */
 @Composable
 fun TravellerRow(traveller: Traveller, busy: Boolean, onOpen: () -> Unit, onAction: (FriendAction) -> Unit) {
-    BrandCard(onClick = onOpen, modifier = Modifier.fillMaxWidth().testTag(TestTags.TRAVELLER_ROW)) {
-        Column(modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 12.dp, bottom = 8.dp)) {
-            Text(traveller.name, style = MaterialTheme.typography.titleMedium)
-            Text(travellerSubtitle(traveller), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            FriendshipActions(traveller.friendship, busy, onAction)
+    NeoCard(onClick = onOpen, modifier = Modifier.fillMaxWidth().testTag(TestTags.TRAVELLER_ROW)) {
+        Row(modifier = Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            SquareAvatar(traveller.name, size = 46.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(traveller.name, style = MaterialTheme.typography.titleLarge, color = Ink)
+                Text(travellerSubtitle(traveller), style = MaterialTheme.typography.labelMedium, color = InkSoft)
+                FriendshipActions(traveller.friendship, busy, onAction, Modifier.padding(top = 6.dp))
+            }
         }
     }
 }
 
-/** Add friend; Cancel request; Accept or Decline; or Remove friend, depending on the friendship. */
+/** Add friend; Remove request; Accept or Decline; or Remove friend, depending on the friendship. */
 @Composable
-fun FriendshipActions(friendship: String, busy: Boolean, onAction: (FriendAction) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+fun FriendshipActions(friendship: String, busy: Boolean, onAction: (FriendAction) -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         when (friendship) {
-            FRIENDSHIP_NONE -> Button(
+            FRIENDSHIP_NONE -> NeoButton(
+                "Add friend",
                 onClick = { onAction(FriendAction.ADD) },
                 enabled = !busy,
-                shape = MaterialTheme.shapes.small,
+                color = Blue,
+                compact = true,
                 modifier = Modifier.testTag(TestTags.FRIEND_ADD_BUTTON),
-            ) { Text("Add friend") }
-            FRIENDSHIP_REQUESTED -> OutlinedButton(onClick = { onAction(FriendAction.REMOVE) }, enabled = !busy, shape = MaterialTheme.shapes.small) {
-                Text("Cancel request")
-            }
+            )
+            FRIENDSHIP_REQUESTED -> NeoButton(
+                "Remove request",
+                onClick = { onAction(FriendAction.REMOVE) },
+                enabled = !busy,
+                color = Card,
+                compact = true,
+            )
             FRIENDSHIP_INCOMING -> {
-                Button(
+                NeoButton(
+                    "Accept",
                     onClick = { onAction(FriendAction.ACCEPT) },
                     enabled = !busy,
-                    shape = MaterialTheme.shapes.small,
+                    color = Blue,
+                    compact = true,
                     modifier = Modifier.testTag(TestTags.FRIEND_ACCEPT_BUTTON),
-                ) { Text("Accept") }
-                TextButton(onClick = { onAction(FriendAction.REMOVE) }, enabled = !busy) { Text("Decline") }
+                )
+                NeoButton("Decline", onClick = { onAction(FriendAction.REMOVE) }, enabled = !busy, color = Card, compact = true)
             }
-            FRIENDSHIP_FRIENDS -> TextButton(onClick = { onAction(FriendAction.REMOVE) }, enabled = !busy) { Text("Remove friend") }
+            FRIENDSHIP_FRIENDS -> NeoButton(
+                "Remove friend",
+                onClick = { onAction(FriendAction.REMOVE) },
+                enabled = !busy,
+                color = Card,
+                compact = true,
+            )
         }
     }
 }

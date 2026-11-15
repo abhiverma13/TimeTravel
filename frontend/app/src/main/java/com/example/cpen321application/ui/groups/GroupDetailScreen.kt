@@ -8,32 +8,24 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -43,17 +35,42 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.cpen321application.data.Group
 import com.example.cpen321application.data.GroupMember
 import com.example.cpen321application.data.JoinRequest
 import com.example.cpen321application.data.ROLE_OWNER
-import com.example.cpen321application.ui.common.BrandCard
-import com.example.cpen321application.ui.common.INTEREST_LABELS
+import com.example.cpen321application.ui.common.ErrorNote
+import com.example.cpen321application.ui.common.InterestChips
+import com.example.cpen321application.ui.common.Neo
+import com.example.cpen321application.ui.common.NeoButton
+import com.example.cpen321application.ui.common.NeoCard
+import com.example.cpen321application.ui.common.NeoLoader
+import com.example.cpen321application.ui.common.NeoSnackbarHost
+import com.example.cpen321application.ui.common.NeoTopBar
+import com.example.cpen321application.ui.common.SectionHeader
 import com.example.cpen321application.ui.common.SectionLabel
+import com.example.cpen321application.ui.common.SquareAvatar
+import com.example.cpen321application.ui.common.Sticker
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.TripCard
 import com.example.cpen321application.ui.common.countText
+import com.example.cpen321application.ui.common.neoBlock
+import com.example.cpen321application.ui.common.neoSwitchColors
+import com.example.cpen321application.ui.theme.Blue
+import com.example.cpen321application.ui.theme.Card
+import com.example.cpen321application.ui.theme.Disabled
+import com.example.cpen321application.ui.theme.ErrorWash
+import com.example.cpen321application.ui.theme.Ink
+import com.example.cpen321application.ui.theme.Lilac
+import com.example.cpen321application.ui.theme.Lime
+import com.example.cpen321application.ui.theme.Mono
+import com.example.cpen321application.ui.theme.Pink
+import com.example.cpen321application.ui.theme.Sun
+
+private const val CODE_TILT = -3f
 
 /** Where the group page sends the traveller next. */
 data class GroupDetailActions(
@@ -62,7 +79,6 @@ data class GroupDetailActions(
     val onOpenTrip: (String) -> Unit,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupDetailScreen(viewModel: GroupDetailViewModel, actions: GroupDetailActions) {
     val state by viewModel.state.collectAsState()
@@ -76,24 +92,17 @@ fun GroupDetailScreen(viewModel: GroupDetailViewModel, actions: GroupDetailActio
         }
     }
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(state.group?.name ?: "Group") },
-                navigationIcon = {
-                    IconButton(onClick = actions.onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-                },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbar) },
+        topBar = { NeoTopBar(title = state.group?.name ?: "Group", onBack = actions.onBack) },
+        snackbarHost = { NeoSnackbarHost(snackbar) },
     ) { innerPadding ->
         val modifier = Modifier.fillMaxSize().padding(innerPadding)
         val group = state.group
         when {
             group != null -> GroupContent(group, state, viewModel, actions, modifier)
-            state.loading -> Box(modifier, contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            else -> Column(modifier.padding(20.dp)) {
-                Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = viewModel::load) { Text("Try again") }
+            state.loading -> Box(modifier, contentAlignment = Alignment.Center) { NeoLoader() }
+            else -> Column(modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                ErrorNote(state.error.orEmpty())
+                NeoButton("Try again", onClick = viewModel::load, color = Card, compact = true)
             }
         }
     }
@@ -109,8 +118,8 @@ private fun GroupContent(
     modifier: Modifier,
 ) {
     Column(
-        modifier = modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = modifier.verticalScroll(rememberScrollState()).padding(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         InviteCard(group)
         PlanGroupTripCard(onClick = { actions.onPlanTrip(group.id, group.name) })
@@ -118,7 +127,7 @@ private fun GroupContent(
             JoinRequestsCard(state.requests, onAnswer = viewModel::answer)
         }
         if (state.trips.isNotEmpty()) {
-            SectionLabel("Group trips")
+            SectionHeader("Group trips", Lilac)
             state.trips.forEach { trip ->
                 TripCard(trip, onClick = { actions.onOpenTrip(trip.id) }, modifier = Modifier.testTag(TestTags.GROUP_TRIP))
                 if (group.isOwner) {
@@ -128,28 +137,39 @@ private fun GroupContent(
         }
         MembersCard(group, onRemove = { member -> viewModel.ask(GroupConfirm.Remove(member)) })
         MyPreferencesCard(state, viewModel)
-        OutlinedButton(
+        NeoButton(
+            if (group.isOwner) "Delete group" else "Leave group",
             onClick = { viewModel.ask(if (group.isOwner) GroupConfirm.Delete else GroupConfirm.Leave) },
             enabled = !state.saving,
-            shape = MaterialTheme.shapes.small,
+            color = ErrorWash,
             modifier = Modifier.fillMaxWidth().testTag(if (group.isOwner) TestTags.GROUP_DELETE_BUTTON else TestTags.GROUP_LEAVE_BUTTON),
-        ) {
-            Text(if (group.isOwner) "Delete group" else "Leave group", color = MaterialTheme.colorScheme.error)
-        }
+        )
     }
 }
 
+// The invite code, printed big in mono on a yellow card, with ways to pass it on.
 @Composable
 private fun InviteCard(group: Group) {
     val context = LocalContext.current
-    BrandCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            SectionLabel("Invite code")
-            Text(group.inviteCode, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.testTag(TestTags.GROUP_INVITE_CODE))
-            Text("Friends join with this code from Groups → Join with a code.", style = MaterialTheme.typography.bodySmall)
-            Row {
-                TextButton(onClick = { copyInviteCode(context, group) }) { Text("Copy") }
-                TextButton(onClick = { shareInviteCode(context, group) }) { Text("Share") }
+    NeoCard(color = Sun, modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Sticker("Invite code".uppercase(), color = Ink, tilt = CODE_TILT)
+            Text(
+                group.inviteCode,
+                fontFamily = Mono,
+                fontWeight = FontWeight.Bold,
+                fontSize = 40.sp,
+                letterSpacing = 6.sp,
+                color = Ink,
+                modifier = Modifier
+                    .neoBlock(Neo.ButtonShape, Card, 0.dp, 0.dp)
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .testTag(TestTags.GROUP_INVITE_CODE),
+            )
+            Text("Friends join with this code from Groups → Join with a code.", style = MaterialTheme.typography.bodySmall, color = Ink)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                NeoButton("Copy", onClick = { copyInviteCode(context, group) }, color = Card, compact = true, icon = Icons.Filled.ContentCopy)
+                NeoButton("Share", onClick = { shareInviteCode(context, group) }, color = Card, compact = true, icon = Icons.Filled.Share)
             }
         }
     }
@@ -168,37 +188,46 @@ private fun shareInviteCode(context: Context, group: Group) {
 
 @Composable
 private fun PlanGroupTripCard(onClick: () -> Unit) {
-    BrandCard(
-        onClick = onClick,
-        containerColor = MaterialTheme.colorScheme.secondary,
-        modifier = Modifier.fillMaxWidth().testTag(TestTags.GROUP_PLAN_TRIP),
-    ) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Plan a group trip", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSecondary)
-            Text(
-                "One plan for everyone: the activities most of you want, nothing anyone vetoed.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondary,
-            )
+    NeoCard(onClick = onClick, color = Blue, modifier = Modifier.fillMaxWidth().testTag(TestTags.GROUP_PLAN_TRIP)) {
+        Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Plan a group trip", style = MaterialTheme.typography.headlineMedium, color = Card)
+                Text(
+                    "One plan for everyone: the activities most of you want, nothing anyone vetoed.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Card,
+                )
+            }
+            Box(Modifier.size(48.dp).neoBlock(Neo.ButtonShape, Lime, Neo.SmallShadow, Neo.SmallShadow), contentAlignment = Alignment.Center) {
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Ink)
+            }
         }
-        Box(modifier = Modifier.fillMaxWidth().height(5.dp).background(MaterialTheme.colorScheme.secondary))
     }
 }
 
 @Composable
 private fun MembersCard(group: Group, onRemove: (GroupMember) -> Unit) {
-    BrandCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 8.dp)) {
-            SectionLabel("Members · ${countText(group.members.size, "traveller")}")
-            group.members.forEach { member ->
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag(TestTags.GROUP_MEMBER)) {
+    NeoCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SectionLabel("Members · ${countText(group.members.size, "traveller")}", color = Ink)
+            group.members.forEachIndexed { index, member ->
+                if (index > 0) {
+                    Box(Modifier.fillMaxWidth().height(Neo.ThinBorder).background(Disabled))
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.testTag(TestTags.GROUP_MEMBER),
+                ) {
+                    SquareAvatar(member.name, size = 38.dp)
                     Text(
                         text = member.name + if (member.role == ROLE_OWNER) "  ·  Owner" else "",
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f).padding(vertical = 10.dp),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Ink,
+                        modifier = Modifier.weight(1f),
                     )
                     if (group.isOwner && member.role != ROLE_OWNER) {
-                        TextButton(onClick = { onRemove(member) }) { Text("Remove") }
+                        NeoButton("Remove", onClick = { onRemove(member) }, color = Card, compact = true)
                     }
                 }
             }
@@ -206,26 +235,31 @@ private fun MembersCard(group: Group, onRemove: (GroupMember) -> Unit) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MyPreferencesCard(state: GroupDetailUiState, viewModel: GroupDetailViewModel) {
-    BrandCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SectionLabel("Your interests in this group")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                INTEREST_LABELS.forEach { (tag, label) ->
-                    FilterChip(selected = tag in state.myInterests, onClick = { viewModel.toggleInterest(tag) }, label = { Text(label) })
-                }
-            }
-            TextButton(onClick = viewModel::saveInterests, enabled = !state.saving, modifier = Modifier.testTag(TestTags.GROUP_SAVE_INTERESTS)) {
-                Text("Save interests")
-            }
+    NeoCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SectionLabel("Your interests in this group", color = Ink)
+            InterestChips(state.myInterests, viewModel::toggleInterest)
+            NeoButton(
+                "Save interests",
+                onClick = viewModel::saveInterests,
+                enabled = !state.saving,
+                color = Lime,
+                compact = true,
+                modifier = Modifier.testTag(TestTags.GROUP_SAVE_INTERESTS),
+            )
             Text(
-                text = if (state.myVetoCount == 0) "You haven't vetoed anything. Veto a stop from any group trip." else "You vetoed ${countText(state.myVetoCount, "place")}.",
+                text = if (state.myVetoCount == 0) {
+                    "You haven't vetoed anything. Veto a stop from any group trip."
+                } else {
+                    "You vetoed ${countText(state.myVetoCount, "place")}."
+                },
                 style = MaterialTheme.typography.bodyMedium,
+                color = Ink,
             )
             if (state.myVetoCount > 0) {
-                TextButton(onClick = viewModel::clearVetoes, enabled = !state.saving) { Text("Clear vetoes") }
+                NeoButton("Clear vetoes", onClick = viewModel::clearVetoes, enabled = !state.saving, color = Card, compact = true)
             }
         }
     }
@@ -251,26 +285,33 @@ private fun GroupConfirmDialog(confirming: GroupConfirm?, onConfirm: () -> Unit,
 @Composable
 private fun OpenToJoinRow(open: Boolean, onChange: (Boolean) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
-        Text("Open to travellers nearby", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        Switch(checked = open, onCheckedChange = onChange, modifier = Modifier.testTag(TestTags.GROUP_OPEN_SWITCH))
+        Text("Open to travellers nearby", style = MaterialTheme.typography.titleSmall, color = Ink, modifier = Modifier.weight(1f))
+        Switch(checked = open, onCheckedChange = onChange, colors = neoSwitchColors(), modifier = Modifier.testTag(TestTags.GROUP_OPEN_SWITCH))
     }
 }
 
 @Composable
 private fun JoinRequestsCard(requests: List<JoinRequest>, onAnswer: (JoinRequest, Boolean) -> Unit) {
-    BrandCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.JOIN_REQUESTS)) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SectionLabel("Asking to join")
+    NeoCard(color = Pink, modifier = Modifier.fillMaxWidth().testTag(TestTags.JOIN_REQUESTS)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SectionLabel("Asking to join", color = Ink)
             requests.forEach { request ->
-                Text(request.requester.name, style = MaterialTheme.typography.titleMedium)
-                if (request.note.isNotBlank()) {
-                    Text("\u201c${request.note}\u201d", style = MaterialTheme.typography.bodyMedium)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SquareAvatar(request.requester.name, size = 38.dp)
+                    Text(request.requester.name, style = MaterialTheme.typography.titleMedium, color = Ink)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { onAnswer(request, true) }, shape = MaterialTheme.shapes.small, modifier = Modifier.testTag(TestTags.JOIN_ACCEPT_BUTTON)) {
-                        Text("Accept")
-                    }
-                    TextButton(onClick = { onAnswer(request, false) }) { Text("Decline") }
+                if (request.note.isNotBlank()) {
+                    Text("“${request.note}”", style = MaterialTheme.typography.bodyMedium, color = Ink)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    NeoButton(
+                        "Accept",
+                        onClick = { onAnswer(request, true) },
+                        color = Blue,
+                        compact = true,
+                        modifier = Modifier.testTag(TestTags.JOIN_ACCEPT_BUTTON),
+                    )
+                    NeoButton("Decline", onClick = { onAnswer(request, false) }, color = Card, compact = true)
                 }
             }
         }

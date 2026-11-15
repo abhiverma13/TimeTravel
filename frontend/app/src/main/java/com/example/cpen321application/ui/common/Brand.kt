@@ -1,16 +1,12 @@
 package com.example.cpen321application.ui.common
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,29 +49,5 @@ fun SectionHeader(text: String, color: Color, modifier: Modifier = Modifier) {
         Box(Modifier.size(12.dp).background(color).border(Neo.ThinBorder, Ink))
         SectionLabel(text, color = Ink)
         Box(Modifier.weight(1f).height(Neo.Border).background(Ink))
-    }
-}
-
-/** The previous look's card, kept until the remaining screens are restyled. */
-@Composable
-fun BrandCard(
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLowest,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    val colors = CardDefaults.cardColors(containerColor = containerColor)
-    val border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    if (onClick == null) {
-        Card(modifier = modifier, shape = MaterialTheme.shapes.small, colors = colors, border = border, content = content)
-    } else {
-        Card(
-            onClick = onClick,
-            modifier = modifier,
-            shape = MaterialTheme.shapes.small,
-            colors = colors,
-            border = border,
-            content = content,
-        )
     }
 }

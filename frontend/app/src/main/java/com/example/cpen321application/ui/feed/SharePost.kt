@@ -2,14 +2,12 @@ package com.example.cpen321application.ui.feed
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -17,8 +15,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cpen321application.data.PostRepository
+import com.example.cpen321application.ui.common.ErrorNote
+import com.example.cpen321application.ui.common.Neo
+import com.example.cpen321application.ui.common.NeoButton
+import com.example.cpen321application.ui.common.NeoChip
+import com.example.cpen321application.ui.common.NeoDialog
 import com.example.cpen321application.ui.common.TestTags
+import com.example.cpen321application.ui.common.neoField
+import com.example.cpen321application.ui.common.neoFieldColors
 import com.example.cpen321application.ui.explore.StarPicker
+import com.example.cpen321application.ui.theme.Blue
+import com.example.cpen321application.ui.theme.Card
+import com.example.cpen321application.ui.theme.Ink
+import com.example.cpen321application.ui.theme.Pink
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -83,17 +92,24 @@ class SharePostViewModel(private val posts: PostRepository, private val tripId: 
 
 // For a copied trip that was changed: on the feed, a linked trip shows the original's stops on its card (the changes
 // stay on the traveller's own profile); an unlinked one gets a card of its own.
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LinkBackChoice(linkBack: Boolean?, onChoose: (Boolean) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.testTag(TestTags.SHARE_LINK_CHOICE)) {
-        Text("Link back to the original?", style = MaterialTheme.typography.titleSmall)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.testTag(TestTags.SHARE_LINK_CHOICE)) {
+        Text("Link back to the original?", style = MaterialTheme.typography.titleSmall, color = Ink)
         Text(
             "You changed this trip after copying it. Linked, the feed shows the original's plan with your rating; your changes stay on your profile.",
             style = MaterialTheme.typography.bodySmall,
+            color = Ink,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = linkBack == true, onClick = { onChoose(true) }, label = { Text("Yes, link it") }, modifier = Modifier.testTag(TestTags.SHARE_LINK_YES))
-            FilterChip(selected = linkBack == false, onClick = { onChoose(false) }, label = { Text("No, share it alone") }, modifier = Modifier.testTag(TestTags.SHARE_LINK_NO))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            NeoChip("Yes, link it", selected = linkBack == true, onClick = { onChoose(true) }, modifier = Modifier.testTag(TestTags.SHARE_LINK_YES))
+            NeoChip(
+                "No, share it alone",
+                selected = linkBack == false,
+                onClick = { onChoose(false) },
+                modifier = Modifier.testTag(TestTags.SHARE_LINK_NO),
+            )
         }
     }
 }
@@ -101,33 +117,39 @@ private fun LinkBackChoice(linkBack: Boolean?, onChoose: (Boolean) -> Unit) {
 /** Rate the trip and add a caption, then share it to the feed. */
 @Composable
 fun SharePostDialog(state: ShareUiState, viewModel: SharePostViewModel) {
-    AlertDialog(
+    NeoDialog(
+        title = "Share this trip",
         onDismissRequest = viewModel::dismiss,
-        title = { Text("Share this trip") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    "Your friends, and everyone if your account is public, see a copy of this plan as it is now.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                StarPicker(stars = state.rating, onStars = viewModel::onRating)
-                if (state.askLinkBack) {
-                    LinkBackChoice(state.linkBack, viewModel::onLinkBack)
-                }
-                OutlinedTextField(
-                    value = state.caption,
-                    onValueChange = viewModel::onCaption,
-                    label = { Text("Caption (optional)") },
-                    modifier = Modifier.fillMaxWidth().testTag(TestTags.SHARE_CAPTION_FIELD),
-                )
-                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            }
+        accent = Pink,
+        buttons = {
+            NeoButton("Cancel", onClick = viewModel::dismiss, color = Card, compact = true)
+            NeoButton(
+                if (state.sharing) "Sharing..." else "Share",
+                onClick = viewModel::share,
+                enabled = !state.sharing,
+                color = Blue,
+                compact = true,
+                modifier = Modifier.testTag(TestTags.SHARE_CONFIRM_BUTTON),
+            )
         },
-        confirmButton = {
-            TextButton(onClick = viewModel::share, enabled = !state.sharing, modifier = Modifier.testTag(TestTags.SHARE_CONFIRM_BUTTON)) {
-                Text(if (state.sharing) "Sharing..." else "Share")
-            }
-        },
-        dismissButton = { TextButton(onClick = viewModel::dismiss) { Text("Cancel") } },
-    )
+    ) {
+        Text(
+            "Your friends, and everyone if your account is public, see a copy of this plan as it is now.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Ink,
+        )
+        StarPicker(stars = state.rating, onStars = viewModel::onRating)
+        if (state.askLinkBack) {
+            LinkBackChoice(state.linkBack, viewModel::onLinkBack)
+        }
+        TextField(
+            value = state.caption,
+            onValueChange = viewModel::onCaption,
+            label = { Text("Caption (optional)") },
+            shape = Neo.FieldShape,
+            colors = neoFieldColors(),
+            modifier = Modifier.fillMaxWidth().neoField().testTag(TestTags.SHARE_CAPTION_FIELD),
+        )
+        state.error?.let { ErrorNote(it) }
+    }
 }
