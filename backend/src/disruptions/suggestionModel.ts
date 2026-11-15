@@ -4,7 +4,7 @@ import { type TripDay, daySchema } from '../trips/tripModel';
 
 export const SUGGESTION_REASONS = ['rain', 'closed'] as const;
 export type SuggestionReason = (typeof SUGGESTION_REASONS)[number];
-export const SUGGESTION_STATUSES = ['pending', 'accepted', 'dismissed', 'expired'] as const;
+export const SUGGESTION_STATUSES = ['pending', 'accepted', 'declined', 'expired'] as const;
 export type SuggestionStatus = (typeof SUGGESTION_STATUSES)[number];
 
 /**

@@ -64,6 +64,30 @@ describe('Unmocked: GET /api/suggestions', () => {
     expect(suggestion?.proposedStops).not.toContain('Harbour Park');
   });
 
+  // Input: Pia's trip, which has a rain suggestion for Harbour Park
+  // Expected status code: 200
+  // Expected behavior: the suggestion carries the whole day as it would be, with times, so the app can show it next to
+  //                    the day as it is before Pia accepts or declines
+  // Expected output: proposedDay with timed stops on the 15-minute grid, Lookout Tower in place of Harbour Park, and the
+  //                  travel back to the lodging
+  test('Gives the day as it would be, with times, for a preview', async () => {
+    const { list, pia, app, tripId } = await rainyTrip();
+
+    const [suggestion] = suggestionsIn(await list());
+    const trip = (await request(app).get(`/api/trips/${tripId}`).set(pia.authorization)).body as TripDto;
+
+    const proposed = suggestion?.proposedDay;
+    expect(proposed?.stops.map((stop) => stop.name)).toEqual(suggestion?.proposedStops);
+    expect(proposed?.stops.map((stop) => stop.name)).toContain('Lookout Tower');
+    for (const stop of proposed?.stops ?? []) {
+      expect(stop.startTime < stop.endTime).toBe(true);
+      expect(stop.startTime).toMatch(/:(00|15|30|45)$/);
+    }
+    expect(proposed?.returnTravelMinutes).toBeGreaterThan(0);
+    const unchanged = trip.days.at(0)?.stops.filter((stop) => stop.name !== 'Harbour Park').map((stop) => stop.activityId);
+    expect(proposed?.stops.map((stop) => stop.activityId)).toEqual(expect.arrayContaining(unchanged ?? []));
+  });
+
   // Input: the trip after Pia locks a stop, and the trip after the suggestion's time ran out
   // Expected status code: 200 for both
   // Expected behavior: a suggestion worked out for an older version of the trip, or past its time, is not shown
@@ -165,17 +189,17 @@ describe('Unmocked: POST /api/suggestions/:suggestionId/accept', () => {
   });
 });
 
-// Interface POST /api/suggestions/:suggestionId/dismiss
-describe('Unmocked: POST /api/suggestions/:suggestionId/dismiss', () => {
-  // Input: Pia dismisses the rain suggestion, then dismisses it again
+// Interface POST /api/suggestions/:suggestionId/decline
+describe('Unmocked: POST /api/suggestions/:suggestionId/decline', () => {
+  // Input: Pia declines the rain suggestion, then declines it again
   // Expected status code: 204, then 409
   // Expected behavior: the trip stays as it is and the suggestion is no longer listed
   // Expected output: no body; version 0 with Harbour Park; then { error: "This suggestion was already answered" }
-  test('Dismissing leaves the trip as it is', async () => {
+  test('Declining leaves the trip as it is', async () => {
     const { app, pia, tripId, list, suggestion } = await rainyTrip();
 
-    const response = await request(app).post(`/api/suggestions/${suggestion.id}/dismiss`).set(pia.authorization);
-    const again = await request(app).post(`/api/suggestions/${suggestion.id}/dismiss`).set(pia.authorization);
+    const response = await request(app).post(`/api/suggestions/${suggestion.id}/decline`).set(pia.authorization);
+    const again = await request(app).post(`/api/suggestions/${suggestion.id}/decline`).set(pia.authorization);
 
     const trip = (await request(app).get(`/api/trips/${tripId}`).set(pia.authorization)).body as TripDto;
     expect(response.status).toBe(204);

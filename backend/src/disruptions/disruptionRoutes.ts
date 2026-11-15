@@ -10,7 +10,7 @@ const listQuery = z.object({ tripId: z.string().min(1, 'tripId is required') });
 /**
  * GET  /api/suggestions?tripId=<id>
  * POST /api/suggestions/:suggestionId/accept
- * POST /api/suggestions/:suggestionId/dismiss
+ * POST /api/suggestions/:suggestionId/decline
  */
 export function createSuggestionRouter(authService: AuthService, disruptionService: DisruptionService): Router {
   const router = Router();
@@ -25,8 +25,8 @@ export function createSuggestionRouter(authService: AuthService, disruptionServi
     response.json(await disruptionService.accept(authenticatedUserId(response), request.params.suggestionId));
   });
 
-  router.post('/:suggestionId/dismiss', async (request, response) => {
-    await disruptionService.dismiss(authenticatedUserId(response), request.params.suggestionId);
+  router.post('/:suggestionId/decline', async (request, response) => {
+    await disruptionService.decline(authenticatedUserId(response), request.params.suggestionId);
     response.status(204).end();
   });
 

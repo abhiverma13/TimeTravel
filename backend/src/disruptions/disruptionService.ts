@@ -28,6 +28,15 @@ export const RAIN_LIKELY = 0.6;
 const WET_CONDITIONS = new Set(['Rain', 'Drizzle', 'Thunderstorm', 'Snow']);
 const STALE_SUGGESTION = 'The trip changed since this suggestion; it no longer applies';
 
+/** One stop of the day a suggestion proposes, with its new times. */
+export interface ProposedStopDto {
+  activityId: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  travelMinutes: number;
+}
+
 export interface SuggestionDto {
   id: string;
   tripId: string;
@@ -39,6 +48,8 @@ export interface SuggestionDto {
   message: string;
   /** The day's stops if accepted, in order. */
   proposedStops: string[];
+  /** The whole day if accepted, with times, so members can compare it with the day as it is before answering. */
+  proposedDay: { stops: ProposedStopDto[]; returnTravelMinutes: number };
   createdAt: string;
   expiresAt: string;
 }
@@ -71,6 +82,16 @@ function toDto(suggestion: SuggestionDocument): SuggestionDto {
     reason: suggestion.reason,
     message: suggestion.message,
     proposedStops: suggestion.day.stops.map((stop) => stop.name),
+    proposedDay: {
+      stops: suggestion.day.stops.map((stop) => ({
+        activityId: stop.activityId.toString(),
+        name: stop.name,
+        startTime: stop.startTime,
+        endTime: stop.endTime,
+        travelMinutes: stop.travelMinutes,
+      })),
+      returnTravelMinutes: suggestion.day.returnTravelMinutes,
+    },
     createdAt: suggestion.createdAt.toISOString(),
     expiresAt: suggestion.expiresAt.toISOString(),
   };
@@ -218,10 +239,10 @@ export class DisruptionService {
     }
   }
 
-  /** A member turns the suggestion down; the trip stays as it is. */
-  async dismiss(userId: string, suggestionId: string): Promise<void> {
+  /** A member declines the suggestion; the trip stays as it is. */
+  async decline(userId: string, suggestionId: string): Promise<void> {
     const suggestion = await this.requirePending(userId, suggestionId);
-    suggestion.status = 'dismissed';
+    suggestion.status = 'declined';
     await suggestion.save();
   }
 

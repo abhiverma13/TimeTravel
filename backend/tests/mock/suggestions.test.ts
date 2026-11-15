@@ -213,10 +213,10 @@ describe('Mocked: POST /api/suggestions/:suggestionId/accept', () => {
   });
 });
 
-// Interface POST /api/suggestions/:suggestionId/dismiss
-describe('Mocked: POST /api/suggestions/:suggestionId/dismiss', () => {
+// Interface POST /api/suggestions/:suggestionId/decline
+describe('Mocked: POST /api/suggestions/:suggestionId/decline', () => {
   // Mocked behavior: saving the answer fails
-  // Input: Pia dismisses the suggestion
+  // Input: Pia declines the suggestion
   // Expected status code: 500
   // Expected behavior: the suggestion stays waiting
   // Expected output: { error: "Internal server error" }
@@ -227,7 +227,7 @@ describe('Mocked: POST /api/suggestions/:suggestionId/dismiss', () => {
       throw new Error('Simulated database outage');
     });
 
-    const response = await request(app).post(`/api/suggestions/${suggestionId}/dismiss`).set(pia.authorization);
+    const response = await request(app).post(`/api/suggestions/${suggestionId}/decline`).set(pia.authorization);
 
     expect(response.status).toBe(500);
     expect((await SuggestionModel.findById(suggestionId))?.status).toBe('pending');
