@@ -110,7 +110,7 @@ Each change is a commit on `main` (named below by its subject) with tests.
 | Approximate location cannot tick stops off within 100 m | Stops are ticked off only from precise location, and the map says so. | same commit |
 | The generate end-to-end test is one large test | Six tests: the main success scenario and one per failure scenario. | "test: split Plan Trip, make reviews unique, and time live updates on the phone" |
 | The review end-to-end test can pass on an earlier run's review | Each run writes a review with its run time in it. | same commit |
-| NFR 2 is not checked on the phone | An instrumented test times a change made elsewhere until it is gone from the open trip screen (at most 2 s; 185 ms in our run). | same commit; Testing.md section 3 |
+| NFR 2 is not checked on the phone | An instrumented test times a change made elsewhere until it is gone from the open trip screen (at most 2 s; 191 ms in our run). | same commit; Testing.md section 3 |
 | No test for an expired session or the 7-day lifetime | Both added. | "test: add the back-end tests the peer review asked for"; `backend/tests/no-mock/auth.test.ts` |
 | The reviews list order (verified first, then newest) is not checked | Checked. | same commit; `backend/tests/no-mock/reviews.test.ts` |
 | The Places-usage NFR test assumes Google works | Added an outage scenario. It showed that an expired city retried Google on every request, so a failed refresh now waits an hour before trying again. | same commit; `backend/tests/nfr/placesUsage.test.ts` |

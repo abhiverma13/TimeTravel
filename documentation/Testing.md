@@ -27,6 +27,7 @@
 | 2026-11-12 | 2.1.1 | Added tests for the peer review's code-review fixes: Google unavailable at sign-in, reviews and joins sent twice at once, partial city searches, and a failed venue check. |
 | 2026-11-12 | 2.1.1, 3, 4.2 | Added what the peer review's test review asked for: expired-session and 7-day-session tests, the order of the reviews list, `parsePort`, NFR 3 while Google fails, an app test timing NFR 2 on the phone, Plan Trip split into one test per scenario, a unique review per run, and comments on the unit tests. |
 | 2026-11-12 | 2.3, 2.4, 2.5, 3.2 | Completed for CP3: new coverage screenshots and the reasons for every uncovered line, and this commit's NFR logs. The text coverage tables were removed, since they only repeated the screenshots. |
+| 2026-11-12 | 3.2, 4.2 | The Android test logs come from the redesigned app: the tests find the same tags and labels, so none changed. |
 
 ---
 
@@ -203,12 +204,12 @@ Without mocks, the external service clients are not reached: Google Places (`pla
 
     com.example.cpen321application.nfr.LiveUpdateRenderTest:.
 
-    Time: 15.092
+    Time: 14.861
 
     OK (1 test)
 
     $ adb logcat -d -s NFR:I
-    I NFR     : Live update on screen after 185 ms (limit 2000 ms)
+    I NFR     : Live update on screen after 191 ms (limit 2000 ms)
     ```
 
 - **NFR 3: Bounded Google Places usage**
@@ -276,7 +277,7 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
 
     com.example.cpen321application.e2e.PlanTripTest:......
 
-    Time: 43.573
+    Time: 41.847
 
     OK (6 tests)
     ```
@@ -308,7 +309,7 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
 
     com.example.cpen321application.e2e.RateReviewActivityTest:.
 
-    Time: 18.52
+    Time: 19.914
 
     OK (1 test)
     ```
@@ -339,7 +340,7 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
 
     com.example.cpen321application.e2e.ViewAdjustTripTest:.
 
-    Time: 19.278
+    Time: 17.433
 
     OK (1 test)
     ```

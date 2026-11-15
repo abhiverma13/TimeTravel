@@ -28,6 +28,7 @@
 | 2026-11-12 | 3.1, 3.2, 3.3, 3.4, 3.5, 4.5, 4.6 | Rebuilt the use cases after CP2 feedback: the diagram shows only what travellers do (system steps such as ranking a day, notifying members and the timer's checks are gone, and so is the Time actor), adds Sign Out, Edit Profile and the other half of each pair (remove, delete, decline), turns Monitor Trip Conditions into Accept or Decline Disruption Suggestion, splits Friends and the feed into F6 and F7, and uses the same verbs throughout. A trip is defined once in 3.1. Every diagram is on white, and text that only repeated a diagram (legends, counts) was cut. |
 | 2026-11-12 | 3.4, 3.5, 4.1, 4.6 | A suggestion now carries the whole proposed day with its times, and the app previews it against the day as it is before a member answers, after CP2 feedback asked to see the change first. "Dismiss" became "Decline" to match the words used everywhere else (add, remove, accept, decline). |
 | 2026-11-12 | 3.1, 4.1 | Stop times now start on a 15-minute grid (09:15 rather than 09:07), after CP2 feedback that minute-exact times looked machine-made. Rounding waits a few minutes longer, never shortens travel, and is skipped only when it would miss a closing time. |
+| 2026-11-12 | 3.6 | Redesigned every screen after CP2 feedback that the app looked plain, and replaced the CP1 screenshots with ten screens of the new design. |
 
 ---
 
@@ -278,11 +279,15 @@ Actions use the same words everywhere: travellers *add* and *remove* friends, pl
 
 ### **3.6. Screen Mock-ups**
 
-Screens from the CP1 build:
+Screens from the CP3 build, signed in as a demo traveller:
 
-| Sign in | Trip Builder | Trip | Explore & review |
-| --- | --- | --- | --- |
-| <img src="images/screen_sign_in.png" width="200"/> | <img src="images/screen_trip_builder.png" width="200"/> | <img src="images/screen_trip.png" width="200"/> | <img src="images/screen_explore.png" width="200"/> |
+| Sign in | Trips | Trip Builder | Trip, with a suggestion | Trip map |
+| --- | --- | --- | --- | --- |
+| <img src="images/screen_sign_in.png" width="150"/> | <img src="images/screen_trips.png" width="150"/> | <img src="images/screen_trip_builder.png" width="150"/> | <img src="images/screen_trip.png" width="150"/> | <img src="images/screen_trip_map.png" width="150"/> |
+
+| Explore & review | Group | Feed | Shared trip | Profile |
+| --- | --- | --- | --- | --- |
+| <img src="images/screen_explore.png" width="150"/> | <img src="images/screen_group.png" width="150"/> | <img src="images/screen_feed.png" width="150"/> | <img src="images/screen_shared_trip.png" width="150"/> | <img src="images/screen_profile.png" width="150"/> |
 
 ### **3.7. Non-Functional Requirements**
 
