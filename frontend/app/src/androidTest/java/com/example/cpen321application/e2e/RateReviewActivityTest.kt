@@ -23,7 +23,8 @@ import org.junit.runner.RunWith
 
 private const val MAX_REVIEW_LENGTH = 500
 private const val STARS = 4
-private const val REVIEW = "Great views, worth the walk."
+// Every run writes a review no earlier run could have left, so finding it proves this run saved it.
+private val REVIEW = "Great views, worth the walk (run ${System.currentTimeMillis()})."
 
 /** Use Case 2, Rate & Review Activity, as designed in documentation/Testing.md section 4.2. */
 @RunWith(AndroidJUnit4::class)
