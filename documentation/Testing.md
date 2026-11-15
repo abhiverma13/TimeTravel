@@ -23,6 +23,7 @@
 | 2026-11-12 | 2.1.1 | Added the Notification Service interfaces (`GET /api/notifications`, `POST /api/notifications/read`). |
 | 2026-11-12 | 2.1.1 | Plan Trip's interface tests now check that every stop is on the 15-minute grid. |
 | 2026-11-12 | 2.1.1 | The suggestion interface tests check the proposed day used for the preview, and Dismiss became Decline. |
+| 2026-11-12 | 2.1.1 | Added the tests for copied trips joining their original's card, and for who took a trip. |
 
 ---
 
@@ -79,6 +80,8 @@
 | **POST /api/posts/:postId/comments** | [`backend/tests/no-mock/posts.test.ts#L403`](../backend/tests/no-mock/posts.test.ts#L403) | [`backend/tests/mock/posts.test.ts#L177`](../backend/tests/mock/posts.test.ts#L177) | Comment DB |
 | **DELETE /api/posts/:postId/comments/:commentId** | [`backend/tests/no-mock/posts.test.ts#L434`](../backend/tests/no-mock/posts.test.ts#L434) | [`backend/tests/mock/posts.test.ts#L194`](../backend/tests/mock/posts.test.ts#L194) | Comment DB |
 | **POST /api/posts/:postId/copy** | [`backend/tests/no-mock/posts.test.ts#L472`](../backend/tests/no-mock/posts.test.ts#L472) | [`backend/tests/mock/posts.test.ts#L213`](../backend/tests/mock/posts.test.ts#L213) | Google Routes API, Trip DB |
+| **POST /api/posts for a copied trip** | [`backend/tests/no-mock/mergedPosts.test.ts#L45`](../backend/tests/no-mock/mergedPosts.test.ts#L45) | [`backend/tests/mock/mergedPosts.test.ts#L34`](../backend/tests/mock/mergedPosts.test.ts#L34) | Post DB (looking up the original) |
+| **GET /api/posts/:postId/takers** | [`backend/tests/no-mock/mergedPosts.test.ts#L149`](../backend/tests/no-mock/mergedPosts.test.ts#L149) | [`backend/tests/mock/mergedPosts.test.ts#L55`](../backend/tests/mock/mergedPosts.test.ts#L55) | Post DB (reading the linked copies) |
 | **PUT /api/nearby/trips/:tripId** | [`backend/tests/no-mock/nearby.test.ts#L52`](../backend/tests/no-mock/nearby.test.ts#L52) | [`backend/tests/mock/nearby.test.ts#L75`](../backend/tests/mock/nearby.test.ts#L75) | Trip DB |
 | **GET /api/nearby/trips** | [`backend/tests/no-mock/nearby.test.ts#L110`](../backend/tests/no-mock/nearby.test.ts#L110) | [`backend/tests/mock/nearby.test.ts#L41`](../backend/tests/mock/nearby.test.ts#L41) | Trip DB, Group DB (a group deleted while listing) |
 | **POST /api/nearby/trips/:tripId/requests** | [`backend/tests/no-mock/nearby.test.ts#L194`](../backend/tests/no-mock/nearby.test.ts#L194) | [`backend/tests/mock/nearby.test.ts#L92`](../backend/tests/mock/nearby.test.ts#L92) | Join request DB |

@@ -22,6 +22,7 @@
 | 2026-11-12 | 4.1 | Fixed the peer review's major fault: a member removed from a group kept receiving its live locations. The Group Service now announces who lost access, and the hub disconnects them from the group's trips at once (`tripAccessLost`); every shared position also re-checks access. |
 | 2026-11-12 | 3.1, 4.1 | Added live updates for friends, groups, join requests, posts and suggestions (`liveEvent`), after CP2 feedback asked for friends being added and members joining to appear without a refresh. Each traveller's devices share a room, so one event reaches all of them. |
 | 2026-11-12 | 3.1, 3.4, 4.1, 4.2 | Added red dots for what is new, owned by a new Notification Service that keeps each live event until the traveller opens its part of the app, so the dots survive a restart. The Groups tab replaces the Nearby tab and holds both the traveller's groups and nearby trips, so the dot for group news has a tab. |
+| 2026-11-12 | 3.1, 3.4, 4.1, 4.2 | After CP2 feedback that a copied trip posted again appeared twice, a copy shared unchanged now joins the original's feed card, which shows its planner, how many travellers took it and their average rating, and lists them. A changed copy asks whether to link back: linked, the feed shows the original's stops and the traveller's own profile keeps theirs. Copies of copies link to the first trip so one trip has one card. |
 | 2026-11-12 | 3.4, 3.5, 4.1, 4.6 | A suggestion now carries the whole proposed day with its times, and the app previews it against the day as it is before a member answers, after CP2 feedback asked to see the change first. "Dismiss" became "Decline" to match the words used everywhere else (add, remove, accept, decline). |
 | 2026-11-12 | 3.1, 4.1 | Stop times now start on a 15-minute grid (09:15 rather than 09:07), after CP2 feedback that minute-exact times looked machine-made. Rounding waits a few minutes longer, never shortens travel, and is skipped only when it would miss a closing time. |
 
@@ -44,7 +45,7 @@ Planning a trip is a scheduling problem, but every tool treats it as a search pr
 3. **F3 Trip generation** (CP1, extended in CP2): our own algorithm turns trip details into a ranked, time-feasible, day-by-day plan, with every stop starting on a quarter hour (09:15, not 09:07). It uses the traveller's way of getting around, budget, and places to see or avoid, with travel times from Google Routes. A place found in Explore can be added to a trip.
 4. **F4 Collaborative trips, live** (CP2): friends join a group with an invite code, and every member's interests and vetoes shape its plans. Any member can adjust a stop or re-plan a day, and every member's open app updates within seconds. Members joining or leaving, and join requests and their answers, also reach every member's app as they happen, and a red dot on the Groups tab marks what is new until the traveller looks.
 5. **F5 Disruption-aware re-planning** (CP2): a back-end timer checks the forecast and venue status for trips under way, and suggests a change for rain during an outdoor stop or a closed venue. Nothing changes until a member accepts.
-6. **F6 Friends and the trip feed** (CP2): travellers become friends by request and share trips with a rating and caption to the Friends and Everyone feeds; a private account's posts reach friends only. Posts can be liked, commented on and copied onto new dates. Friend requests and their answers, and likes and comments on a traveller's posts, reach them as they happen, with a red dot on the Profile or Feed tab until they look.
+6. **F6 Friends and the trip feed** (CP2): travellers become friends by request and share trips with a rating and caption to the Friends and Everyone feeds; a private account's posts reach friends only. Posts can be liked, commented on and copied onto new dates. A copy shared unchanged joins the original's card on the feed, which shows who planned the trip, how many travellers took it and their average rating, and lists who took it; a changed copy asks whether to link back. Friend requests and their answers, and likes and comments on a traveller's posts, reach them as they happen, with a red dot on the Profile or Feed tab until they look.
 7. **F7 Trip map and live location** (CP2): a map of each day's stops and route with the traveller's position. On the trip's day, arriving within 100 m ticks a stop off. Group members can share their positions while the map is open; positions are never stored.
 8. **F8 Nearby trips** (CP2): a group's owner opens a group trip to nearby travellers, who see its plan (never the lodging or anyone's position) and can ask to join.
 
@@ -99,8 +100,8 @@ Each feature is a package, and each branch of an actor's line ends at one of its
   16. **Find Travellers**: a traveller searches for others by name or email and opens a profile.
   17. **Manage Friends**: a traveller sends, answers or cancels friend requests, or removes a friend.
   18. **Set Account Privacy**: a traveller makes their account private (details and posts for friends only) or public.
-  19. **Share Trip**: a traveller posts a trip with a star rating and an optional caption.
-  20. **Browse Feed**: a traveller reads the Friends or Everyone feed, optionally for one city, or one traveller's posts.
+  19. **Share Trip**: a traveller posts a trip with a star rating and an optional caption; a copied trip they changed asks whether to link back to the original.
+  20. **Browse Feed**: a traveller reads the Friends or Everyone feed, optionally for one city, or one traveller's posts; copies of a trip appear on its original's card, which lists who took the trip with their ratings and captions.
   21. **React to Post**: a traveller likes posts and adds or deletes comments; a post's author can delete the post or any comment on it.
   22. **Copy Shared Trip**: a traveller copies a shared trip into their own trips on new dates.
 - Use cases for feature 7: **Trip map and live location**
@@ -419,14 +420,14 @@ Screens from the CP1 build:
 7. **Feed Service**
     - **Purpose**: Manages posts, likes, comments and copying shared trips. It is separate because posts outlive their trips and follow the Friend Service's access rule, which keeps the Trip Engine focused on planning.
     - **Interfaces**:
-        1. `POST /api/posts` body `{ tripId, rating: 1-5, caption? }` returns `PostDetailDto`
-            - **Purpose**: Shares a frozen copy of a trip with a rating and optional caption. `PostDto` is `{ id, author: { id, name }, city, startDate, endDate, dayCount, stopCount, rating, caption, likeCount, likedByMe, commentCount, mine, createdAt }`; `PostDetailDto` adds the `trip`.
+        1. `POST /api/posts` body `{ tripId, rating: 1-5, caption?, linkToOriginal? }` returns `PostDetailDto`
+            - **Purpose**: Shares a frozen copy of a trip with a rating and optional caption. `PostDto` is `{ id, author: { id, name }, city, startDate, endDate, dayCount, stopCount, rating, caption, likeCount, likedByMe, commentCount, mine, takenBy, averageRating, original, createdAt }`, where `takenBy` counts the planner and every linked copy, `averageRating` averages their ratings, and `original` is `{ postId, planner }` for a linked copy; `PostDetailDto` adds the `trip`. A copy of a shared trip is linked to its original (always the first trip, even when copied from a copy) when its stops are unchanged, or when a changed copy says `linkToOriginal: true`; a changed copy that says neither is refused (400). The original's planner gets a `tripTaken` live event.
         2. `GET /api/posts?feed=friends|everyone&city=<city>&authorId=<id>&before=<ISO time>` returns `{ posts: PostDto[] }`
-            - **Purpose**: Returns 20 posts at a time, newest first: `friends` is the caller's and friends' posts, and `everyone` leaves out private accounts the caller is not friends with. `city` and `authorId` filter, and `before` pages.
+            - **Purpose**: Returns 20 cards at a time, newest first: `friends` is the caller's and friends' posts, plus the originals of trips their friends took, and `everyone` leaves out private accounts the caller is not friends with. A linked copy never has a card of its own on a feed; with `authorId`, a traveller's own posts (their history) include their linked copies with their own trip. `city` and `authorId` filter, and `before` pages.
         3. `GET /api/posts/{postId}` returns `PostDetailDto`
             - **Purpose**: Returns one post if the caller may see it (404 otherwise, so private posts are not revealed).
         4. `DELETE /api/posts/{postId}` returns 204
-            - **Purpose**: The author deletes the post and its comments; the source trip is unaffected.
+            - **Purpose**: The author deletes the post and its comments; the source trip is unaffected. Copies linked to it become posts of their own.
         5. `PUT /api/posts/{postId}/like` and `DELETE /api/posts/{postId}/like` return `{ likeCount, likedByMe }`
             - **Purpose**: Likes or unlikes the post.
         6. `GET /api/posts/{postId}/comments` returns `{ comments: CommentDto[] }`
@@ -436,7 +437,9 @@ Screens from the CP1 build:
         8. `DELETE /api/posts/{postId}/comments/{commentId}` returns 204
             - **Purpose**: The comment's author or the post's author deletes the comment.
         9. `POST /api/posts/{postId}/copy` body `{ startDate }` returns `TripDto`
-            - **Purpose**: Copies the trip into the caller's trips from `startDate`, re-timing each day for its weekday with `copyTrip`; a stop that no longer fits is left out with a warning.
+            - **Purpose**: Copies the trip into the caller's trips from `startDate`, re-timing each day for its weekday with `copyTrip`; a stop that no longer fits is left out with a warning. The copy remembers the first post of the trip (`copiedFrom`).
+        10. `GET /api/posts/{postId}/takers` returns `{ takers: [{ postId, traveller: { id, name }, rating, caption, planner, createdAt }], hiddenCount }`
+            - **Purpose**: Lists who took the trip of a post (or of the original it is linked to), planner first: public travellers, the caller's friends and the caller. Private travellers who are not friends are only counted.
 
 8. **Nearby Service**
     - **Purpose**: Manages group trips opened to nearby travellers and requests to join them. It is separate because it applies one privacy rule across trip locations and group membership: nearby travellers see the plan, never where members stay or are.
@@ -471,11 +474,11 @@ Screens from the CP1 build:
         - `citycatalogues`: when each city was last fetched, for cache expiry.
         - `reviews`: ratings, comments and tags, each marked verified or not.
         - `groups`: the invite code and each member's role, interests and vetoes.
-        - `trips`: one document per trip with its days, stops, options and group. Stored as `itineraries` before CP3; the back-end moves old data on start.
+        - `trips`: one document per trip with its days, stops, options and group, and for a copy the post it came from and whether its stops changed since. Stored as `itineraries` before CP3; the back-end moves old data on start.
         - `joinrequests`: requests to join a group through a nearby trip, and their answers.
         - `suggestions`: proposed days for disrupted stops, with the trip version they were made from.
         - `traveltimes`: cached Google Routes times, deleted after a week by a time-to-live index.
-        - `posts`: frozen trips with a rating, caption and likes, indexed for the feed.
+        - `posts`: frozen trips with a rating, caption and likes, and for a linked copy its original post, indexed for the feed.
         - `comments`: comments on posts, indexed by post.
         - `notifications`: each traveller's live events with their tab and whether they were read, deleted after 30 days by a time-to-live index.
     - **Why MongoDB, not MySQL**: a trip is one nested, variable-shaped document per trip, and activities need 2dsphere geo queries. A relational schema would join five tables to read a single day.
