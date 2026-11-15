@@ -21,13 +21,26 @@ export interface SimulatedDay {
   totalTravelMinutes: number;
 }
 
-/** The earliest start at or after `arrival` inside an opening window that leaves room for the whole visit. */
+/** Stops start on a 15-minute grid (08:30, not 08:22), so a plan reads like one a person would make. */
+export const TIME_SLOT_MINUTES = 15;
+
+/** The first time on the grid at or after `minute`. */
+export function onTheGrid(minute: number): number {
+  return Math.ceil(minute / TIME_SLOT_MINUTES) * TIME_SLOT_MINUTES;
+}
+
+/**
+ * The earliest start at or after `arrival` inside an opening window that leaves room for the whole visit, on the grid.
+ * Only when waiting for the grid would miss the closing time (or a locked stop's exact time) does it start off the grid.
+ */
 function earliestStart(candidate: Candidate, arrival: number, context: DayContext): number | null {
   for (const window of windowsOn(candidate.openingHours, context.weekday)) {
-    const start = Math.max(arrival, window.openMinute);
-    const end = start + candidate.durationMinutes;
-    if (end <= window.closeMinute && end <= context.dayEndMinute) {
-      return start;
+    const earliest = Math.max(arrival, window.openMinute);
+    for (const start of [onTheGrid(earliest), earliest]) {
+      const end = start + candidate.durationMinutes;
+      if (end <= window.closeMinute && end <= context.dayEndMinute) {
+        return start;
+      }
     }
   }
   return null;

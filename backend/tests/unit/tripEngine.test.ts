@@ -131,16 +131,28 @@ describe('Trip Engine: day simulation', () => {
   });
 
   test('rejects a route that cannot get back to the lodging before the day ends', () => {
-    // 9:00 + 10 min travel + 521 min visit + 10 min back = 18:01, one minute too late.
-    const long = candidate('long', { durationMinutes: 521 });
+    // 9:00 + 10 min travel = 9:10, starting at 9:15 on the grid; + 516 min visit + 10 min back = 18:01, one minute too late.
+    // With 5 min each way it ends at 17:56.
+    const long = candidate('long', { durationMinutes: 516 });
     expect(simulateDay([long], context())).toBeNull();
     expect(simulateDay([long], context({ travelMinutes: () => 5 }))).not.toBeNull();
   });
 
   test('adds the pace buffer between stops, but not before the first', () => {
+    // 9:00 + 10 min travel = 9:10, so 9:15 on the grid; 10:15 + 10 min travel + 15 min buffer = 10:40, so 10:45.
     const day = simulateDay([candidate('a'), candidate('b')], context({ bufferMinutes: 15 }));
-    expect(day?.stops.map((stop) => stop.startMinute)).toEqual([550, 635]);
+    expect(day?.stops.map((stop) => stop.startMinute)).toEqual([555, 645]);
     expect(day?.totalTravelMinutes).toBe(30);
+  });
+
+  test('starts every stop on the 15-minute grid, unless waiting for it misses the closing time', () => {
+    // Arriving at 9:10 at a place open from 9:05: the visit starts at 9:15. One that closes at 10:12 cannot wait until
+    // 9:15 for its hour-long visit, so it starts at 9:10.
+    const opensLate = candidate('opens-late', { openingHours: [{ day: 0, openMinute: 545, closeMinute: 1020 }] });
+    const closesEarly = candidate('closes-early', { openingHours: [{ day: 0, openMinute: 545, closeMinute: 612 }] });
+
+    expect(simulateDay([opensLate], context())?.stops.at(0)?.startMinute).toBe(555);
+    expect(simulateDay([closesEarly], context())?.stops.at(0)?.startMinute).toBe(550);
   });
 
   test('an empty day is feasible and has no travel', () => {

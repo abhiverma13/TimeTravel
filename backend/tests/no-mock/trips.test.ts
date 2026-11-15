@@ -67,6 +67,23 @@ describe('Unmocked: POST /api/trips/generate', () => {
     expect(await TripModel.countDocuments()).toBe(1);
   });
 
+  // Input: a 3-day Vancouver trip (Sat-Mon), 09:00-18:00, interested in museums, moderate pace
+  // Expected status code: 201
+  // Expected behavior: every stop starts and ends on a quarter hour, like a plan a person would write
+  // Expected output: every startTime and endTime ends in :00, :15, :30 or :45
+  test('Times every stop on the 15-minute grid', async () => {
+    const { app, authService, activityService } = createTestApp();
+    const { authorization } = await signedInUser(authService);
+    await seedVancouver(activityService);
+
+    const response = await request(app).post('/api/trips/generate').set(authorization).send(MUSEUM_WEEKEND);
+
+    expect(response.status).toBe(201);
+    const times = allStops(response.body as TripDto).flatMap((stop) => [stop.startTime, stop.endTime]);
+    expect(times.length).toBeGreaterThan(0);
+    expect(times.filter((time) => !/:(00|15|30|45)$/.test(time))).toEqual([]);
+  });
+
   // Input: the same trip with only the required fields (city and dates)
   // Expected status code: 201
   // Expected behavior: defaults are applied: 09:00-18:00, moderate pace, all interests
