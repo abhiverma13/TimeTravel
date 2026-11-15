@@ -25,6 +25,7 @@
 | 2026-11-12 | 2.1.1 | The suggestion interface tests check the proposed day used for the preview, and Dismiss became Decline. |
 | 2026-11-12 | 2.1.1 | Added the tests for copied trips joining their original's card, and for who took a trip. |
 | 2026-11-12 | 2.1.1 | Added tests for the peer review's code-review fixes: Google unavailable at sign-in, reviews and joins sent twice at once, partial city searches, and a failed venue check. |
+| 2026-11-12 | 2.1.1, 3, 4.2 | Added what the peer review's test review asked for: expired-session and 7-day-session tests, the order of the reviews list, `parsePort`, NFR 3 while Google fails, an app test timing NFR 2 on the phone, Plan Trip split into one test per scenario, a unique review per run, and comments on the unit tests. |
 
 ---
 
@@ -36,9 +37,9 @@
 
 | **Interface** | **Describe Group Location, No Mocks** | **Describe Group Location, With Mocks** | **Mocked Components** |
 | --- | --- | --- | --- |
-| **POST /api/auth/google** | [`backend/tests/no-mock/auth.test.ts#L13`](../backend/tests/no-mock/auth.test.ts#L13) | [`backend/tests/mock/auth.test.ts#L29`](../backend/tests/mock/auth.test.ts#L29) | Google Identity Services (token verification), User DB |
-| **GET /api/users/me** | [`backend/tests/no-mock/auth.test.ts#L60`](../backend/tests/no-mock/auth.test.ts#L60) | [`backend/tests/mock/auth.test.ts#L194`](../backend/tests/mock/auth.test.ts#L194) | User DB |
-| **PUT /api/users/me** | [`backend/tests/no-mock/auth.test.ts#L153`](../backend/tests/no-mock/auth.test.ts#L153) | [`backend/tests/mock/auth.test.ts#L216`](../backend/tests/mock/auth.test.ts#L216) | User DB |
+| **POST /api/auth/google** | [`backend/tests/no-mock/auth.test.ts#L18`](../backend/tests/no-mock/auth.test.ts#L18) | [`backend/tests/mock/auth.test.ts#L29`](../backend/tests/mock/auth.test.ts#L29) | Google Identity Services (token verification), User DB |
+| **GET /api/users/me** | [`backend/tests/no-mock/auth.test.ts#L83`](../backend/tests/no-mock/auth.test.ts#L83) | [`backend/tests/mock/auth.test.ts#L194`](../backend/tests/mock/auth.test.ts#L194) | User DB |
+| **PUT /api/users/me** | [`backend/tests/no-mock/auth.test.ts#L193`](../backend/tests/no-mock/auth.test.ts#L193) | [`backend/tests/mock/auth.test.ts#L216`](../backend/tests/mock/auth.test.ts#L216) | User DB |
 | **GET /api/activities** | [`backend/tests/no-mock/activities.test.ts#L22`](../backend/tests/no-mock/activities.test.ts#L22) | [`backend/tests/mock/activities.test.ts#L46`](../backend/tests/mock/activities.test.ts#L46), [`#L201`](../backend/tests/mock/activities.test.ts#L222) (through the production Google Places client) | Google Places API, Activity DB |
 | **POST /api/activities/:activityId/reviews** | [`backend/tests/no-mock/reviews.test.ts#L56`](../backend/tests/no-mock/reviews.test.ts#L56) | [`backend/tests/mock/reviews.test.ts#L28`](../backend/tests/mock/reviews.test.ts#L28) | Review DB, Activity DB, City catalogue DB |
 | **GET /api/activities/:activityId/reviews** | [`backend/tests/no-mock/reviews.test.ts#L334`](../backend/tests/no-mock/reviews.test.ts#L334) | [`backend/tests/mock/reviews.test.ts#L180`](../backend/tests/mock/reviews.test.ts#L180) | Review DB |
@@ -338,6 +339,7 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
 | --- | --- |
 | **NFR 1: Trip generation time** | [`backend/tests/nfr/tripGenerationTime.test.ts`](../backend/tests/nfr/tripGenerationTime.test.ts) |
 | **NFR 2: Live update latency** | [`backend/tests/nfr/liveUpdateLatency.test.ts`](../backend/tests/nfr/liveUpdateLatency.test.ts) |
+| **NFR 2: Live update latency, on the phone** | [`frontend/app/src/androidTest/java/com/example/cpen321application/nfr/LiveUpdateRenderTest.kt`](../frontend/app/src/androidTest/java/com/example/cpen321application/nfr/LiveUpdateRenderTest.kt) |
 | **NFR 3: Bounded Google Places usage** | [`backend/tests/nfr/placesUsage.test.ts`](../backend/tests/nfr/placesUsage.test.ts) |
 
 ### 3.2. Test Verification and Logs
@@ -367,10 +369,24 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
         NFR live update latency: 20 adjustments x 3 other members = 60 deliveries
         p50 53 ms, p95 77 ms, max 98 ms (limit 2000 ms)
     ```
+  - **Verification on the phone:** the back-end test stops when the update reaches the device; the app test times the rest. With a 2-day Vancouver trip open and live on the emulator, it removes the first stop through the REST API with the same session (as another member's device would; the app only hears of it over Socket.io), and times from sending the change until the stop is gone from the screen, asserting at most 2,000 ms. Run it with `./scripts/run-frontend-nfr-tests.sh`.
+  - **Log Output (phone)**
+    ```
+    $ adb shell am instrument -w -e class com.example.cpen321application.nfr.LiveUpdateRenderTest com.example.cpen321application.test/androidx.test.runner.AndroidJUnitRunner
+
+    com.example.cpen321application.nfr.LiveUpdateRenderTest:.
+
+    Time: 15.092
+
+    OK (1 test)
+
+    $ adb logcat -d -s NFR:I
+    I NFR     : Live update on screen after 185 ms (limit 2000 ms)
+    ```
 
 - **NFR 3: Bounded Google Places usage**
 
-  - **Verification:** The test runs the real Express app and an in-memory MongoDB with a fake Google Places client that counts every call, and a clock the test moves forward. For 6 days, two travellers search Vancouver four times a day and generate a 2-day trip once a day. The clock then passes 7 days for one more search, and a final trip is generated with a lodging. The test asserts 7 text searches (one per interest tag) for the first search, none over the 6 days, 7 for the refresh after 7 days, and exactly 1 for the lodging, and that every request succeeds.
+  - **Verification:** The test runs the real Express app and an in-memory MongoDB with a fake Google Places client that counts every call, and a clock the test moves forward. For 6 days, two travellers search Vancouver four times a day and generate a 2-day trip once a day. The clock then passes 7 days for one more search, and a final trip is generated with a lodging. The test asserts 7 text searches (one per interest tag) for the first search, none over the 6 days, 7 for the refresh after 7 days, and exactly 1 for the lodging, and that every request succeeds. A second test covers an outage: the week runs out while Google fails, so the first search tries once (7 calls) and is served the stored catalogue; 20 more searches over the next 50 minutes make no calls; an hour after the failed try, Google is asked again and the city is fresh for another week.
   - **Log Output**
     ```
     ==> Running backend NFR tests (tests/nfr/) ...
@@ -400,6 +416,8 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
 
 - **Use Case: Plan Trip** ([formal specification](Requirements_and_Design.md#uc3)): [`PlanTripTest.kt`](../frontend/app/src/androidTest/java/com/example/cpen321application/e2e/PlanTripTest.kt)
 
+  The scenario is split into six tests, one for the main success scenario and one for each failure scenario, so a failure points at one step: `refusesATripWithoutADestination` (3a), `refusesATripWithoutDates` (3b), `refusesATripLongerThanSevenDays` (3c), `refusesADayShorterThanTwoHours` (4a), `generatesADayByDayPlanAfterTheArrival` (3 to 7) and `startsFromTheCityCentreWhenTheLodgingCannotBeFound` (6b). Each starts on the home screen and opens the Trip Builder (steps 1 and 2).
+
   - **Expected Behaviors:**
 
     | **Scenario Steps** | **Test Case Steps** |
@@ -426,16 +444,18 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
 
   - **Test Logs:**
     ```
-    $ adb shell am instrument -w -e class com.example.cpen321application.e2e.GenerateItineraryTest com.example.cpen321application.test/androidx.test.runner.AndroidJUnitRunner
+    $ adb shell am instrument -w -e class com.example.cpen321application.e2e.PlanTripTest com.example.cpen321application.test/androidx.test.runner.AndroidJUnitRunner
 
-    com.example.cpen321application.e2e.GenerateItineraryTest:.
+    com.example.cpen321application.e2e.PlanTripTest:......
 
-    Time: 16.875
+    Time: 43.573
 
-    OK (1 test)
+    OK (6 tests)
     ```
 
 - **Use Case: Rate & Review Activity** ([formal specification](Requirements_and_Design.md#uc2)): [`RateReviewActivityTest.kt`](../frontend/app/src/androidTest/java/com/example/cpen321application/e2e/RateReviewActivityTest.kt)
+
+  Each run writes a review with its own run time in it, so the last check (the review is listed) cannot pass on a review an earlier run left on the shared back-end.
 
   - **Expected Behaviors:**
 
