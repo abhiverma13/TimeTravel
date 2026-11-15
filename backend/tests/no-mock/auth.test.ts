@@ -7,12 +7,33 @@ import { UserModel } from '../../src/auth/userModel';
 import { TEST_JWT_SECRET, createTestApp, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
 
+// The design's session lifetime: 7 days, in seconds.
+const SEVEN_DAYS_S = 7 * 24 * 60 * 60;
+
 beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
 afterEach(clearTestDatabase);
 afterAll(stopTestDatabase);
 
 // Interface POST /api/auth/google
 describe('Unmocked: POST /api/auth/google', () => {
+  // Input: { idToken } that Google accepts for Ada
+  // Expected status code: 200
+  // Expected behavior: the session token the server issues lasts 7 days, as the design says
+  // Expected output: a token whose expiry is 604800 seconds after it was issued, for Ada's user id
+  test('A session lasts 7 days', async () => {
+    const { app } = createTestApp({
+      verifyGoogleToken: async () => Promise.resolve({ googleId: 'google-ada', email: 'ada@example.com', name: 'Ada Lovelace' }),
+    });
+
+    const response = await request(app).post('/api/auth/google').send({ idToken: 'accepted-by-google' });
+
+    const body = response.body as { token: string; user: { id: string } };
+    const claims = jwt.decode(body.token) as jwt.JwtPayload;
+    expect(response.status).toBe(200);
+    expect(claims.sub).toBe(body.user.id);
+    expect((claims.exp ?? 0) - (claims.iat ?? 0)).toBe(SEVEN_DAYS_S);
+  });
+
   // Input: empty JSON body
   // Expected status code: 400
   // Expected behavior: no user is created
@@ -60,6 +81,22 @@ describe('Unmocked: POST /api/auth/google', () => {
 
 // Interface GET /api/users/me
 describe('Unmocked: GET /api/users/me', () => {
+  // Input: a session token this server signed 7 days and 1 second ago (sessions last 7 days)
+  // Expected status code: 401
+  // Expected behavior: the expired session is turned down, so the app asks the traveller to sign in again
+  // Expected output: { error: "Invalid or expired session token" }
+  test('Expired session token', async () => {
+    const { app, authService } = createTestApp();
+    const { userId } = await signedInUser(authService);
+    const issuedAt = Math.floor(Date.now() / 1000) - SEVEN_DAYS_S - 1;
+    const expired = jwt.sign({ iat: issuedAt }, TEST_JWT_SECRET, { subject: userId, expiresIn: SEVEN_DAYS_S });
+
+    const response = await request(app).get('/api/users/me').set('Authorization', `Bearer ${expired}`);
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: 'Invalid or expired session token' });
+  });
+
   // Input: Authorization header with a valid session token for an existing user
   // Expected status code: 200
   // Expected behavior: the user's profile is read from the database

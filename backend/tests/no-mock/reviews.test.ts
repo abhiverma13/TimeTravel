@@ -332,6 +332,35 @@ describe('Unmocked: POST /api/activities/:activityId/reviews', () => {
 
 // Interface GET /api/activities/:activityId/reviews
 describe('Unmocked: GET /api/activities/:activityId/reviews', () => {
+  // Input: Rita reviews Harbour Park first, at the place on her trip day (verified); then Gus, then Hal, from elsewhere
+  // Expected status code: 200
+  // Expected behavior: verified reviews come first, then the rest newest first, whatever order they were written in
+  // Expected output: Rita's, then Hal's, then Gus's
+  test('Lists verified reviews first, then the newest', async () => {
+    const { app, authService, activityService } = createTestApp({ now: () => new Date('2026-10-24T18:00:00Z') });
+    await seedTestville(activityService);
+    const rita = await signedInUser(authService, 'Rita Reviewer');
+    const gus = await signedInUser(authService, 'Gus Guest');
+    const hal = await signedInUser(authService, 'Hal Hiker');
+    await storeTestvilleTrip(rita.userId, ['Harbour Park']);
+    const parkId = (await ActivityModel.findOne({ name: 'Harbour Park' }))?._id.toString() ?? '';
+    const review = async (who: typeof rita, body: object) =>
+      request(app).post(`/api/activities/${parkId}/reviews`).set(who.authorization).send({ rating: 4, ...body });
+    await review(rita, { comment: 'Verified', location: AT_HARBOUR_PARK });
+    await review(gus, { comment: 'Older' });
+    await review(hal, { comment: 'Newer' });
+
+    const response = await request(app).get(`/api/activities/${parkId}/reviews`).set(gus.authorization);
+
+    const { reviews } = response.body as { reviews: ReviewListItemDto[] };
+    expect(response.status).toBe(200);
+    expect(reviews.map((item) => [item.comment, item.verified])).toEqual([
+      ['Verified', true],
+      ['Newer', false],
+      ['Older', false],
+    ]);
+  });
+
   // Input: Gus reviews Harbour Park first without being there; Rita reviews it later at the place on her trip day
   // Expected status code: 200
   // Expected behavior: verified reviews come first, each with its author

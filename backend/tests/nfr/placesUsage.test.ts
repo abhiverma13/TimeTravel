@@ -12,6 +12,9 @@ import { DATABASE_STARTUP_TIMEOUT_MS, startTestDatabase, stopTestDatabase } from
  * makes no Places calls (an entered lodging is looked up once).
  */
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MS_PER_MINUTE = 60_000;
+// These tests send dozens of requests through the real app; a busy machine needs longer than Jest's 5 s default.
+const NFR_TIMEOUT_MS = 60_000;
 const SEARCHES_PER_FETCH = INTEREST_TAGS.length;
 
 beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
@@ -64,5 +67,51 @@ describe('NFR: bounded Google Places usage', () => {
     expect(afterSixDays).toBe(SEARCHES_PER_FETCH);
     expect(afterAWeek).toBe(2 * SEARCHES_PER_FETCH);
     expect(afterLodging - afterAWeek).toBe(1);
-  });
+  }, NFR_TIMEOUT_MS);
+
+  test('While Google Places fails, a stale city is retried at most once an hour', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let now = new Date('2026-11-20T12:00:00Z');
+    let googleDown = false;
+    const places: PlacesClient & { searchText: jest.Mock } = {
+      searchText: jest.fn(async (): Promise<PlaceResult[]> =>
+        googleDown ? Promise.reject(new Error('Places is down')) : Promise.resolve([...DEMO_VANCOUVER_PLACES]),
+      ),
+    };
+    const { app, authService } = createTestApp({ placesClient: places, now: () => now });
+    const { authorization } = await signedInUser(authService, 'Outage Traveller');
+    const search = async () => request(app).get('/api/activities?city=Victoria').set(authorization);
+
+    // The city is fetched, then the week runs out while Google is down.
+    await search();
+    now = new Date(now.getTime() + 8 * MS_PER_DAY);
+    googleDown = true;
+    const firstTry = await search();
+    const afterFirstTry = places.searchText.mock.calls.length;
+    // Twenty searches over the next 50 minutes are served from the stale catalogue without asking Google.
+    const statuses: number[] = [];
+    for (let minute = 0; minute < 50; minute += 2.5) {
+      now = new Date(now.getTime() + 2.5 * MS_PER_MINUTE);
+      statuses.push((await search()).status);
+    }
+    const duringOutage = places.searchText.mock.calls.length - afterFirstTry;
+    // An hour after the failed try, Google is asked again; it is back, so the city is fresh for another week.
+    now = new Date(now.getTime() + 11 * MS_PER_MINUTE);
+    googleDown = false;
+    await search();
+    const afterRecovery = places.searchText.mock.calls.length;
+    await search();
+
+    console.info(
+      `NFR Places usage during an outage: ${String(afterFirstTry - SEARCHES_PER_FETCH)} calls for the failed refresh; ` +
+        `${String(duringOutage)} over the next 20 searches in 50 minutes; ` +
+        `${String(afterRecovery - afterFirstTry - duringOutage)} for the retry an hour later`,
+    );
+    expect(firstTry.status).toBe(200);
+    expect(statuses.every((status) => status === 200)).toBe(true);
+    expect(afterFirstTry).toBe(2 * SEARCHES_PER_FETCH);
+    expect(duringOutage).toBe(0);
+    expect(afterRecovery).toBe(3 * SEARCHES_PER_FETCH);
+    expect(places.searchText.mock.calls.length).toBe(3 * SEARCHES_PER_FETCH);
+  }, NFR_TIMEOUT_MS);
 });

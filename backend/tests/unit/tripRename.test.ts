@@ -25,8 +25,12 @@ afterEach(async () => {
 afterAll(stopTestDatabase);
 
 describe('renameItinerariesToTrips', () => {
-  // Data stored before CP3: a trip in `itineraries`, a post and a suggestion pointing at it through `itineraryId`,
-  // and the suggestion index on that old field.
+  // Input: data stored before CP3: a Vancouver trip in `itineraries`, a post and a suggestion pointing at it through
+  //        `itineraryId`, and the suggestion index on that old field
+  // Expected behavior: `itineraries` becomes `trips`, every `itineraryId` becomes `tripId`, and the index on the old
+  //                    field is dropped
+  // Expected output: no `itineraries` collection; the trip is in `trips`; the post and the suggestion reference it by
+  //                  tripId and no post keeps itineraryId; no suggestion index uses itineraryId
   test('Moves trips to `trips` and every itineraryId to tripId', async () => {
     const tripId = new Types.ObjectId();
     await database().collection('itineraries').insertOne({ _id: tripId, city: 'Vancouver' });
@@ -45,6 +49,9 @@ describe('renameItinerariesToTrips', () => {
     expect(suggestionIndexes.some((index) => 'itineraryId' in index.key)).toBe(false);
   });
 
+  // Input: a Vancouver trip already in `trips` and a Seattle trip still in `itineraries`
+  // Expected behavior: the trips already stored are kept, and `itineraries` is left untouched
+  // Expected output: the Vancouver trip is still in `trips`, and `itineraries` still holds 1 trip
   test('Never replaces a trips collection that already holds trips', async () => {
     const current = await TripModel.collection.insertOne({ city: 'Vancouver' });
     await database().collection('itineraries').insertOne({ city: 'Seattle' });
@@ -55,6 +62,9 @@ describe('renameItinerariesToTrips', () => {
     expect(await database().collection('itineraries').countDocuments()).toBe(1);
   });
 
+  // Input: a database with 1 trip in `trips` and no `itineraries`, migrated twice
+  // Expected behavior: the migration changes nothing once it has been applied
+  // Expected output: still 1 trip, and no `itineraries` collection
   test('Does nothing once applied', async () => {
     await TripModel.collection.insertOne({ city: 'Vancouver' });
 

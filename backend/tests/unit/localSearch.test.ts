@@ -73,6 +73,9 @@ function bruteForceOptimum(candidates: readonly RankedCandidate[], dayContext: D
 }
 
 describe('Trip Engine: local search moves', () => {
+  // Input: a route west-1, east-1, west-2, east-2, with stops on both sides of the origin
+  // Expected behavior: reorderMove finds an order that crosses town less
+  // Expected output: a non-null day with less total travel than the zig-zag route
   test('reordering untangles a route that zig-zags across town', () => {
     // West and east of the origin: visiting west, east, west, east wastes travel.
     const west1 = ranked('west-1', { location: { lat: 49.2827, lng: -123.16 } });
@@ -87,6 +90,9 @@ describe('Trip Engine: local search moves', () => {
     expect(better?.simulation.totalTravelMinutes).toBeLessThan(zigZag.simulation.totalTravelMinutes);
   });
 
+  // Input: a route that starts at a place opening at 11:00 (late), then an always-open place nearby (early)
+  // Expected behavior: reorderMove visits the early place while the late one is still closed, so the day ends sooner
+  // Expected output: the route early, then late
   test('reordering visits the early opener first instead of waiting for the late one', () => {
     const opensAtEleven = ranked('late', { openingHours: [{ day: 0, openMinute: 660, closeMinute: 1020 }] });
     const opensAtNine = ranked('early', { location: { lat: 49.29, lng: -123.12 } });
@@ -97,12 +103,19 @@ describe('Trip Engine: local search moves', () => {
     expect(better?.route.map((candidate) => candidate.id)).toEqual(['early', 'late']);
   });
 
+  // Input: a route to near and then far, both north of the origin
+  // Expected behavior: no reordering gets the traveller home sooner or with less travel
+  // Expected output: null
   test('reordering returns null when no order gets the traveller home sooner', () => {
     const near = ranked('near', { location: { lat: 49.29, lng: -123.12 } });
     const far = ranked('far', { location: { lat: 49.3, lng: -123.12 } });
     expect(reorderMove(routed([near, far], context()), context())).toBeNull();
   });
 
+  // Input: a 9:00 to 12:00 morning with no travel time, scheduled with a 30-minute stop (utility 2), and an
+  //        unscheduled 180-minute museum (utility 6.75) that does not fit beside it
+  // Expected behavior: swapMove drops the short stop so the more valuable museum fits
+  // Expected output: a route holding only museum
   test('swap replaces a short, low-value stop with a long, high-value one that it was blocking', () => {
     const morning = context({ dayEndMinute: 12 * 60, travelMinutes: () => 0 });
     const quickStop = ranked('quick', { durationMinutes: 30, utility: 2 });
@@ -113,11 +126,18 @@ describe('Trip Engine: local search moves', () => {
     expect(swapped?.route.map((candidate) => candidate.id)).toEqual(['museum']);
   });
 
+  // Input: a day scheduled with one stop of utility 6 and an unscheduled stop of utility 3
+  // Expected behavior: swapMove makes no swap that would lower the utility
+  // Expected output: null
   test('swap returns null when no unscheduled candidate is worth more', () => {
     const morning = context({ travelMinutes: () => 0 });
     expect(swapMove(routed([ranked('good', { utility: 6 })], morning), [ranked('worse', { utility: 3 })], morning)).toBeNull();
   });
 
+  // Input: a 9:00 to 12:00 morning with a 30-minute stop (utility 2), an unscheduled 180-minute museum (utility 6.75),
+  //        and a clock that reaches the deadline after the first check
+  // Expected behavior: improveDay makes one move and then stops because the time budget is used up
+  // Expected output: refill is called exactly once
   test('improveDay stops when the time budget is used up', () => {
     let clock = 0;
     const budget = { deadline: 1, now: () => clock++ };
@@ -132,6 +152,11 @@ describe('Trip Engine: local search moves', () => {
 });
 
 describe('Trip Engine: plan quality', () => {
+  // Input: a 9:00 to 12:00 Sunday for a museum lover with no travel time, a 30-minute landmark (score 4) and a
+  //        180-minute museum (score 4.5)
+  // Expected behavior: greedy insertion by value per minute takes the landmark first, which leaves no room for the
+  //                    museum; planTrip's search finds the more valuable museum plan
+  // Expected output: greedy plans quick only; planTrip plans museum only
   test('the planner finds the high-value plan that value-per-minute greedy insertion misses', () => {
     const request: PlanRequest = {
       days: [{ date: '2026-10-25', weekday: 0 }],
@@ -155,6 +180,10 @@ describe('Trip Engine: plan quality', () => {
     expect(planned.days.at(0)?.stops.map((stop) => stop.candidateId)).toEqual(['museum']);
   });
 
+  // Input: 25 seeded random instances (one Sunday, 9:00 to 17:00, moderate pace, museum lover), each with 7 candidates
+  //        near downtown with random durations, scores and 5-hour opening windows
+  // Expected behavior: planTrip collects close to the best utility found by trying every ordered subset of stops
+  // Expected output: the worst plan reaches at least 90% of the optimum and the mean at least 95%
   test('stays within 10% of the brute-force optimum on 25 random single-day instances', () => {
     const random = seededRandom(321);
     const ratios: number[] = [];
@@ -194,11 +223,17 @@ describe('Trip Engine: plan quality', () => {
     expect(mean).toBeGreaterThanOrEqual(0.95);
   });
 
+  // Input: a day with two stops of utility 2.5 and 4
+  // Expected behavior: dayUtility adds up the utility of every stop
+  // Expected output: 6.5
   test('dayUtility sums the utility of the scheduled stops', () => {
     const day = routed([ranked('a', { utility: 2.5 }), ranked('b', { utility: 4 })], context());
     expect(dayUtility(day)).toBe(6.5);
   });
 
+  // Input: 40 always-open candidates near downtown, planned with the real clock for a packed Sunday, 9:00 to 18:00
+  // Expected behavior: the time-budgeted local search still returns a feasible day
+  // Expected output: at least 1 and at most 7 stops (the packed limit), and back at the lodging by 18:00
   test('an improvement found with the real clock still respects every constraint', () => {
     const many: Candidate[] = Array.from({ length: 40 }, (_, index) => ({
       id: `c${String(index)}`,

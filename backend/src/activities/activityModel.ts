@@ -84,6 +84,8 @@ export interface CityCatalogue {
   fetchedAt: Date;
   meanRating: number;
   activityCount: number;
+  /** When the last refresh from Google Places failed; the cached catalogue is served without asking again for an hour. */
+  refreshFailedAt?: Date | undefined;
 }
 
 const cityCatalogueSchema = new Schema<CityCatalogue>({
@@ -92,6 +94,7 @@ const cityCatalogueSchema = new Schema<CityCatalogue>({
   fetchedAt: { type: Date, required: true },
   meanRating: { type: Number, required: true },
   activityCount: { type: Number, required: true },
+  refreshFailedAt: { type: Date },
 });
 
 export const CityCatalogueModel = model<CityCatalogue>('CityCatalogue', cityCatalogueSchema);

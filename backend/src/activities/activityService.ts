@@ -16,6 +16,8 @@ import { type CommunityTags, type CostLevel, type ReviewTags, TAG_VALUES, commun
 
 /** Google Places results are reused for a week before the city is fetched again. */
 export const CATALOGUE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** After a failed refresh, how long a stale catalogue is served before Google Places is asked again. */
+export const REFRESH_RETRY_MS = 60 * 60 * 1000;
 /** A review written this close to the place, on a day it is in the traveller's trip, is verified. */
 export const VERIFIED_RADIUS_M = 150;
 const METRES_PER_KM = 1000;
@@ -267,13 +269,17 @@ export class ActivityService {
       meanRating: cityMeanRating(uniquePlaces.map((place) => place.rating)),
       activityCount: uniquePlaces.length,
     };
-    await CityCatalogueModel.updateOne({ cityKey }, { $set: catalogue }, { upsert: true });
+    await CityCatalogueModel.updateOne({ cityKey }, { $set: catalogue, $unset: { refreshFailedAt: 1 } }, { upsert: true });
     return catalogue;
   }
 
   private async ensureCatalogue(cityKey: string, city: string): Promise<CityCatalogue> {
     const cached = await CityCatalogueModel.findOne({ cityKey });
-    if (cached && this.now().getTime() - cached.fetchedAt.getTime() < CATALOGUE_TTL_MS) {
+    const now = this.now().getTime();
+    // A stale catalogue whose refresh just failed is served as it is for a while, so an outage at Google does not turn
+    // every request into another round of searches (NFR 3).
+    const retryLater = cached?.refreshFailedAt !== undefined && now - cached.refreshFailedAt.getTime() < REFRESH_RETRY_MS;
+    if (cached && (now - cached.fetchedAt.getTime() < CATALOGUE_TTL_MS || retryLater)) {
       return cached;
     }
     if (this.placesClient === null) {
@@ -289,6 +295,7 @@ export class ActivityService {
     } catch (error) {
       if (cached) {
         console.warn('Google Places refresh failed; serving the cached catalogue', error);
+        await CityCatalogueModel.updateOne({ cityKey }, { $set: { refreshFailedAt: this.now() } });
         return cached;
       }
       console.error('Google Places search failed', error);

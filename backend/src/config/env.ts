@@ -5,7 +5,8 @@ function nonEmpty(value: string | undefined, fallback: string): string {
   return trimmed === undefined || trimmed === '' ? fallback : trimmed;
 }
 
-function parsePort(rawPort: string | undefined): number {
+/** The PORT setting as a TCP port; 3000 when unset or blank. Throws for anything that is not 1 to 65535. */
+export function parsePort(rawPort: string | undefined): number {
   const port = Number.parseInt(nonEmpty(rawPort, '3000'), 10);
   if (Number.isNaN(port) || port < 1 || port > 65535) {
     throw new Error(`Invalid PORT: ${rawPort ?? ''}`);
