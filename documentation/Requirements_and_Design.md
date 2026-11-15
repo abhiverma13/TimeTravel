@@ -21,6 +21,7 @@
 | 2026-11-12 | All | Called every planned trip a "trip": the word "itinerary" is gone from the use cases, interfaces (`/api/trips`), components (Trip Service, Trip Engine) and database (`trips`), because two words for one thing confused readers. |
 | 2026-11-12 | 4.1 | Fixed the peer review's major fault: a member removed from a group kept receiving its live locations. The Group Service now announces who lost access, and the hub disconnects them from the group's trips at once (`tripAccessLost`); every shared position also re-checks access. |
 | 2026-11-12 | 3.1, 4.1 | Added live updates for friends, groups, join requests, posts and suggestions (`liveEvent`), after CP2 feedback asked for friends being added and members joining to appear without a refresh. Each traveller's devices share a room, so one event reaches all of them. |
+| 2026-11-12 | 3.1, 3.4, 4.1, 4.2 | Added red dots for what is new, owned by a new Notification Service that keeps each live event until the traveller opens its part of the app, so the dots survive a restart. The Groups tab replaces the Nearby tab and holds both the traveller's groups and nearby trips, so the dot for group news has a tab. |
 
 ---
 
@@ -39,9 +40,9 @@ Planning a trip is a scheduling problem, but every tool treats it as a search pr
 1. **F1 Sign in with Google** (CP1): the back-end verifies the Google ID token and issues its own session token. The profile's home city and interests prefill searches and trips.
 2. **F2 Explore & review activities** (CP1, extended in CP2): browse a city's activities, rate and tag them, and read others' reviews. A review written at the place during the reviewer's trip is verified and counts double.
 3. **F3 Trip generation** (CP1, extended in CP2): our own algorithm turns trip details into a ranked, time-feasible, day-by-day plan. It uses the traveller's way of getting around, budget, and places to see or avoid, with travel times from Google Routes. A place found in Explore can be added to a trip.
-4. **F4 Collaborative trips, live** (CP2): friends join a group with an invite code, and every member's interests and vetoes shape its plans. Any member can adjust a stop or re-plan a day, and every member's open app updates within seconds. Members joining or leaving, and join requests and their answers, also reach every member's app as they happen.
+4. **F4 Collaborative trips, live** (CP2): friends join a group with an invite code, and every member's interests and vetoes shape its plans. Any member can adjust a stop or re-plan a day, and every member's open app updates within seconds. Members joining or leaving, and join requests and their answers, also reach every member's app as they happen, and a red dot on the Groups tab marks what is new until the traveller looks.
 5. **F5 Disruption-aware re-planning** (CP2): a back-end timer checks the forecast and venue status for trips under way, and suggests a change for rain during an outdoor stop or a closed venue. Nothing changes until a member accepts.
-6. **F6 Friends and the trip feed** (CP2): travellers become friends by request and share trips with a rating and caption to the Friends and Everyone feeds; a private account's posts reach friends only. Posts can be liked, commented on and copied onto new dates. Friend requests and their answers, and likes and comments on a traveller's posts, reach them as they happen.
+6. **F6 Friends and the trip feed** (CP2): travellers become friends by request and share trips with a rating and caption to the Friends and Everyone feeds; a private account's posts reach friends only. Posts can be liked, commented on and copied onto new dates. Friend requests and their answers, and likes and comments on a traveller's posts, reach them as they happen, with a red dot on the Profile or Feed tab until they look.
 7. **F7 Trip map and live location** (CP2): a map of each day's stops and route with the traveller's position. On the trip's day, arriving within 100 m ticks a stop off. Group members can share their positions while the map is open; positions are never stored.
 8. **F8 Nearby trips** (CP2): a group's owner opens a group trip to nearby travellers, who see its plan (never the lodging or anyone's position) and can ask to join.
 
@@ -106,7 +107,7 @@ Each feature is a package, and each branch of an actor's line ends at one of its
   25. **Share Location with Group**: a group member shares their position with the members who have the map open.
 - Use cases for feature 8: **Nearby trips**
   26. **Open Trip to Nearby Travellers**: a group's owner opens or closes a group trip to nearby travellers.
-  27. **Find Nearby Trips**: a traveller sees open trips near them in the Nearby tab.
+  27. **Find Nearby Trips**: a traveller sees open trips near them in the Groups tab's Nearby trips.
   28. **Ask to Join Trip**: a traveller asks to join an open trip's group, with an optional note.
   29. **Answer Join Request**: the owner accepts a request, adding the traveller to the group, or declines it.
 
@@ -376,8 +377,8 @@ Screens from the CP1 build:
             - **Purpose**: Relays a subscribed device's position to the trip's other subscribers, after checking again that its traveller can still see the trip. The server stores nothing.
         3. Server event `tripAccessLost { tripId }`
             - **Purpose**: Sent to every device of a traveller who left the trip's group, was removed, or whose group was deleted. Those devices leave the trip's room and stop sharing their position at once, so a removed member sees nothing more.
-        4. Server event `liveEvent { type, text, actorId, groupId?, tripId?, postId?, at }`
-            - **Purpose**: Tells every device of a traveller, wherever they are in the app, about something another traveller (or the disruption timer) did that concerns them: a friend request sent, accepted, declined or cancelled, or a friendship removed; a member joining, leaving or being removed, or the group being deleted; a join request and its answer; a like or comment on their post; a new suggestion for their trip. `text` is ready to show, such as "Ava joined Crew". The traveller who acted never gets their own event.
+        4. Server event `liveEvent { type, area, text, actorId, groupId?, tripId?, postId?, at }`
+            - **Purpose**: Tells every device of a traveller, wherever they are in the app, about something another traveller (or the disruption timer) did that concerns them: a friend request sent, accepted, declined or cancelled, or a friendship removed; a member joining, leaving or being removed, or the group being deleted; a join request and its answer; a like or comment on their post; a new suggestion for their trip. `area` is the tab it belongs to (`trips`, `groups`, `feed` or `profile`), and `text` is ready to show, such as "Ava joined Crew". The traveller who acted never gets their own event.
         5. `void publish(String[] recipientIds, LiveEvent event)`
             - **Purpose**: Called by the Friend, Group, Nearby, Feed and Disruption services after each change that concerns another traveller. A push that fails is logged and never fails the change itself.
         6. `void onTripChanged(TripChange change)`
@@ -448,6 +449,15 @@ Screens from the CP1 build:
             - **Purpose**: Returns the group's pending requests to its owner.
         5. `POST /api/nearby/requests/{requestId}/accept` and `POST /api/nearby/requests/{requestId}/decline` return `JoinRequestDto`
             - **Purpose**: The owner answers a request once; accepting adds the traveller through the Group Service.
+9. **Notification Service**
+    - **Purpose**: Keeps every live event for each traveller it concerns, unread until they open the part of the app it belongs to. The app shows a red dot on a tab while its part has unread notifications, and on the rows they concern (a trip, a group, a post). It is separate so the dots survive a restart without each service storing its own history.
+    - **Interfaces**:
+        1. `GET /api/notifications` returns `{ notifications: NotificationDto[], unread: { trips, groups, feed, profile } }`
+            - **Purpose**: Returns the caller's 30 newest notifications and the unread count for each tab. `NotificationDto` is `{ id, type, area, text, actorId, groupId, tripId, postId, read, at }`.
+        2. `POST /api/notifications/read` body `{ area?: "trips" | "groups" | "feed" | "profile" }` returns `{ unread }`
+            - **Purpose**: Marks the caller's notifications in one area read (every area without one), when the traveller opens that tab.
+        3. `void store(String[] recipientIds, LiveEvent event)`
+            - **Purpose**: Listens to every live event the services publish and keeps one notification per recipient for 30 days.
 
 ### **4.2. Databases**
 
@@ -465,6 +475,7 @@ Screens from the CP1 build:
         - `traveltimes`: cached Google Routes times, deleted after a week by a time-to-live index.
         - `posts`: frozen trips with a rating, caption and likes, indexed for the feed.
         - `comments`: comments on posts, indexed by post.
+        - `notifications`: each traveller's live events with their tab and whether they were read, deleted after 30 days by a time-to-live index.
     - **Why MongoDB, not MySQL**: a trip is one nested, variable-shaped document per trip, and activities need 2dsphere geo queries. A relational schema would join five tables to read a single day.
 
 ### **4.3. External Modules**

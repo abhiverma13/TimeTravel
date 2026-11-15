@@ -20,6 +20,7 @@
 | 2026-11-12 | 2.1, 2.5, 3, 4 | Renamed itineraries to trips in the interfaces, test files and end-to-end tests (`PlanTripTest`, `ViewAdjustTripTest`) to match the code. |
 | 2026-11-12 | 2.1.1 | Added the tests for losing access to a group trip (`tripAccessLost`), which fix the peer review's major fault. |
 | 2026-11-12 | 2.1.1 | Added the live event interfaces (`liveEvent`) for friends, groups, join requests, posts and suggestions. |
+| 2026-11-12 | 2.1.1 | Added the Notification Service interfaces (`GET /api/notifications`, `POST /api/notifications/read`). |
 
 ---
 
@@ -57,6 +58,8 @@
 | **Socket.io live events for join requests** | [`backend/tests/no-mock/liveEvents.test.ts#L150`](../backend/tests/no-mock/liveEvents.test.ts#L150) | Covered by the mocked tests for friends | None |
 | **Socket.io live events for posts** | [`backend/tests/no-mock/liveEvents.test.ts#L189`](../backend/tests/no-mock/liveEvents.test.ts#L189) | Covered by the mocked tests for friends | None |
 | **Socket.io live events for suggestions** | [`backend/tests/no-mock/liveEvents.test.ts#L222`](../backend/tests/no-mock/liveEvents.test.ts#L222) | Covered by the mocked tests for friends | None |
+| **GET /api/notifications** | [`backend/tests/no-mock/notifications.test.ts#L48`](../backend/tests/no-mock/notifications.test.ts#L48) | [`backend/tests/mock/notifications.test.ts#L19`](../backend/tests/mock/notifications.test.ts#L19) | Notification DB (reading, and storing a live event) |
+| **POST /api/notifications/read** | [`backend/tests/no-mock/notifications.test.ts#L114`](../backend/tests/no-mock/notifications.test.ts#L114) | [`backend/tests/mock/notifications.test.ts#L60`](../backend/tests/mock/notifications.test.ts#L60) | Notification DB (marking read) |
 | **GET /api/travellers** | [`backend/tests/no-mock/friends.test.ts#L37`](../backend/tests/no-mock/friends.test.ts#L37) | [`backend/tests/mock/friends.test.ts#L33`](../backend/tests/mock/friends.test.ts#L33) | User DB |
 | **GET /api/travellers/:userId** | [`backend/tests/no-mock/friends.test.ts#L133`](../backend/tests/no-mock/friends.test.ts#L133) | [`backend/tests/mock/friends.test.ts#L51`](../backend/tests/mock/friends.test.ts#L51) | Friendship DB |
 | **GET /api/friends** | [`backend/tests/no-mock/friends.test.ts#L186`](../backend/tests/no-mock/friends.test.ts#L186) | [`backend/tests/mock/friends.test.ts#L69`](../backend/tests/mock/friends.test.ts#L69) | Friendship DB |
