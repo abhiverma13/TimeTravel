@@ -24,8 +24,17 @@ data class Post(
     val commentCount: Int,
     /** True for your own posts, which you may delete. */
     val mine: Boolean,
+    /** How many travellers shared this trip: its planner and everyone whose copy is linked to it. */
+    val takenBy: Int,
+    /** The mean of all their ratings. */
+    val averageRating: Double,
+    /** For your copy linked to its original: that post and its planner. */
+    val original: OriginalPost?,
     val createdAt: String,
 )
+
+/** The trip a linked copy was taken from. */
+data class OriginalPost(val postId: String, val planner: PostAuthor)
 
 data class PostStop(
     val activityId: String,
@@ -66,17 +75,37 @@ data class PostDetail(
     val likedByMe: Boolean,
     val commentCount: Int,
     val mine: Boolean,
+    val takenBy: Int,
+    val averageRating: Double,
+    val original: OriginalPost?,
     val createdAt: String,
     val trip: PostTrip,
 ) {
     /** The same post as the feed shows it. */
     fun summary(): Post =
-        Post(id, author, city, startDate, endDate, dayCount, stopCount, rating, caption, likeCount, likedByMe, commentCount, mine, createdAt)
+        Post(
+            id, author, city, startDate, endDate, dayCount, stopCount, rating, caption,
+            likeCount, likedByMe, commentCount, mine, takenBy, averageRating, original, createdAt,
+        )
 }
 
 data class PostsResponse(val posts: List<Post>)
 
-data class CreatePostRequest(val tripId: String, val rating: Int, val caption: String)
+/** `linkToOriginal` is only sent for a copy whose stops changed: whether the feed shows it on the original's card. */
+data class CreatePostRequest(val tripId: String, val rating: Int, val caption: String, val linkToOriginal: Boolean? = null)
+
+/** Someone who shared a trip: its planner, or a traveller whose copy is linked to it. */
+data class Taker(
+    val postId: String,
+    val traveller: PostAuthor,
+    val rating: Int,
+    val caption: String,
+    val planner: Boolean,
+    val createdAt: String,
+)
+
+/** Everyone you may see who shared a trip; private travellers who are not your friends are only counted. */
+data class TakersResponse(val takers: List<Taker>, val hiddenCount: Int)
 
 data class LikeState(val likeCount: Int, val likedByMe: Boolean)
 

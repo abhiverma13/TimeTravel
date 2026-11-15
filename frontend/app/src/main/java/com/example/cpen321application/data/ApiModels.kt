@@ -159,7 +159,14 @@ data class Trip(
     val version: Int,
     val createdAt: String,
     val openToJoin: Boolean = false,
+    /** For a copy of a shared trip: the post it came from. */
+    val copiedFrom: CopiedFrom? = null,
+    /** For a copy: whether its stops changed since it was copied, so sharing it asks whether to link back. */
+    val modifiedSinceCopy: Boolean = false,
 )
+
+/** Where a copied trip came from: the shared trip's post and its planner. */
+data class CopiedFrom(val postId: String, val authorId: String)
 
 /**
  * One change to a day: action is lock, unlock, remove, move (with toIndex) or replan (with an optional fromTime).

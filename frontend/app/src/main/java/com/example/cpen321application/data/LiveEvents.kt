@@ -38,11 +38,12 @@ object LiveEventTypes {
     const val JOIN_ANSWERED = "joinAnswered"
     const val POST_LIKED = "postLiked"
     const val POST_COMMENTED = "postCommented"
+    const val TRIP_TAKEN = "tripTaken"
     const val SUGGESTION = "suggestion"
 
     val FRIENDS = setOf(FRIEND_REQUEST, FRIEND_ACCEPTED, FRIEND_REMOVED)
     val GROUPS = setOf(MEMBER_JOINED, MEMBER_LEFT, REMOVED_FROM_GROUP, GROUP_DELETED)
-    val POSTS = setOf(POST_LIKED, POST_COMMENTED)
+    val POSTS = setOf(POST_LIKED, POST_COMMENTED, TRIP_TAKEN)
 }
 
 private const val LIVE_EVENT = "liveEvent"

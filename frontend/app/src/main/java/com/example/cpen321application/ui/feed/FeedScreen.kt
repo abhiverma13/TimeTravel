@@ -50,6 +50,7 @@ fun FeedScreen(
     viewModel: FeedViewModel,
     onOpenPost: (String) -> Unit,
     onOpenTraveller: (String) -> Unit,
+    onOpenTakers: (String) -> Unit,
     newOnYourPosts: List<AppNotification> = emptyList(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -76,6 +77,7 @@ fun FeedScreen(
                             onOpen = { onOpenPost(post.id) },
                             onOpenAuthor = { onOpenTraveller(post.author.id) },
                             onLike = { viewModel.toggleLike(post) },
+                            onOpenTakers = onOpenTakers,
                         ),
                     )
                 }

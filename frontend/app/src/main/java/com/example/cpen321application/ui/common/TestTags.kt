@@ -29,6 +29,11 @@ object TestTags {
     const val GROUPS_SECTION_MINE = "groupsSectionMine"
     const val GROUPS_SECTION_NEARBY = "groupsSectionNearby"
     const val FEED_NEW_ON_POSTS = "feedNewOnPosts"
+    const val SHARE_LINK_CHOICE = "shareLinkChoice"
+    const val SHARE_LINK_YES = "shareLinkYes"
+    const val SHARE_LINK_NO = "shareLinkNo"
+    const val POST_TAKEN_BY = "postTakenBy"
+    const val TAKER_ROW = "takerRow"
 
     const val NEARBY_TRIP = "nearbyTrip"
     const val NEARBY_ASK_BUTTON = "nearbyAskButton"

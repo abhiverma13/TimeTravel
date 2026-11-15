@@ -24,6 +24,9 @@ interface PostApi {
     @GET("api/posts/{postId}")
     suspend fun post(@Path("postId") postId: String): PostDetail
 
+    @GET("api/posts/{postId}/takers")
+    suspend fun takers(@Path("postId") postId: String): TakersResponse
+
     @DELETE("api/posts/{postId}")
     suspend fun deletePost(@Path("postId") postId: String)
 

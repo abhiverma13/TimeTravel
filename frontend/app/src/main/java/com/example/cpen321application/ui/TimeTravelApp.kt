@@ -51,6 +51,8 @@ import com.example.cpen321application.ui.feed.PostNavigation
 import com.example.cpen321application.ui.feed.PostScreen
 import com.example.cpen321application.ui.feed.PostViewModel
 import com.example.cpen321application.ui.feed.SharePostViewModel
+import com.example.cpen321application.ui.feed.TakersScreen
+import com.example.cpen321application.ui.feed.TakersViewModel
 import com.example.cpen321application.ui.friends.FindFriendsScreen
 import com.example.cpen321application.ui.friends.FindFriendsViewModel
 import com.example.cpen321application.ui.friends.TravellerScreen
@@ -83,6 +85,7 @@ private object Routes {
     const val FEED = "feed"
     const val POST_ID = "postId"
     const val POST = "post/{$POST_ID}"
+    const val POST_TAKERS = "post/{$POST_ID}/takers"
     const val FIND_FRIENDS = "findFriends"
     const val USER_ID = "userId"
     const val TRAVELLER = "traveller/{$USER_ID}"
@@ -104,6 +107,8 @@ private object Routes {
     fun traveller(userId: String) = "traveller/$userId"
 
     fun post(postId: String) = "post/$postId"
+
+    fun postTakers(postId: String) = "post/$postId/takers"
 
     fun tripBuilder(group: TripGroup? = null) =
         if (group == null) "tripBuilder" else "tripBuilder?$GROUP_ID=${group.id}&$GROUP_NAME=${Uri.encode(group.name)}"
@@ -283,6 +288,7 @@ private fun NavGraphBuilder.friendScreens(navController: NavHostController) {
             viewModel = appViewModel(key = "traveller-$userId") { TravellerViewModel(it.friends, it.posts, userId, it.liveEvents.events) },
             onBack = navController::popBackStack,
             onOpenPost = { navController.navigate(Routes.post(it)) },
+            onOpenTakers = { navController.navigate(Routes.postTakers(it)) },
         )
     }
 }
@@ -293,6 +299,7 @@ private fun NavGraphBuilder.feedScreens(navController: NavHostController, unread
             viewModel = appViewModel { FeedViewModel(it.posts) },
             onOpenPost = { navController.navigate(Routes.post(it)) },
             onOpenTraveller = { navController.navigate(Routes.traveller(it)) },
+            onOpenTakers = { navController.navigate(Routes.postTakers(it)) },
             newOnYourPosts = unread.state.collectAsState().value.freshIn(NotificationAreas.FEED),
         )
     }
@@ -304,7 +311,16 @@ private fun NavGraphBuilder.feedScreens(navController: NavHostController, unread
                 onBack = navController::popBackStack,
                 onOpenTraveller = { navController.navigate(Routes.traveller(it)) },
                 onOpenTrip = { navController.navigate(Routes.trip(it)) },
+                onOpenTakers = { navController.navigate(Routes.postTakers(it)) },
             ),
+        )
+    }
+    composable(Routes.POST_TAKERS) { entry ->
+        val postId = entry.arguments?.getString(Routes.POST_ID).orEmpty()
+        TakersScreen(
+            viewModel = appViewModel(key = "takers-$postId") { TakersViewModel(it.posts, postId) },
+            onBack = navController::popBackStack,
+            onOpenTraveller = { navController.navigate(Routes.traveller(it)) },
         )
     }
 }

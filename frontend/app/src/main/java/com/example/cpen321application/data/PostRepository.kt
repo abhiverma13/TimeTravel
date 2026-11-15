@@ -2,8 +2,12 @@ package com.example.cpen321application.data
 
 /** Shared trips: posting, the feed, likes, comments, and copying a shared trip into your own trips. */
 class PostRepository(private val api: PostApi) {
-    suspend fun share(tripId: String, rating: Int, caption: String): Result<PostDetail> =
-        apiCall { api.createPost(CreatePostRequest(tripId, rating, caption.trim())) }
+    /** `linkToOriginal` is only for a copy whose stops changed: whether the feed shows it on the original's card. */
+    suspend fun share(tripId: String, rating: Int, caption: String, linkToOriginal: Boolean? = null): Result<PostDetail> =
+        apiCall { api.createPost(CreatePostRequest(tripId, rating, caption.trim(), linkToOriginal)) }
+
+    /** Who shared the trip of this post (or of the original it is linked to), planner first. */
+    suspend fun takers(postId: String): Result<TakersResponse> = apiCall { api.takers(postId) }
 
     /** A page of the friends or everyone feed, newest first; `before` is the last post's time, for the next page. */
     suspend fun feed(feed: String, city: String?, before: String? = null): Result<List<Post>> =

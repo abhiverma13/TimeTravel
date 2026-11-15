@@ -85,7 +85,10 @@ fun TripScreen(viewModel: TripViewModel, share: SharePostViewModel, onBack: () -
     }
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
-        topBar = { TripTopBar((state as? TripUiState.Loaded)?.trip, onBack, onOpenMap, share::open) },
+        topBar = {
+            val trip = (state as? TripUiState.Loaded)?.trip
+            TripTopBar(trip, onBack, onOpenMap, onShare = { share.open(askLinkBack = trip?.copiedFrom != null && trip.modifiedSinceCopy) })
+        },
     ) { innerPadding ->
         val modifier = Modifier.fillMaxSize().padding(innerPadding)
         when (val current = state) {

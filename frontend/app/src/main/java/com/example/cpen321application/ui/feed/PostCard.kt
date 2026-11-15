@@ -25,12 +25,19 @@ import com.example.cpen321application.data.PostRepository
 import com.example.cpen321application.ui.common.BrandCard
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.countText
+import com.example.cpen321application.ui.common.scoreText
 import com.example.cpen321application.ui.common.tripDatesText
 
 private const val MAX_STARS = 5
 
 /** What a post card can ask for. Leaving out `onOpen` makes the card itself not clickable. */
-class PostCardActions(val onOpen: (() -> Unit)?, val onOpenAuthor: () -> Unit, val onLike: () -> Unit)
+class PostCardActions(
+    val onOpen: (() -> Unit)?,
+    val onOpenAuthor: () -> Unit,
+    val onLike: () -> Unit,
+    /** Opens everyone who took the trip, given the id of the trip's original post. */
+    val onOpenTakers: (String) -> Unit = {},
+)
 
 /** A shared trip: who shared it, where and when, their rating and caption, and its likes and comments. */
 @Composable
@@ -50,6 +57,7 @@ fun PostCard(post: Post, actions: PostCardActions, modifier: Modifier = Modifier
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             RatingStars(post.rating)
+            TakenBy(post, actions.onOpenTakers)
             if (post.caption.isNotBlank()) {
                 Text(post.caption, style = MaterialTheme.typography.bodyMedium)
             }
@@ -71,6 +79,23 @@ fun PostCard(post: Post, actions: PostCardActions, modifier: Modifier = Modifier
             }
         }
     }
+}
+
+// On a merged card: its planner, how many travellers took the trip and their average rating. On a copy linked to an
+// original (in a traveller's own posts): whose trip it was. Either opens everyone who took it.
+@Composable
+private fun TakenBy(post: Post, onOpenTakers: (String) -> Unit) {
+    val text = when {
+        post.original != null -> "Took ${post.original.planner.name}'s trip"
+        post.takenBy > 1 -> "Planned by ${post.author.name} · taken by ${post.takenBy} travellers · ${scoreText(post.averageRating)} ★ average"
+        else -> return
+    }
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.clickable { onOpenTakers(post.original?.postId ?: post.id) }.testTag(TestTags.POST_TAKEN_BY),
+    )
 }
 
 /** The sharer's rating of the trip, out of five. */

@@ -54,7 +54,12 @@ private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, M
 private const val MAX_COMMENT_LENGTH = 300
 
 /** Where a post screen can send the traveller. */
-class PostNavigation(val onBack: () -> Unit, val onOpenTraveller: (String) -> Unit, val onOpenTrip: (String) -> Unit)
+class PostNavigation(
+    val onBack: () -> Unit,
+    val onOpenTraveller: (String) -> Unit,
+    val onOpenTrip: (String) -> Unit,
+    val onOpenTakers: (String) -> Unit,
+)
 
 /** One shared trip: the plan, its likes and comments, and copying it into your own trips. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,7 +135,13 @@ private fun PostContent(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
-            PostCard(post.summary(), PostCardActions(onOpen = null, onOpenAuthor = { navigation.onOpenTraveller(post.author.id) }, onLike = viewModel::toggleLike))
+            val actions = PostCardActions(
+                onOpen = null,
+                onOpenAuthor = { navigation.onOpenTraveller(post.author.id) },
+                onLike = viewModel::toggleLike,
+                onOpenTakers = navigation.onOpenTakers,
+            )
+            PostCard(post.summary(), actions)
         }
         item {
             Button(

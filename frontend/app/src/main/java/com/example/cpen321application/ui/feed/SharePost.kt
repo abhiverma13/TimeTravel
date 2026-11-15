@@ -2,8 +2,10 @@ package com.example.cpen321application.ui.feed
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -33,6 +35,10 @@ data class ShareUiState(
     val error: String? = null,
     /** Set once the post is saved, for a one-time confirmation. */
     val shared: Boolean = false,
+    /** True for a copied trip whose stops changed: sharing asks whether to link it back to the original. */
+    val askLinkBack: Boolean = false,
+    /** The traveller's answer to that question, once given. */
+    val linkBack: Boolean? = null,
 )
 
 /** Shares a trip to the feed with a rating and a caption. */
@@ -40,7 +46,9 @@ class SharePostViewModel(private val posts: PostRepository, private val tripId: 
     private val mutableState = MutableStateFlow(ShareUiState())
     val state: StateFlow<ShareUiState> = mutableState.asStateFlow()
 
-    fun open() = mutableState.update { ShareUiState(open = true) }
+    fun open(askLinkBack: Boolean) = mutableState.update { ShareUiState(open = true, askLinkBack = askLinkBack) }
+
+    fun onLinkBack(linkBack: Boolean) = mutableState.update { it.copy(linkBack = linkBack, error = null) }
 
     fun dismiss() = mutableState.update { it.copy(open = false) }
 
@@ -54,9 +62,13 @@ class SharePostViewModel(private val posts: PostRepository, private val tripId: 
             mutableState.update { it.copy(error = "Rate the trip from 1 to 5 stars.") }
             return
         }
+        if (current.askLinkBack && current.linkBack == null) {
+            mutableState.update { it.copy(error = "Choose whether to link back to the original trip.") }
+            return
+        }
         mutableState.update { it.copy(sharing = true, error = null) }
         viewModelScope.launch {
-            val result = posts.share(tripId, current.rating, current.caption)
+            val result = posts.share(tripId, current.rating, current.caption, current.linkBack.takeIf { current.askLinkBack })
             mutableState.update { latest ->
                 result.fold(
                     onSuccess = { latest.copy(sharing = false, open = false, shared = true) },
@@ -67,6 +79,23 @@ class SharePostViewModel(private val posts: PostRepository, private val tripId: 
     }
 
     fun sharedShown() = mutableState.update { it.copy(shared = false) }
+}
+
+// For a copied trip that was changed: on the feed, a linked trip shows the original's stops on its card (the changes
+// stay on the traveller's own profile); an unlinked one gets a card of its own.
+@Composable
+private fun LinkBackChoice(linkBack: Boolean?, onChoose: (Boolean) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.testTag(TestTags.SHARE_LINK_CHOICE)) {
+        Text("Link back to the original?", style = MaterialTheme.typography.titleSmall)
+        Text(
+            "You changed this trip after copying it. Linked, the feed shows the original's plan with your rating; your changes stay on your profile.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = linkBack == true, onClick = { onChoose(true) }, label = { Text("Yes, link it") }, modifier = Modifier.testTag(TestTags.SHARE_LINK_YES))
+            FilterChip(selected = linkBack == false, onClick = { onChoose(false) }, label = { Text("No, share it alone") }, modifier = Modifier.testTag(TestTags.SHARE_LINK_NO))
+        }
+    }
 }
 
 /** Rate the trip and add a caption, then share it to the feed. */
@@ -82,6 +111,9 @@ fun SharePostDialog(state: ShareUiState, viewModel: SharePostViewModel) {
                     style = MaterialTheme.typography.bodySmall,
                 )
                 StarPicker(stars = state.rating, onStars = viewModel::onRating)
+                if (state.askLinkBack) {
+                    LinkBackChoice(state.linkBack, viewModel::onLinkBack)
+                }
                 OutlinedTextField(
                     value = state.caption,
                     onValueChange = viewModel::onCaption,
