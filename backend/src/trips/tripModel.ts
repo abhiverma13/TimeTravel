@@ -38,6 +38,12 @@ export interface Lodging {
   source: 'places' | 'city-centre';
 }
 
+/** Where a copied trip came from: the shared trip's post, and the traveller who planned it. */
+export interface CopiedFrom {
+  postId: Types.ObjectId;
+  authorId: Types.ObjectId;
+}
+
 /** A generated trip plan. The trip details are embedded so one document holds the whole trip. */
 export interface Trip {
   /** Who generated it. */
@@ -72,6 +78,10 @@ export interface Trip {
   version: number;
   /** A group trip its owner opened to travellers nearby, who may ask to join the group. */
   openToJoin: boolean;
+  /** For a copy of a shared trip: the post it came from (the first one, if that post was a copy too) and its author. */
+  copiedFrom?: CopiedFrom | undefined;
+  /** True once a copied trip's stops changed (added, removed, moved, re-planned), so sharing it asks whether to link back. */
+  modifiedSinceCopy: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -135,6 +145,14 @@ const tripSchema = new Schema<Trip>(
     generationMs: { type: Number, required: true },
     version: { type: Number, default: 0 },
     openToJoin: { type: Boolean, default: false },
+    copiedFrom: {
+      type: new Schema<CopiedFrom>(
+        { postId: { type: Schema.Types.ObjectId, ref: 'Post', required: true }, authorId: { type: Schema.Types.ObjectId, ref: 'User', required: true } },
+        { _id: false },
+      ),
+      default: undefined,
+    },
+    modifiedSinceCopy: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

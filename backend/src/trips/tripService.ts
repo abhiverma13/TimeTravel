@@ -11,7 +11,7 @@ import { type RankedCandidate, pruneCandidates } from './engine/candidates';
 import { type SimulatedDay, simulateDay } from './engine/daySchedule';
 import { dayContext, paceSettings, planTrip } from './engine/planner';
 import type { Candidate, GeoPoint, Pace, PlanRequest, TransportMode, CalendarDay } from './engine/types';
-import { type Trip, type TripDay, type TripDocument, TripModel, type Lodging } from './tripModel';
+import { type CopiedFrom, type Lodging, type Trip, type TripDay, type TripDocument, TripModel } from './tripModel';
 import { ROUTED_CANDIDATES, type TravelTimeService } from './travelTimes';
 import { addDays, clockFromMinutes, minutesFromClock, tripDays } from './tripCalendar';
 import { type Budget, selectActivities } from './tripOptions';
@@ -97,6 +97,10 @@ export interface TripDto {
   version: number;
   /** True when the group's owner opened the trip to travellers nearby. */
   openToJoin: boolean;
+  /** For a copy of a shared trip: the post it came from, and its planner. */
+  copiedFrom: { postId: string; authorId: string } | null;
+  /** For a copy: whether its stops changed since it was copied. */
+  modifiedSinceCopy: boolean;
   createdAt: string;
 }
 
@@ -121,6 +125,9 @@ export interface TripChange {
 }
 
 export type TripListener = (change: TripChange) => void;
+
+/** Adjustments that change which stops a day has, or when: they make a copied trip differ from its original. */
+const PLAN_CHANGES: ReadonlySet<TripAdjustment['action']> = new Set(['add', 'remove', 'move', 'replan']);
 
 export interface TripServiceOptions {
   /** Local search time per day, passed to the engine. */
@@ -170,6 +177,8 @@ function toTripDto(trip: TripDocument): TripDto {
     generationMs: trip.generationMs,
     version: trip.version,
     openToJoin: trip.openToJoin,
+    copiedFrom: trip.copiedFrom ? { postId: trip.copiedFrom.postId.toString(), authorId: trip.copiedFrom.authorId.toString() } : null,
+    modifiedSinceCopy: trip.modifiedSinceCopy,
     createdAt: trip.createdAt.toISOString(),
   };
 }
@@ -393,7 +402,7 @@ export class TripService {
    * Copies a shared trip into the traveller's own trips, starting on `startDate`. Each day keeps its stops in order,
    * re-timed for its new weekday; a stop that no longer fits (closed that day, say) is left out with a warning.
    */
-  async copyTrip(userId: string, snapshot: TripSnapshot, startDate: string, note: string): Promise<TripDto> {
+  async copyTrip(userId: string, snapshot: TripSnapshot, startDate: string, note: string, copiedFrom: CopiedFrom): Promise<TripDto> {
     const startedAt = performance.now();
     const endDate = addDays(startDate, snapshot.days.length - 1);
     const catalogue = new Map((await this.activityService.listActivities(snapshot.city)).map((activity) => [activity.id, activity]));
@@ -448,6 +457,7 @@ export class TripService {
       unscheduledCount: warnings.length - 1,
       warnings,
       generationMs: Math.round(performance.now() - startedAt),
+      copiedFrom,
     });
     return toTripDto(copy);
   }
@@ -477,7 +487,7 @@ export class TripService {
     );
     const updated = await TripModel.findOneAndUpdate(
       { _id: trip._id, version: change.version },
-      { $set: { days: newDays }, $inc: { version: 1 } },
+      { $set: { days: newDays, ...(trip.copiedFrom && PLAN_CHANGES.has(change.action) ? { modifiedSinceCopy: true } : {}) }, $inc: { version: 1 } },
       { new: true, runValidators: true },
     );
     if (!updated) {
@@ -522,7 +532,7 @@ export class TripService {
     const days = trip.days.map(plainDay).map((day, index) => (index === dayIndex ? proposal.day : day));
     const updated = await TripModel.findOneAndUpdate(
       { _id: trip._id, version: proposal.version },
-      { $set: { days }, $inc: { version: 1 } },
+      { $set: { days, ...(trip.copiedFrom ? { modifiedSinceCopy: true } : {}) }, $inc: { version: 1 } },
       { new: true, runValidators: true },
     );
     if (!updated) {

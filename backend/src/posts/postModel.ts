@@ -17,6 +17,11 @@ export interface Post {
   caption: string;
   trip: TripSnapshot;
   likedBy: Types.ObjectId[];
+  /**
+   * For a copied trip shared unchanged, or linked back by choice: the post of the trip it was copied from. The feed
+   * shows it as part of that post's card; the author's own posts still show their own trip.
+   */
+  originalPostId?: Types.ObjectId | undefined;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,12 +57,14 @@ const postSchema = new Schema<Post>(
     caption: { type: String, default: '' },
     trip: { type: snapshotSchema, required: true },
     likedBy: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
+    originalPostId: { type: Schema.Types.ObjectId, ref: 'Post' },
   },
   { timestamps: true },
 );
 postSchema.index({ createdAt: -1 });
 postSchema.index({ authorId: 1, createdAt: -1 });
 postSchema.index({ cityKey: 1, createdAt: -1 });
+postSchema.index({ originalPostId: 1 });
 
 export type PostDocument = HydratedDocument<Post>;
 export const PostModel = model<Post>('Post', postSchema);

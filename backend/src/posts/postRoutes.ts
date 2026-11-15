@@ -16,6 +16,7 @@ const createPostBody = z.object({
   tripId: objectId('a trip'),
   rating: z.number().int().min(1).max(5),
   caption: z.string().trim().max(MAX_CAPTION_LENGTH).default(''),
+  linkToOriginal: z.boolean().optional(),
 });
 
 const feedQuery = z.object({
@@ -33,6 +34,7 @@ const copyBody = z.object({ startDate: z.string().refine(isIsoDate, 'must be a d
  * POST   /api/posts
  * GET    /api/posts?feed=friends|everyone&city=<city>&authorId=<id>&before=<ISO time>
  * GET    /api/posts/:postId
+ * GET    /api/posts/:postId/takers
  * DELETE /api/posts/:postId
  * PUT    /api/posts/:postId/like
  * DELETE /api/posts/:postId/like
@@ -58,6 +60,10 @@ export function createPostRouter(authService: AuthService, postService: PostServ
 
   router.get('/:postId', async (request, response) => {
     response.json(await postService.getPost(authenticatedUserId(response), request.params.postId));
+  });
+
+  router.get('/:postId/takers', async (request, response) => {
+    response.json(await postService.listTakers(authenticatedUserId(response), request.params.postId));
   });
 
   router.delete('/:postId', async (request, response) => {

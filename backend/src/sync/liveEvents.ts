@@ -14,6 +14,7 @@ export const LIVE_EVENT_TYPES = [
   'joinAnswered',
   'postLiked',
   'postCommented',
+  'tripTaken',
   'suggestion',
 ] as const;
 export type LiveEventType = (typeof LIVE_EVENT_TYPES)[number];
@@ -34,6 +35,7 @@ const AREA_OF: Record<LiveEventType, LiveEventArea> = {
   joinAnswered: 'groups',
   postLiked: 'feed',
   postCommented: 'feed',
+  tripTaken: 'feed',
   suggestion: 'trips',
 };
 

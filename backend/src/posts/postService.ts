@@ -37,6 +37,12 @@ export interface PostDto {
   commentCount: number;
   /** True for the caller's own posts, which they may delete. */
   mine: boolean;
+  /** How many travellers shared this trip: its planner and everyone whose copy is linked to it. */
+  takenBy: number;
+  /** The mean of all their ratings, to one decimal. */
+  averageRating: number;
+  /** For a copy linked to its original: that post and its planner. The feed shows the original's card instead. */
+  original: { postId: string; planner: PostAuthorDto } | null;
   createdAt: string;
 }
 
@@ -77,7 +83,22 @@ export interface NewPost {
   tripId: string;
   rating: number;
   caption: string;
+  /** For a copy whose stops changed: whether the feed should show it as part of the original's card. */
+  linkToOriginal?: boolean | undefined;
 }
+
+/** Someone who shared a trip: its planner, or a traveller whose copy is linked to it. */
+export interface TakerDto {
+  postId: string;
+  traveller: PostAuthorDto;
+  rating: number;
+  caption: string;
+  planner: boolean;
+  createdAt: string;
+}
+
+/** The ratings of a post's linked copies, by original post id. */
+type LinkedRatings = Map<string, number[]>;
 
 export interface FeedQuery {
   feed: Feed;
@@ -102,16 +123,43 @@ async function authorNames(authorIds: readonly Types.ObjectId[]): Promise<Map<st
   return new Map(users.map((user) => [user._id.toString(), user.name]));
 }
 
-// One traveller's posts, or the feed's authors: friends (and the caller), or everyone but private strangers.
-function authorFilter(feed: Feed, authorId: string | undefined, audience: Audience): object {
+// One traveller's posts (linked copies included, as their history), or a feed of cards: originals and posts of their
+// own, never a linked copy. Friends' cards are their posts and the originals they took; everyone's leave out private
+// strangers.
+async function scopeOf(feed: Feed, authorId: string | undefined, audience: Audience): Promise<object> {
   if (authorId !== undefined) {
-    return new Types.ObjectId(authorId);
+    return { authorId: new Types.ObjectId(authorId) };
   }
-  return feed === 'friends' ? { $in: audience.friendIds } : { $nin: audience.hiddenIds };
+  const cards = { originalPostId: null, authorId: { $nin: audience.hiddenIds } };
+  if (feed === 'everyone') {
+    return cards;
+  }
+  const takenByFriends = await PostModel.distinct('originalPostId', { authorId: { $in: audience.friendIds }, originalPostId: { $ne: null } });
+  return { ...cards, $or: [{ authorId: { $in: audience.friendIds } }, { _id: { $in: takenByFriends } }] };
+}
+
+async function linkedRatings(posts: readonly PostDocument[]): Promise<LinkedRatings> {
+  const linked = await PostModel.find({ originalPostId: { $in: posts.map((post) => post._id) } }, { originalPostId: 1, rating: 1 });
+  const ratings: LinkedRatings = new Map();
+  for (const copy of linked) {
+    const key = copy.originalPostId?.toString() ?? '';
+    ratings.set(key, [...(ratings.get(key) ?? []), copy.rating]);
+  }
+  return ratings;
 }
 
 function author(id: Types.ObjectId, names: ReadonlyMap<string, string>): PostAuthorDto {
   return { id: id.toString(), name: names.get(id.toString()) ?? FORMER_TRAVELLER };
+}
+
+/** What a post's DTO needs besides the post. */
+interface PostExtras {
+  names: ReadonlyMap<string, string>;
+  commentCount: number;
+  /** The ratings of the copies linked to it. */
+  linkedRatings: number[];
+  /** For a linked copy: the planner of its original. */
+  plannerId?: Types.ObjectId | undefined;
 }
 
 /** Feed Service: shared trips, their likes and comments, and copying a shared trip into your own trips. */
@@ -122,12 +170,17 @@ export class PostService {
     private readonly events: LiveEvents = new LiveEvents(),
   ) {}
 
-  /** Shares a frozen copy of one of the caller's trips, with a rating and a caption. */
+  /**
+   * Shares a frozen copy of one of the caller's trips, with a rating and a caption. A copy of a shared trip is linked to
+   * its original (and shown on the feed as part of the original's card) when its stops are unchanged, or when the
+   * traveller chooses to link a changed one; a changed copy must say which (400 otherwise).
+   */
   async createPost(userId: string, input: NewPost): Promise<PostDetailDto> {
     const trip = await this.tripService.snapshot(userId, input.tripId);
     if (trip.days.every((day) => day.stops.length === 0)) {
       throw new HttpError(422, 'This trip has no stops to share');
     }
+    const original = await this.originalOf(userId, input);
     const post = await PostModel.create({
       authorId: new Types.ObjectId(userId),
       tripId: new Types.ObjectId(input.tripId),
@@ -135,7 +188,16 @@ export class PostService {
       rating: input.rating,
       caption: input.caption,
       trip,
+      originalPostId: original?._id,
     });
+    if (original) {
+      await this.events.publish([original.authorId], {
+        type: 'tripTaken',
+        actorId: userId,
+        postId: original._id.toString(),
+        text: `${await firstNameOf(userId)} took your ${original.trip.city} trip`,
+      });
+    }
     return this.toDetail(userId, post);
   }
 
@@ -147,14 +209,24 @@ export class PostService {
       return [];
     }
     const filter = {
-      authorId: authorFilter(query.feed, authorId, audience),
+      ...(await scopeOf(query.feed, authorId, audience)),
       ...(query.city === undefined ? {} : { cityKey: cityKey(query.city) }),
       ...(query.before === undefined ? {} : { createdAt: { $lt: query.before } }),
     };
     const posts = await PostModel.find(filter).sort({ createdAt: -1, _id: -1 }).limit(FEED_PAGE_SIZE);
-    const names = await authorNames(posts.map((post) => post.authorId));
+    const originals = await PostModel.find({ _id: { $in: posts.flatMap((post) => post.originalPostId ?? []) } }, { authorId: 1 });
+    const names = await authorNames([...posts, ...originals].map((post) => post.authorId));
     const commentCounts = await this.commentCounts(posts);
-    return posts.map((post) => this.toPostDto(viewerId, post, names, commentCounts.get(post._id.toString()) ?? 0));
+    const ratings = await linkedRatings(posts);
+    const plannerOf = new Map(originals.map((original) => [original._id.toString(), original.authorId]));
+    return posts.map((post) =>
+      this.toPostDto(viewerId, post, {
+        names,
+        commentCount: commentCounts.get(post._id.toString()) ?? 0,
+        linkedRatings: ratings.get(post._id.toString()) ?? [],
+        plannerId: post.originalPostId ? plannerOf.get(post.originalPostId.toString()) : undefined,
+      }),
+    );
   }
 
   async getPost(viewerId: string, postId: string): Promise<PostDetailDto> {
@@ -169,6 +241,31 @@ export class PostService {
     }
     await CommentModel.deleteMany({ postId: post._id });
     await PostModel.deleteOne({ _id: post._id });
+    // Copies linked to it become posts of their own again.
+    await PostModel.updateMany({ originalPostId: post._id }, { $unset: { originalPostId: 1 } });
+  }
+
+  /**
+   * Everyone who shared this trip, planner first: the caller sees public travellers and their friends (and themselves);
+   * private strangers are only counted.
+   */
+  async listTakers(viewerId: string, postId: string): Promise<{ takers: TakerDto[]; hiddenCount: number }> {
+    const shown = await this.requireVisible(viewerId, postId);
+    const original = shown.originalPostId ? ((await PostModel.findById(shown.originalPostId)) ?? shown) : shown;
+    const copies = await PostModel.find({ originalPostId: original._id }).sort({ createdAt: 1, _id: 1 });
+    const { hiddenIds } = await this.friendService.audience(viewerId);
+    const hidden = new Set(hiddenIds.map((id) => id.toString()));
+    const visible = [original, ...copies].filter((post) => !hidden.has(post.authorId.toString()));
+    const names = await authorNames(visible.map((post) => post.authorId));
+    const takers = visible.map((post) => ({
+      postId: post._id.toString(),
+      traveller: author(post.authorId, names),
+      rating: post.rating,
+      caption: post.caption,
+      planner: post._id.equals(original._id),
+      createdAt: post.createdAt.toISOString(),
+    }));
+    return { takers, hiddenCount: copies.length + 1 - visible.length };
   }
 
   /** Likes or unlikes the post; doing either twice changes nothing. */
@@ -228,7 +325,23 @@ export class PostService {
     const post = await this.requireVisible(viewerId, postId);
     const names = await authorNames([post.authorId]);
     const note = `Copied from ${author(post.authorId, names).name}'s ${post.trip.city} trip.`;
-    return this.tripService.copyTrip(viewerId, post.trip, startDate, note);
+    // A copy of a copy links back to the first trip, so all of them share one card.
+    const original = post.originalPostId ? ((await PostModel.findById(post.originalPostId)) ?? post) : post;
+    return this.tripService.copyTrip(viewerId, post.trip, startDate, note, { postId: original._id, authorId: original.authorId });
+  }
+
+  // The post a new post of this trip links to, if any: the trip's original, when it still exists and the copy is
+  // unchanged or the traveller chose to link it.
+  private async originalOf(userId: string, input: NewPost): Promise<PostDocument | null> {
+    const source = await this.tripService.getTrip(userId, input.tripId);
+    const original = source.copiedFrom ? await PostModel.findById(source.copiedFrom.postId) : null;
+    if (!original) {
+      return null;
+    }
+    if (source.modifiedSinceCopy && input.linkToOriginal === undefined) {
+      throw new HttpError(400, 'This trip changed since it was copied: say whether to link it back to the original (linkToOriginal)');
+    }
+    return !source.modifiedSinceCopy || input.linkToOriginal === true ? original : null;
   }
 
   // A post the caller may see; anything else is "not found", so private accounts' posts are not revealed.
@@ -248,7 +361,9 @@ export class PostService {
     return new Map(counts.map((entry) => [entry._id.toString(), entry.count]));
   }
 
-  private toPostDto(viewerId: string, post: PostDocument, names: ReadonlyMap<string, string>, commentCount: number): PostDto {
+  private toPostDto(viewerId: string, post: PostDocument, extras: PostExtras): PostDto {
+    const { names, commentCount, linkedRatings: ratings, plannerId } = extras;
+    const allRatings = [post.rating, ...ratings];
     return {
       id: post._id.toString(),
       author: author(post.authorId, names),
@@ -263,16 +378,21 @@ export class PostService {
       likedByMe: post.likedBy.some((id) => id.toString() === viewerId),
       commentCount,
       mine: post.authorId.toString() === viewerId,
+      takenBy: allRatings.length,
+      averageRating: Math.round((allRatings.reduce((sum, rating) => sum + rating, 0) / allRatings.length) * 10) / 10,
+      original: post.originalPostId && plannerId ? { postId: post.originalPostId.toString(), planner: author(plannerId, names) } : null,
       createdAt: post.createdAt.toISOString(),
     };
   }
 
   private async toDetail(viewerId: string, post: PostDocument): Promise<PostDetailDto> {
-    const names = await authorNames([post.authorId]);
+    const original = post.originalPostId ? await PostModel.findById(post.originalPostId, { authorId: 1 }) : null;
+    const names = await authorNames(original ? [post.authorId, original.authorId] : [post.authorId]);
     const commentCount = await CommentModel.countDocuments({ postId: post._id });
+    const linked = (await linkedRatings([post])).get(post._id.toString()) ?? [];
     const { trip } = post;
     return {
-      ...this.toPostDto(viewerId, post, names, commentCount),
+      ...this.toPostDto(viewerId, post, { names, commentCount, linkedRatings: linked, plannerId: original?.authorId }),
       trip: {
         dayStart: trip.dayStart,
         dayEnd: trip.dayEnd,
