@@ -22,6 +22,7 @@
 | 2026-11-12 | 4.1 | Fixed the peer review's major fault: a member removed from a group kept receiving its live locations. The Group Service now announces who lost access, and the hub disconnects them from the group's trips at once (`tripAccessLost`); every shared position also re-checks access. |
 | 2026-11-12 | 3.1, 4.1 | Added live updates for friends, groups, join requests, posts and suggestions (`liveEvent`), after CP2 feedback asked for friends being added and members joining to appear without a refresh. Each traveller's devices share a room, so one event reaches all of them. |
 | 2026-11-12 | 3.1, 3.4, 4.1, 4.2 | Added red dots for what is new, owned by a new Notification Service that keeps each live event until the traveller opens its part of the app, so the dots survive a restart. The Groups tab replaces the Nearby tab and holds both the traveller's groups and nearby trips, so the dot for group news has a tab. |
+| 2026-11-12 | 3.1, 4.1 | Stop times now start on a 15-minute grid (09:15 rather than 09:07), after CP2 feedback that minute-exact times looked machine-made. Rounding waits a few minutes longer, never shortens travel, and is skipped only when it would miss a closing time. |
 
 ---
 
@@ -39,7 +40,7 @@ Planning a trip is a scheduling problem, but every tool treats it as a search pr
 
 1. **F1 Sign in with Google** (CP1): the back-end verifies the Google ID token and issues its own session token. The profile's home city and interests prefill searches and trips.
 2. **F2 Explore & review activities** (CP1, extended in CP2): browse a city's activities, rate and tag them, and read others' reviews. A review written at the place during the reviewer's trip is verified and counts double.
-3. **F3 Trip generation** (CP1, extended in CP2): our own algorithm turns trip details into a ranked, time-feasible, day-by-day plan. It uses the traveller's way of getting around, budget, and places to see or avoid, with travel times from Google Routes. A place found in Explore can be added to a trip.
+3. **F3 Trip generation** (CP1, extended in CP2): our own algorithm turns trip details into a ranked, time-feasible, day-by-day plan, with every stop starting on a quarter hour (09:15, not 09:07). It uses the traveller's way of getting around, budget, and places to see or avoid, with travel times from Google Routes. A place found in Explore can be added to a trip.
 4. **F4 Collaborative trips, live** (CP2): friends join a group with an invite code, and every member's interests and vetoes shape its plans. Any member can adjust a stop or re-plan a day, and every member's open app updates within seconds. Members joining or leaving, and join requests and their answers, also reach every member's app as they happen, and a red dot on the Groups tab marks what is new until the traveller looks.
 5. **F5 Disruption-aware re-planning** (CP2): a back-end timer checks the forecast and venue status for trips under way, and suggests a change for rain during an outdoor stop or a closed venue. Nothing changes until a member accepts.
 6. **F6 Friends and the trip feed** (CP2): travellers become friends by request and share trips with a rating and caption to the Friends and Everyone feeds; a private account's posts reach friends only. Posts can be liked, commented on and copied onto new dates. Friend requests and their answers, and likes and comments on a traveller's posts, reach them as they happen, with a red dot on the Profile or Feed tab until they look.
@@ -321,7 +322,7 @@ Screens from the CP1 build:
         4. `ActivityDto[] listActivities(String city, String interest)`
             - **Purpose**: Called by the Trip Engine for candidates; refreshes the catalogue from Places when it is older than 7 days.
 3. **Trip Engine**
-    - **Purpose**: Our own planning logic: candidate pruning, scoring and constrained day scheduling. It is separate, with a scheduling core that has no I/O, so the part we tune and test hardest is independent of transport and storage.
+    - **Purpose**: Our own planning logic: candidate pruning, scoring and constrained day scheduling, with stops on a 15-minute grid unless waiting for the next quarter hour would miss a closing time. It is separate, with a scheduling core that has no I/O, so the part we tune and test hardest is independent of transport and storage.
     - **Interfaces**:
         1. `POST /api/trips/generate` body `{ city, startDate, endDate, dayStart?, dayEnd?, arrivalTime?, departureTime?, interests?, pace?, lodging?, groupId?, transportMode?, budget?, mustSeeIds?, avoidIds? }` returns `TripDto`
             - **Purpose**: Creates a trip of up to 7 days and plans its days. Dates are `YYYY-MM-DD`, times `HH:MM`, and `transportMode` is walk, transit or drive. `budget` leaves out pricier activities, `mustSeeIds` are scheduled first (with a warning for any that fit no day), and `avoidIds` are left out. With `groupId`, the group's combined interests and vetoes replace the caller's. `TripDto` holds the trip details, the resolved lodging, the days with timed stops and travel minutes, and any warnings.

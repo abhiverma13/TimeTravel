@@ -21,6 +21,7 @@
 | 2026-11-12 | 2.1.1 | Added the tests for losing access to a group trip (`tripAccessLost`), which fix the peer review's major fault. |
 | 2026-11-12 | 2.1.1 | Added the live event interfaces (`liveEvent`) for friends, groups, join requests, posts and suggestions. |
 | 2026-11-12 | 2.1.1 | Added the Notification Service interfaces (`GET /api/notifications`, `POST /api/notifications/read`). |
+| 2026-11-12 | 2.1.1 | Plan Trip's interface tests now check that every stop is on the 15-minute grid. |
 
 ---
 
@@ -46,8 +47,8 @@
 | **DELETE /api/groups/:groupId/members/:userId** | [`backend/tests/no-mock/groups.test.ts#L304`](../backend/tests/no-mock/groups.test.ts#L304) | [`backend/tests/mock/groups.test.ts#L157`](../backend/tests/mock/groups.test.ts#L157) | Group DB |
 | **DELETE /api/groups/:groupId** | [`backend/tests/no-mock/groups.test.ts#L377`](../backend/tests/no-mock/groups.test.ts#L377) | [`backend/tests/mock/groups.test.ts#L179`](../backend/tests/mock/groups.test.ts#L179) | Trip DB |
 | **POST /api/trips/generate** | [`backend/tests/no-mock/trips.test.ts#L38`](../backend/tests/no-mock/trips.test.ts#L38) | [`backend/tests/mock/trips.test.ts#L37`](../backend/tests/mock/trips.test.ts#L37), [`#L198`](../backend/tests/mock/trips.test.ts#L198) (Google Routes travel times, cache and failures), [`#L284`](../backend/tests/mock/trips.test.ts#L284) (through the production Google Routes client) | Google Places API (lodging lookup), Google Routes API, Trip DB |
-| **GET /api/trips/:tripId** | [`backend/tests/no-mock/trips.test.ts#L393`](../backend/tests/no-mock/trips.test.ts#L393) | [`backend/tests/mock/trips.test.ts#L136`](../backend/tests/mock/trips.test.ts#L136) | Trip DB |
-| **GET /api/trips** | [`backend/tests/no-mock/trips.test.ts#L442`](../backend/tests/no-mock/trips.test.ts#L442) | [`backend/tests/mock/trips.test.ts#L157`](../backend/tests/mock/trips.test.ts#L157) | Trip DB |
+| **GET /api/trips/:tripId** | [`backend/tests/no-mock/trips.test.ts#L410`](../backend/tests/no-mock/trips.test.ts#L410) | [`backend/tests/mock/trips.test.ts#L136`](../backend/tests/mock/trips.test.ts#L136) | Trip DB |
+| **GET /api/trips** | [`backend/tests/no-mock/trips.test.ts#L459`](../backend/tests/no-mock/trips.test.ts#L459) | [`backend/tests/mock/trips.test.ts#L157`](../backend/tests/mock/trips.test.ts#L157) | Trip DB |
 | **POST /api/trips/:tripId/adjust** | [`backend/tests/no-mock/adjust.test.ts#L41`](../backend/tests/no-mock/adjust.test.ts#L41) | [`backend/tests/mock/adjust.test.ts#L32`](../backend/tests/mock/adjust.test.ts#L32) | Trip DB (a concurrent change saved first, write failure), Activity DB, live-update push |
 | **Socket.io trip updates** | [`backend/tests/no-mock/tripSync.test.ts#L41`](../backend/tests/no-mock/tripSync.test.ts#L41) | [`backend/tests/mock/tripSync.test.ts#L22`](../backend/tests/mock/tripSync.test.ts#L22) | Trip DB (access check on subscribe) |
 | **Socket.io location sharing** | [`backend/tests/no-mock/tripSync.test.ts#L150`](../backend/tests/no-mock/tripSync.test.ts#L150) | [`backend/tests/mock/tripSync.test.ts#L49`](../backend/tests/mock/tripSync.test.ts#L49) | User DB (looking up the sharer) |
