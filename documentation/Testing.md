@@ -26,6 +26,7 @@
 | 2026-11-12 | 2.1.1 | Added the tests for copied trips joining their original's card, and for who took a trip. |
 | 2026-11-12 | 2.1.1 | Added tests for the peer review's code-review fixes: Google unavailable at sign-in, reviews and joins sent twice at once, partial city searches, and a failed venue check. |
 | 2026-11-12 | 2.1.1, 3, 4.2 | Added what the peer review's test review asked for: expired-session and 7-day-session tests, the order of the reviews list, `parsePort`, NFR 3 while Google fails, an app test timing NFR 2 on the phone, Plan Trip split into one test per scenario, a unique review per run, and comments on the unit tests. |
+| 2026-11-12 | 2.3, 2.4, 2.5, 3.2 | Completed for CP3: new coverage screenshots and the reasons for every uncovered line, and this commit's NFR logs. The text coverage tables were removed, since they only repeated the screenshots. |
 
 ---
 
@@ -130,125 +131,9 @@ The first run downloads a MongoDB binary (about 1 minute). Coverage reports go t
 
 ![Coverage with mocks](images/coverage_mock.png)
 
-```
-File                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
--------------------------|---------|----------|---------|---------|------------------
-All files                |   81.78 |    58.86 |    78.8 |   83.73 |
-  app.ts                 |     100 |       50 |     100 |     100 | 38
-  activityModel.ts       |     100 |      100 |     100 |     100 |
-  activityRoutes.ts      |     100 |       50 |     100 |     100 | 47
-  activityService.ts     |   81.73 |    66.66 |   86.95 |   83.33 | 143,155-164,169-170,196,204,209-211,265
-  communityScore.ts      |     100 |       80 |     100 |     100 | 25-26
-  interests.ts           |     100 |    66.66 |     100 |     100 | 85-86
-  openingHours.ts        |     100 |      100 |     100 |     100 |
-  placesClient.ts        |     100 |    76.92 |     100 |     100 | 116-122,141
-  reviewModel.ts         |      80 |       50 |     100 |      80 | 76,79,82,85
-  reviewTags.ts          |   76.31 |    42.85 |   83.33 |   76.31 | 40-41,60-61,71,75-76,80,85
-  authRoutes.ts          |     100 |       50 |     100 |     100 | 15
-  authService.ts         |   73.52 |    42.85 |     100 |   73.52 | 50,53,60-63,73,76-79
-  googleTokenVerifier.ts |     100 |      100 |     100 |     100 |
-  userModel.ts           |      75 |      100 |   33.33 |   85.71 | 44
-  env.ts                 |       0 |        0 |       0 |       0 | 1-16
-  connection.ts          |   85.71 |      100 |   66.66 |   85.71 | 12
-  disruptionRoutes.ts    |   93.75 |      100 |     100 |   93.75 | 30
-  disruptionService.ts   |   92.74 |    88.73 |   92.59 |   93.22 | 188,204,226,229,232,235-237
-  suggestionModel.ts     |     100 |      100 |     100 |     100 |
-  weatherClient.ts       |     100 |    83.33 |     100 |     100 | 74
-  friendRoutes.ts        |   97.14 |      100 |     100 |   97.05 | 67
-  friendService.ts       |   61.17 |    43.18 |      60 |   65.82 | 61,64,67,90,96,102-108,115,131-132,144-147,153-154,160-163,183,189,200-202
-  friendshipModel.ts     |     100 |      100 |     100 |     100 |
-  groupModel.ts          |     100 |      100 |     100 |     100 |
-  groupRoutes.ts         |   91.17 |      100 |   88.88 |   91.17 | 21,64,69
-  groupService.ts        |    69.6 |    53.33 |   67.74 |   72.52 | 73-84,118,135,138,172,182,190,193,196,205,208-219,231,235,258
-  dayRepair.ts           |   33.57 |    18.64 |    37.2 |   35.65 | 58-61,76-87,119,137-140,154,165-284,299-307
-  itineraryModel.ts      |     100 |      100 |     100 |     100 |
-  itineraryRoutes.ts     |   86.95 |       50 |   77.77 |   90.69 | 43,45,48,51
-  itineraryService.ts    |    87.3 |    64.51 |   81.66 |   87.86 | 145-146,210-216,295,315,333-334,361-368,423,467,472,505,512,520,588,592
-  routesClient.ts        |     100 |    92.85 |     100 |     100 | 70
-  travelTimes.ts         |     100 |    85.71 |     100 |     100 | 90,105
-  tripCalendar.ts        |     100 |       60 |     100 |     100 | 23
-  tripOptions.ts         |     100 |       60 |     100 |     100 | 16
-  visits.ts              |   77.77 |      100 |      50 |   77.77 | 11-14
-  adjust.ts              |   68.42 |    66.66 |      50 |   72.22 | 16-20,37
-  candidates.ts          |   85.71 |    70.83 |   92.85 |   87.09 | 40-44
-  daySchedule.ts         |     100 |    92.85 |     100 |     100 | 59
-  localSearch.ts         |     100 |    95.23 |     100 |     100 | 18
-  planner.ts             |   97.36 |    79.31 |     100 |   97.14 | 16,20
-  travelTime.ts          |   95.65 |       80 |     100 |   95.65 | 41
-  types.ts               |     100 |      100 |     100 |     100 |
-  authenticate.ts        |   76.47 |       50 |     100 |   76.47 | 12-13,19,28
-  errorHandler.ts        |      64 |    46.15 |      60 |   66.66 | 20,26-27,34-36,39-40
-  joinRequestModel.ts    |     100 |      100 |     100 |     100 |
-  nearbyRoutes.ts        |     100 |      100 |     100 |     100 |
-  nearbyService.ts       |   70.87 |    51.78 |   61.76 |   77.64 | 93-96,101,104,123,135-146,159,163,167,177,180-181,189,192,195,203
-  postModel.ts           |     100 |      100 |     100 |     100 |
-  postRoutes.ts          |   93.47 |       50 |     100 |   93.18 | 56,65,87
-  postService.ts         |   78.16 |    52.63 |   81.25 |   82.27 | 107,127,145,155,166,169,180,187-188,202,205,222,232,247
-  interestTags.ts        |     100 |      100 |     100 |     100 |
-  tripSync.ts            |   61.97 |    39.28 |   47.36 |   63.76 | 63-64,83-84,88-89,98-106,130,136,140-144,150,154-156,161,166,169
-```
-
 ### 2.4. Jest Coverage Report Screenshots Without Mocks
 
 ![Coverage without mocks](images/coverage_no_mock.png)
-
-```
-File                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
--------------------------|---------|----------|---------|---------|------------------
-All files                |   91.14 |     74.5 |    92.8 |   90.81 |
-  app.ts                 |     100 |       50 |     100 |     100 | 38
-  activityModel.ts       |     100 |      100 |     100 |     100 |
-  activityRoutes.ts      |     100 |      100 |     100 |     100 |
-  activityService.ts     |   86.08 |    73.91 |   86.95 |   86.11 | 178,263,269-291
-  communityScore.ts      |   93.33 |       50 |     100 |    92.3 | 34
-  interests.ts           |     100 |       50 |     100 |     100 | 76-86
-  openingHours.ts        |   92.85 |    91.66 |     100 |    92.3 | 31
-  placesClient.ts        |   41.17 |        0 |       0 |   41.17 | 49-50,88-141
-  reviewModel.ts         |     100 |      100 |     100 |     100 |
-  reviewTags.ts          |     100 |    92.85 |     100 |     100 | 38
-  authRoutes.ts          |     100 |      100 |     100 |     100 |
-  authService.ts         |   94.11 |    92.85 |     100 |   94.11 | 31-36
-  googleTokenVerifier.ts |   54.54 |    16.66 |     100 |   54.54 | 17,20-24
-  userModel.ts           |     100 |      100 |     100 |     100 |
-  env.ts                 |       0 |        0 |       0 |       0 | 1-16
-  connection.ts          |     100 |      100 |     100 |     100 |
-  disruptionRoutes.ts    |     100 |      100 |     100 |     100 |
-  disruptionService.ts   |   83.06 |    56.33 |   88.88 |   83.05 | 79-80,134,151,173,211,249,259-263,274-285
-  suggestionModel.ts     |     100 |      100 |     100 |     100 |
-  weatherClient.ts       |       0 |        0 |       0 |       0 | 1-70
-  friendRoutes.ts        |     100 |      100 |     100 |     100 |
-  friendService.ts       |   96.47 |    86.36 |      96 |    96.2 | 51,127-128
-  friendshipModel.ts     |     100 |      100 |     100 |     100 |
-  groupModel.ts          |     100 |      100 |     100 |     100 |
-  groupRoutes.ts         |     100 |      100 |     100 |     100 |
-  groupService.ts        |   95.09 |    77.77 |   96.77 |    94.5 | 64,107-112,180
-  dayRepair.ts           |   98.57 |    78.81 |     100 |   98.26 | 154,214
-  itineraryModel.ts      |     100 |      100 |     100 |     100 |
-  itineraryRoutes.ts     |     100 |      100 |     100 |     100 |
-  itineraryService.ts    |    93.9 |    81.72 |     100 |   93.06 | 260,295,484,505,512,529,580,614-620
-  routesClient.ts        |      44 |        0 |       0 |      44 | 18,36-37,52,57-83
-  travelTimes.ts         |      46 |     23.8 |   46.15 |   48.88 | 50,67-69,80-109
-  tripCalendar.ts        |     100 |       80 |     100 |     100 | 23
-  tripOptions.ts         |     100 |      100 |     100 |     100 |
-  visits.ts              |     100 |      100 |     100 |     100 |
-  adjust.ts              |   94.73 |      100 |     100 |   94.44 | 18
-  candidates.ts          |     100 |    95.83 |     100 |     100 | 26
-  daySchedule.ts         |     100 |    92.85 |     100 |     100 | 59
-  localSearch.ts         |     100 |    95.23 |     100 |     100 | 18
-  planner.ts             |     100 |     86.2 |     100 |     100 | 45,73,139-141
-  travelTime.ts          |     100 |       90 |     100 |     100 | 32
-  types.ts               |     100 |      100 |     100 |     100 |
-  authenticate.ts        |   94.11 |    83.33 |     100 |   94.11 | 28
-  errorHandler.ts        |      84 |    84.61 |     100 |   83.33 | 26-27,42-43
-  joinRequestModel.ts    |     100 |      100 |     100 |     100 |
-  nearbyRoutes.ts        |     100 |      100 |     100 |     100 |
-  nearbyService.ts       |   98.05 |    89.28 |   97.05 |   98.82 | 133
-  postModel.ts           |     100 |      100 |     100 |     100 |
-  postRoutes.ts          |     100 |      100 |     100 |     100 |
-  postService.ts         |   98.85 |    94.73 |     100 |   98.73 | 178
-  interestTags.ts        |     100 |      100 |     100 |     100 |
-  tripSync.ts            |   90.14 |    89.28 |   84.21 |   89.85 | 73,94-96,136,144,150
-```
 
 Without mocks, the external service clients are not reached: Google Places (`placesClient.ts`), Google Routes (`routesClient.ts` and the routed part of `travelTimes.ts`), OpenWeather (`weatherClient.ts` and the forecast checks in `disruptionService.ts`), and successful Google token verification. Real calls need API keys and a real Google ID token, so the tests with mocks cover these paths and database failures.
 
@@ -258,76 +143,18 @@ Without mocks, the external service clients are not reached: Google Places (`pla
 
 ![Coverage with and without mocks](images/coverage_interface.png)
 
-```
-File                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
--------------------------|---------|----------|---------|---------|------------------
-All files                |   98.94 |    88.76 |    98.8 |   98.91 |
-  app.ts                 |     100 |      100 |     100 |     100 |
-  activityModel.ts       |     100 |      100 |     100 |     100 |
-  activityRoutes.ts      |     100 |      100 |     100 |     100 |
-  activityService.ts     |     100 |     88.4 |     100 |     100 | 52-56,194,211,286
-  communityScore.ts      |     100 |       80 |     100 |     100 | 25-26
-  interests.ts           |     100 |    66.66 |     100 |     100 | 85-86
-  openingHours.ts        |     100 |      100 |     100 |     100 |
-  placesClient.ts        |     100 |    76.92 |     100 |     100 | 116-122,141
-  reviewModel.ts         |     100 |      100 |     100 |     100 |
-  reviewTags.ts          |     100 |    92.85 |     100 |     100 | 38
-  authRoutes.ts          |     100 |      100 |     100 |     100 |
-  authService.ts         |     100 |    92.85 |     100 |     100 | 48
-  googleTokenVerifier.ts |     100 |      100 |     100 |     100 |
-  userModel.ts           |     100 |      100 |     100 |     100 |
-  env.ts                 |       0 |        0 |       0 |       0 | 1-16
-  connection.ts          |     100 |      100 |     100 |     100 |
-  disruptionRoutes.ts    |     100 |      100 |     100 |     100 |
-  disruptionService.ts   |     100 |    94.36 |     100 |     100 | 98,162-163,277
-  suggestionModel.ts     |     100 |      100 |     100 |     100 |
-  weatherClient.ts       |     100 |    83.33 |     100 |     100 | 74
-  friendRoutes.ts        |     100 |      100 |     100 |     100 |
-  friendService.ts       |     100 |    97.72 |     100 |     100 | 169
-  friendshipModel.ts     |     100 |      100 |     100 |     100 |
-  groupModel.ts          |     100 |      100 |     100 |     100 |
-  groupRoutes.ts         |     100 |      100 |     100 |     100 |
-  groupService.ts        |     100 |    91.11 |     100 |     100 | 122,219,242-252
-  dayRepair.ts           |   98.57 |    78.81 |     100 |   98.26 | 154,214
-  itineraryModel.ts      |     100 |      100 |     100 |     100 |
-  itineraryRoutes.ts     |     100 |      100 |     100 |     100 |
-  itineraryService.ts    |   98.47 |    90.32 |     100 |   98.26 | 295,505,512
-  routesClient.ts        |     100 |    92.85 |     100 |     100 | 70
-  travelTimes.ts         |     100 |    85.71 |     100 |     100 | 90,105
-  tripCalendar.ts        |     100 |       80 |     100 |     100 | 23
-  tripOptions.ts         |     100 |      100 |     100 |     100 |
-  visits.ts              |     100 |      100 |     100 |     100 |
-  adjust.ts              |   94.73 |      100 |     100 |   94.44 | 18
-  candidates.ts          |     100 |    95.83 |     100 |     100 | 26
-  daySchedule.ts         |     100 |    92.85 |     100 |     100 | 59
-  localSearch.ts         |     100 |    95.23 |     100 |     100 | 18
-  planner.ts             |     100 |     86.2 |     100 |     100 | 45,73,139-141
-  travelTime.ts          |     100 |       90 |     100 |     100 | 32
-  types.ts               |     100 |      100 |     100 |     100 |
-  authenticate.ts        |   94.11 |    83.33 |     100 |   94.11 | 28
-  errorHandler.ts        |      92 |     92.3 |     100 |   91.66 | 26-27
-  joinRequestModel.ts    |     100 |      100 |     100 |     100 |
-  nearbyRoutes.ts        |     100 |      100 |     100 |     100 |
-  nearbyService.ts       |   99.02 |    91.07 |   97.05 |     100 | 71,99,131,135-141
-  postModel.ts           |     100 |      100 |     100 |     100 |
-  postRoutes.ts          |     100 |      100 |     100 |     100 |
-  postService.ts         |     100 |    97.36 |     100 |     100 | 113
-  interestTags.ts        |     100 |      100 |     100 |     100 |
-  tripSync.ts            |   95.77 |    96.42 |   84.21 |   95.65 | 136,144,150
-```
-
 **Why the combined coverage is below 100%:**
 
-- **`src/config/env.ts` (0%)**: reads the environment variables once at start-up and is imported only by `src/index.ts`, which is excluded from coverage. The tests build the app with explicit configuration (`backend/tests/helpers/testApp.ts`) so they do not depend on a developer's `.env`.
-- **`src/trips/tripService.ts` line 295**: a guard for a planned stop whose activity is not a candidate. The engine schedules only its candidates, so this cannot happen; the guard exists because `Map.get` may return `undefined`.
-- **`src/trips/tripService.ts` lines 505 and 512, and `src/trips/dayRepair.ts` line 154**: a disruption proposal is dropped if the stop left the day between the timer's check and the proposal (a simultaneous edit), or if the rest of the day no longer fits without it (line 154, surfaced as line 512). Removing a stop from a feasible day keeps it feasible whenever travel times obey the triangle inequality, which our estimates always do; only Google Routes times could break it. Both are race or data guards that cannot be produced reliably through the API.
-- **`src/trips/dayRepair.ts` line 214**: the tie-break when two ways of making room on a full day drop stops of exactly the same value; the one with less travel wins. A tie needs two places with the same rating, rating count and interests.
-- **`src/trips/engine/adjust.ts` line 18**: during a re-plan, a reordering ends the day sooner and the freed time goes to another activity. Greedy insertion already places each stop at the least travel, so the short test days never improve by reordering; the engine's unit tests cover the reorder step ([`backend/tests/unit/localSearch.test.ts`](../backend/tests/unit/localSearch.test.ts) and [`dayRepair.test.ts`](../backend/tests/unit/dayRepair.test.ts)).
-- **`src/sync/tripSync.ts` lines 136, 144 and 150**: `.catch` handlers on Socket.io events. Subscribing and sharing catch their own errors (tested with mocks), and leaving a room cannot fail with the in-memory adapter, so these only log an unexpected bug instead of letting an unhandled rejection stop the server.
-- **`src/nearby/nearbyService.ts` (99% of statements)**: the constructor's default clock. The tests inject their own clock (`backend/tests/helpers/testApp.ts`) so dates are predictable.
-- **`src/middleware/errorHandler.ts` lines 26-27**: passes an error to Express's default handler if a response was partly sent. No route writes before failing, so this is unreachable through the API; it follows the Express documentation's error-handling pattern.
+- **`src/config/env.ts` (0%)**: reads the environment variables once at start-up and is imported only by `src/index.ts`, which is excluded from coverage. The tests build the app with explicit configuration (`backend/tests/helpers/testApp.ts`) so they do not depend on a developer's `.env`. Its one piece of logic, `parsePort`, has unit tests ([`backend/tests/unit/env.test.ts`](../backend/tests/unit/env.test.ts)).
+- **`src/db/tripRename.ts` lines 16, 20-22 and 30-31**: moving data stored before CP3 (the `itineraries` collection and `itineraryId` fields) to the new names. The interface tests start from an empty database, which has nothing to move; the unit tests cover it with old data ([`backend/tests/unit/tripRename.test.ts`](../backend/tests/unit/tripRename.test.ts)), and it ran on the CP2 database (17 trips moved).
+- **`src/trips/tripService.ts` line 310**: a guard for a planned stop whose activity is not a candidate. The engine schedules only its candidates, so this cannot happen; the guard exists because `Map.get` may return `undefined`.
+- **`src/trips/tripService.ts` lines 521 and 528, and `src/trips/dayRepair.ts` line 163**: a disruption proposal is dropped if the stop left the day between the timer's check and the proposal (a simultaneous edit), or if the rest of the day no longer fits without it (line 163, surfaced as line 528). Removing a stop from a feasible day keeps it feasible whenever travel times obey the triangle inequality, which the offline estimate and the cached Routes times do.
+- **`src/trips/dayRepair.ts` line 223**: the tie-break when two ways of making room on a full day drop stops of exactly the same value; the one with less travel wins. A tie needs two places with the same rating, rating count and interests.
+- **`src/trips/engine/adjust.ts` line 18**: during a re-plan, a reordering ends the day sooner and the freed time goes to another activity. Greedy insertion already places each stop at the least travel, so the short test days never improve by reordering; the engine's unit tests cover the reorder step ([`backend/tests/unit/localSearch.test.ts`](../backend/tests/unit/localSearch.test.ts) and [`backend/tests/unit/dayRepair.test.ts`](../backend/tests/unit/dayRepair.test.ts)).
+- **`src/sync/tripSync.ts` lines 148, 178, 182, 190 and 196**: `.catch` handlers on Socket.io calls (joining and leaving rooms, subscribing, sharing a location). Subscribing and sharing catch their own errors (tested with mocks), and joining or leaving a room cannot fail with the in-memory adapter, so these only log an unexpected bug instead of letting an unhandled rejection stop the server.
+- **`src/nearby/nearbyService.ts` (one function)**: the constructor's default clock. The tests inject their own clock (`backend/tests/helpers/testApp.ts`) so dates are predictable.
+- **`src/middleware/errorHandler.ts` lines 28-29**: passes an error to Express's default handler if a response was partly sent. No route writes before failing, so this is unreachable through the API; it follows the Express documentation's error-handling pattern.
 - **`src/middleware/authenticate.ts` line 28**: rejects a protected route reached without the session middleware. Every protected router installs `requireSession`, so this is a defensive check.
-- **Remaining branch gaps** (for example `interests.ts` 85-86, `placesClient.ts` 116-122, `weatherClient.ts` 74, `tripCalendar.ts` 23, the engine files): destructuring defaults and `??` fallbacks for fields Google Places, Google Routes or OpenWeather may omit, required by TypeScript's strict null checks.
 
 ---
 
@@ -351,8 +178,8 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
     ```
     ==> Running backend NFR tests (tests/nfr/) ...
       console.info
-        NFR itinerary generation: 20 runs, 5 days, 40 candidates, 33 stops
-        p50 345 ms, p95 416 ms, max 457 ms (limit 3000 ms)
+        NFR trip generation: 20 runs, 5 days, 40 candidates, 31 stops
+        p50 816 ms, p95 992 ms, max 1006 ms (limit 3000 ms)
 
     Test Suites: 1 passed, 1 total
     Tests:       1 passed, 1 total
@@ -367,7 +194,7 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
     ==> Running backend NFR tests (tests/nfr/) ...
       console.info
         NFR live update latency: 20 adjustments x 3 other members = 60 deliveries
-        p50 53 ms, p95 77 ms, max 98 ms (limit 2000 ms)
+        p50 88 ms, p95 143 ms, max 196 ms (limit 2000 ms)
     ```
   - **Verification on the phone:** the back-end test stops when the update reaches the device; the app test times the rest. With a 2-day Vancouver trip open and live on the emulator, it removes the first stop through the REST API with the same session (as another member's device would; the app only hears of it over Socket.io), and times from sending the change until the stop is gone from the screen, asserting at most 2,000 ms. Run it with `./scripts/run-frontend-nfr-tests.sh`.
   - **Log Output (phone)**
@@ -392,9 +219,10 @@ All files                |   98.94 |    88.76 |    98.8 |   98.91 |
     ==> Running backend NFR tests (tests/nfr/) ...
       console.info
         NFR Places usage: 7 calls for the first fetch; 0 more over 6 days of 24 searches and 6 generations; 7 for the refresh after 7 days; 1 for a lodging lookup
+        NFR Places usage during an outage: 7 calls for the failed refresh; 0 over the next 20 searches in 50 minutes; 7 for the retry an hour later
 
     Test Suites: 3 passed, 3 total
-    Tests:       3 passed, 3 total
+    Tests:       4 passed, 4 total
     ==> Backend NFR tests finished.
     ```
 
@@ -480,7 +308,7 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
 
     com.example.cpen321application.e2e.RateReviewActivityTest:.
 
-    Time: 13.368
+    Time: 18.52
 
     OK (1 test)
     ```
@@ -507,11 +335,11 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
 
   - **Test Logs:**
     ```
-    $ adb shell am instrument -w -e class com.example.cpen321application.e2e.ViewAdjustItineraryTest com.example.cpen321application.test/androidx.test.runner.AndroidJUnitRunner
+    $ adb shell am instrument -w -e class com.example.cpen321application.e2e.ViewAdjustTripTest com.example.cpen321application.test/androidx.test.runner.AndroidJUnitRunner
 
-    com.example.cpen321application.e2e.ViewAdjustItineraryTest:.
+    com.example.cpen321application.e2e.ViewAdjustTripTest:.
 
-    Time: 10.745
+    Time: 19.278
 
     OK (1 test)
     ```
