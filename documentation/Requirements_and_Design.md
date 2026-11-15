@@ -25,6 +25,7 @@
 | 2026-11-12 | 3.1, 3.4, 4.1, 4.2 | After CP2 feedback that a copied trip posted again appeared twice, a copy shared unchanged now joins the original's feed card, which shows its planner, how many travellers took it and their average rating, and lists them. A changed copy asks whether to link back: linked, the feed shows the original's stops and the traveller's own profile keeps theirs. Copies of copies link to the first trip so one trip has one card. |
 | 2026-11-12 | 4.1, 4.2 | Fixed what the peer review's code review found: sign-in blames the server (503) when Google cannot check a token; a review saved twice at once is counted once; "This group is full" only when it is; a city keeps the Google searches that worked; a failed venue check keeps the last known status; any duplicate-key race is a 409, not a 500. |
 | 2026-11-12 | 4.2, 4.7 | After the peer review asked how NFR 3 holds while Google Places fails, a failed refresh now waits an hour before the next try instead of retrying on every request; the catalogue records when a refresh failed. |
+| 2026-11-12 | 3.1, 3.2, 3.3, 3.4, 3.5, 4.5, 4.6 | Rebuilt the use cases after CP2 feedback: the diagram shows only what travellers do (system steps such as ranking a day, notifying members and the timer's checks are gone, and so is the Time actor), adds Sign Out, Edit Profile and the other half of each pair (remove, delete, decline), turns Monitor Trip Conditions into Accept or Decline Disruption Suggestion, splits Friends and the feed into F6 and F7, and uses the same verbs throughout. A trip is defined once in 3.1. Every diagram is on white, and text that only repeated a diagram (legends, counts) was cut. |
 | 2026-11-12 | 3.4, 3.5, 4.1, 4.6 | A suggestion now carries the whole proposed day with its times, and the app previews it against the day as it is before a member answers, after CP2 feedback asked to see the change first. "Dismiss" became "Decline" to match the words used everywhere else (add, remove, accept, decline). |
 | 2026-11-12 | 3.1, 4.1 | Stop times now start on a 15-minute grid (09:15 rather than 09:07), after CP2 feedback that minute-exact times looked machine-made. Rounding waits a few minutes longer, never shortens travel, and is skipped only when it would miss a closing time. |
 
@@ -42,14 +43,17 @@ Planning a trip is a scheduling problem, but every tool treats it as a search pr
 
 ### **3.1. List of Features**
 
-1. **F1 Sign in with Google** (CP1): the back-end verifies the Google ID token and issues its own session token. The profile's home city and interests prefill searches and trips.
+A **trip** is everything a traveller plans for one city and set of dates: the dates and hours, lodging, interests, pace and other options, the group it belongs to (if any), and its day-by-day plan of timed stops.
+
+1. **F1 Sign in** (CP1): sign in with Google (the back-end verifies the Google ID token and issues its own session token), sign out, and set a home city and interests that prefill searches and trips.
 2. **F2 Explore & review activities** (CP1, extended in CP2): browse a city's activities, rate and tag them, and read others' reviews. A review written at the place during the reviewer's trip is verified and counts double.
-3. **F3 Trip generation** (CP1, extended in CP2): our own algorithm turns trip details into a ranked, time-feasible, day-by-day plan, with every stop starting on a quarter hour (09:15, not 09:07). It uses the traveller's way of getting around, budget, and places to see or avoid, with travel times from Google Routes. A place found in Explore can be added to a trip.
-4. **F4 Collaborative trips, live** (CP2): friends join a group with an invite code, and every member's interests and vetoes shape its plans. Any member can adjust a stop or re-plan a day, and every member's open app updates within seconds. Members joining or leaving, and join requests and their answers, also reach every member's app as they happen, and a red dot on the Groups tab marks what is new until the traveller looks.
-5. **F5 Disruption-aware re-planning** (CP2): a back-end timer checks the forecast and venue status for trips under way, and suggests a change for rain during an outdoor stop or a closed venue. Nothing changes until a member accepts.
-6. **F6 Friends and the trip feed** (CP2): travellers become friends by request and share trips with a rating and caption to the Friends and Everyone feeds; a private account's posts reach friends only. Posts can be liked, commented on and copied onto new dates. A copy shared unchanged joins the original's card on the feed, which shows who planned the trip, how many travellers took it and their average rating, and lists who took it; a changed copy asks whether to link back. Friend requests and their answers, and likes and comments on a traveller's posts, reach them as they happen, with a red dot on the Profile or Feed tab until they look.
-7. **F7 Trip map and live location** (CP2): a map of each day's stops and route with the traveller's position. On the trip's day, arriving within 100 m ticks a stop off. Group members can share their positions while the map is open; positions are never stored.
-8. **F8 Nearby trips** (CP2): a group's owner opens a group trip to nearby travellers, who see its plan (never the lodging or anyone's position) and can ask to join.
+3. **F3 Trip planning** (CP1, extended in CP2): our own algorithm turns a trip's details into a ranked, time-feasible, day-by-day plan, with every stop starting on a quarter hour (09:15, not 09:07). It uses the traveller's way of getting around, budget, and places to see or avoid, with travel times from Google Routes. A place found in Explore can be added to a trip.
+4. **F4 Collaborative trips, live** (CP2): friends join a group with an invite code, and every member's interests and vetoes shape its trips. Any member can adjust a stop or re-plan a day, and every member's open app updates within seconds. Members joining or leaving reach every member's app as they happen, with a red dot on the Groups tab until they look.
+5. **F5 Disruption suggestions** (CP2, extended in CP3): when rain threatens an outdoor stop or a venue closes, members see a suggested new day next to the day as it is, and accept or decline it. Nothing changes until a member accepts.
+6. **F6 Friends** (CP2): travellers find each other, become friends by request, and make their account private (details and posts for friends only). Requests and their answers arrive as they happen, with a red dot on the Profile tab.
+7. **F7 Trip feed** (CP2, extended in CP3): travellers share trips with a rating and caption to the Friends and Everyone feeds, like and comment on them, and copy them onto new dates. A copy shared unchanged joins the original's card, which shows who planned the trip, how many travellers took it and their average rating; a changed copy asks whether to link back.
+8. **F8 Trip map and live location** (CP2): a map of each day's stops and route with the traveller's position. On the trip's day, arriving within 100 m ticks a stop off. Group members can share their positions while the map is open; positions are never stored.
+9. **F9 Nearby trips** (CP2): a group's owner opens a group trip to nearby travellers, who see its plan (never the lodging or anyone's position) and can ask to join; the owner accepts or declines.
 
 How the features satisfy the project scope:
 
@@ -62,59 +66,66 @@ How the features satisfy the project scope:
 
 ### **3.2. Use Case Diagram**
 
-![Use case diagram: twenty-nine use cases in eight feature packages, two human actors, five non-human actors](images/use_case_diagram.png)
+![Use case diagram](images/use_case_diagram.png)
 
-Each feature is a package, and each branch of an actor's line ends at one of its use cases. The Trip Organizer specialises the Traveller and inherits its associations. Shaded use cases are started by the system or reached only through «include». Source: [`res/use_case_diagram.svg`](res/use_case_diagram.svg).
+Source: [`res/use_case_diagram.svg`](res/use_case_diagram.svg).
 
 ### **3.3. Actors Description**
 
-1. **Traveller**: any app user. Browses and reviews activities, joins groups, sets interests, and follows or adjusts trips.
-2. **Trip Organizer**: a Traveller who creates a group, describes a trip and has it planned. A group's owner can also remove members and delete the group.
+1. **Traveller**: any app user.
+2. **Trip Organizer**: a Traveller who plans a trip or owns a group.
 3. **Google Identity Services**: authenticates the user and returns a signed ID token.
 4. **Google Places API**: supplies the activity catalogue and opening hours, finds the lodging, and reports closed venues.
 5. **Google Routes API**: supplies travel times between stops.
 6. **OpenWeather API**: supplies the forecast used to detect rain during outdoor stops.
-7. **Time**: triggers the periodic check of active trips.
 
 ### **3.4. Use Case Description**
 
-- Use cases for feature 1: **Sign in with Google**
-  1. **Sign In**: the traveller signs in with Google, stays signed in across restarts, and sets their home city and interests.
+Actions use the same words everywhere: travellers *add* and *remove* friends, places, comments and members; *accept* or *decline* requests and suggestions; and *create* or *delete* groups and posts.
+
+- Use cases for feature 1: **Sign in**
+  1. **Sign In**: the traveller signs in with Google and stays signed in across restarts for 7 days.
+  2. **Sign Out**: the traveller signs out; the app forgets the session on this device.
+  3. **Edit Profile**: the traveller sets their home city and interests.
 - Use cases for feature 2: **Explore & review activities**
-  2. **Browse & Search Activities**: the traveller lists a city's activities by community score, optionally for one interest, and reads their reviews.
-  3. **Rate & Review Activity**: the traveller rates an activity 1 to 5 stars, optionally with a review and tags; a review written at the place during their trip is verified.
-- Use cases for feature 3: **Trip generation**
-  4. **Create Trip**: the organizer enters the destination, dates, hours, lodging, interests, pace, way of getting around, budget, and places to see or avoid.
-  5. **Plan Trip**: the organizer receives a day-by-day plan for the trip.
-  6. **Rank & Schedule Day Plan**: the Trip Engine ranks candidates and schedules one day under opening hours, travel time and pace. Included by Plan Trip and Re-plan Trip.
-  7. **Add Place to Trip**: a traveller adds an activity from Explore to a trip day; on a full day, the lowest-ranked unlocked stops make room.
+  4. **Browse & Search Activities**: the traveller lists a city's activities by community score, optionally for one interest, and reads their reviews.
+  5. **Rate & Review Activity**: the traveller rates an activity 1 to 5 stars, optionally with a review and tags; a review written at the place during their trip is verified.
+- Use cases for feature 3: **Trip planning**
+  6. **Plan Trip**: the organizer enters the destination, dates, hours, lodging, interests, pace, way of getting around, budget, and places to see or avoid, and receives the trip's day-by-day plan.
+  7. **Add Place to Trip**: a traveller adds an activity from Explore to a day of a trip; on a full day, the lowest-ranked unlocked stops make room.
 - Use cases for feature 4: **Collaborative trips, live**
   8. **Create Group**: the organizer names a group and gets an invite code.
   9. **Join Group**: a traveller joins a group with its invite code.
   10. **Set Group Preferences**: a member sets their interests and vetoes activities for the group's trips.
-  11. **Leave Group**: a member leaves, or the owner removes a member or deletes the group.
-  12. **View & Adjust Trip**: a traveller locks, moves, removes or marks a stop visited, and the affected part of the day is re-planned.
-  13. **Notify Trip Party**: every member's device receives the updated plan when it changes. Included by Add Place to Trip, View & Adjust Trip, Tick Off Stops on Arrival and Re-plan Trip.
-- Use cases for feature 5: **Disruption-aware re-planning**
-  14. **Monitor Trip Conditions**: on a timer, the system checks the forecast and venue status of active trips' upcoming stops.
-  15. **Re-plan Trip**: for a disrupted stop, the system suggests a new day that members preview, then accept or decline.
-- Use cases for feature 6: **Friends and the trip feed**
+  11. **Leave Group**: a member leaves; they lose the group's trips at once.
+  12. **Remove Member**: the group's owner removes a member, who loses the group's trips at once.
+  13. **Delete Group**: the group's owner deletes the group and its trips.
+  14. **View & Adjust Trip**: a traveller locks, moves or removes a stop, or re-plans a day; every member sees the change live.
+- Use cases for feature 5: **Disruption suggestions**
+  15. **Accept or Decline Disruption Suggestion**: a member compares the suggested day with the day as it is, then accepts it (the trip changes for everyone) or declines it.
+- Use cases for feature 6: **Friends**
   16. **Find Travellers**: a traveller searches for others by name or email and opens a profile.
-  17. **Manage Friends**: a traveller sends, answers or cancels friend requests, or removes a friend.
-  18. **Set Account Privacy**: a traveller makes their account private (details and posts for friends only) or public.
-  19. **Share Trip**: a traveller posts a trip with a star rating and an optional caption; a copied trip they changed asks whether to link back to the original.
-  20. **Browse Feed**: a traveller reads the Friends or Everyone feed, optionally for one city, or one traveller's posts; copies of a trip appear on its original's card, which lists who took the trip with their ratings and captions.
-  21. **React to Post**: a traveller likes posts and adds or deletes comments; a post's author can delete the post or any comment on it.
-  22. **Copy Shared Trip**: a traveller copies a shared trip into their own trips on new dates.
-- Use cases for feature 7: **Trip map and live location**
-  23. **View Trip Map**: a traveller sees a day's stops, the route, their position and the distance to the next stop.
-  24. **Tick Off Stops on Arrival**: on the trip's day, arriving within 100 m of a stop marks it visited for everyone in the trip.
-  25. **Share Location with Group**: a group member shares their position with the members who have the map open.
-- Use cases for feature 8: **Nearby trips**
-  26. **Open Trip to Nearby Travellers**: a group's owner opens or closes a group trip to nearby travellers.
-  27. **Find Nearby Trips**: a traveller sees open trips near them in the Groups tab's Nearby trips.
-  28. **Ask to Join Trip**: a traveller asks to join an open trip's group, with an optional note.
-  29. **Answer Join Request**: the owner accepts a request, adding the traveller to the group, or declines it.
+  17. **Add Friend**: a traveller sends a friend request.
+  18. **Accept or Decline Friend Request**: a traveller answers a request sent to them.
+  19. **Remove Friend**: a traveller removes a friend, or a request they sent.
+  20. **Set Account Privacy**: a traveller makes their account private or public.
+- Use cases for feature 7: **Trip feed**
+  21. **Share Trip**: a traveller posts a trip with a star rating and an optional caption; a copied trip they changed asks whether to link back to the original.
+  22. **Browse Feed**: a traveller reads the Friends or Everyone feed, optionally for one city, or one traveller's posts.
+  23. **Like or Unlike Post**: a traveller likes a post, or takes the like back.
+  24. **Add or Remove Comment**: a traveller comments on a post or removes their comment; a post's author can remove any comment on it.
+  25. **Delete Post**: a post's author deletes it; copies linked to it become posts of their own.
+  26. **Copy Shared Trip**: a traveller copies a shared trip into their own trips on new dates.
+  27. **See Who Took a Trip**: a traveller lists who shared a trip, with each one's rating and caption.
+- Use cases for feature 8: **Trip map and live location**
+  28. **View Trip Map**: a traveller sees a day's stops, the route, their position and the distance to the next stop.
+  29. **Tick Off Stops on Arrival**: on the trip's day, arriving within 100 m of a stop marks it visited for everyone in the trip.
+  30. **Share Location with Group**: a group member shares their position with the members who have the map open.
+- Use cases for feature 9: **Nearby trips**
+  31. **Find Nearby Trips**: a traveller sees open trips near them in the Groups tab's Nearby trips.
+  32. **Ask to Join Trip**: a traveller asks to join an open trip's group, with an optional note.
+  33. **Open or Close Trip to Nearby Travellers**: a group's owner opens a group trip to nearby travellers, or closes it.
+  34. **Accept or Decline Join Request**: the group's owner accepts a request, adding the traveller to the group, or declines it.
 
 ### **3.5. Formal Use Case Specifications (5 Most Major Use Cases)**
 
@@ -243,31 +254,27 @@ Each feature is a package, and each branch of an actor's line ends at one of its
 
 <a name="uc5"></a>
 
-#### Use Case 5: Re-plan Trip
+#### Use Case 5: Accept or Decline Disruption Suggestion
 
-**Description**: When rain threatens an outdoor stop or a venue closes, the system suggests a new day to the trip's members; the plan changes only if one of them accepts.
+**Description**: When rain threatens an outdoor stop or a venue closes, a member of the trip sees a suggested new day next to the day as it is, and accepts or declines it; the plan changes only if they accept.
 
-**Primary actor(s)**: Time (secondary: OpenWeather API, Google Places API)
+**Primary actor(s)**: Traveller (secondary: OpenWeather API, Google Places API)
 
 **Main success scenario**:
-1. Every 30 minutes, the system checks the stops starting in the next 36 hours of each trip under way: the forecast for outdoor stops (a 60% chance of rain or more) and Google's business status for every stop.
-2. The system detects a disruption: rain during an outdoor stop, or a closed venue.
-3. The system plans the day without that stop, filling the time with another activity (only indoor ones in the rain) and keeping locked stops.
-4. Every member with the trip open sees a suggestion card above the trip, for example "Rain is likely at 10:45 during VanDusen Botanical Garden. Swap it for Canada Place?", with a preview of the day if they accept: every stop with its new time, the removed stop struck through, the new one marked New, and moved ones with their old time.
-5. A member taps Accept.
-6. The system saves the new day, and every member's app shows it with "Ava accepted a suggestion: swapped VanDusen Botanical Garden for Canada Place".
+1. A member opens a trip under way for which the system has found a disruption (rain during an outdoor stop, or a closed venue) and suggested a new day.
+2. The app shows a suggestion card above the trip, for example "Rain is likely at 10:45 during VanDusen Botanical Garden. Swap it for Canada Place?", with a preview of the day if they accept: every stop with its new time, the removed stop struck through, the new one marked New, and moved ones with their old time.
+3. The member taps Accept.
+4. The system saves the new day, and every member's app shows it with "Ava accepted a suggestion: swapped VanDusen Botanical Garden for Canada Place".
 
 **Failure scenario(s)**:
-- 1a. The forecast or Google Places cannot be reached.
-    - 1a1. The system skips that check, keeps the plan, and checks again at the next interval.
-- 3a. No other activity fits the freed time.
-    - 3a1. The suggestion offers to take the stop out and keep the time free.
-- 4a. A member's device is offline or the trip is not open.
-    - 4a1. The suggestion appears the next time they open the trip.
-- 5a. A member taps Decline.
-    - 5a1. The suggestion disappears and the plan stays as it is.
-- 5b. Someone changed the trip after the suggestion was made, or 12 hours passed.
-    - 5b1. The suggestion is no longer shown; accepting it anyway shows "The trip changed since this suggestion; it no longer applies".
+- 1a. The member's device is offline when the suggestion is made, or the trip is not open.
+    - 1a1. The suggestion appears the next time they open the trip, and the Trips tab shows a red dot until they look.
+- 2a. No other activity fits the freed time.
+    - 2a1. The suggestion offers to take the stop out and keep the time free.
+- 3a. The member taps Decline.
+    - 3a1. The suggestion disappears and the plan stays as it is.
+- 3b. Someone changed the trip after the suggestion was made, or 12 hours passed.
+    - 3b1. The suggestion is no longer shown; accepting it anyway shows "The trip changed since this suggestion; it no longer applies".
 
 ### **3.6. Screen Mock-ups**
 
@@ -546,9 +553,9 @@ Deployment: **Docker Compose** runs the back-end and MongoDB together on a cloud
 
 ### **4.5. Dependencies Diagram**
 
-![Dependency diagram: one Android client, eight back-end components, one database, four external web services and two services on the device](images/dependency_diagram.png)
+![Dependency diagram](images/dependency_diagram.png)
 
-Arrows point from caller to callee, and each label names what is asked. The app calls every component's REST routes over HTTPS; the two-headed arrow is its Socket.io connection to the Trip Sync & Disruption Service. Dashed boxes are external services. Source: [`res/dependency_diagram.svg`](res/dependency_diagram.svg).
+Source: [`res/dependency_diagram.svg`](res/dependency_diagram.svg).
 
 ### **4.6. Use Case Sequence Diagram (5 Most Major Use Cases)**
 
@@ -560,8 +567,8 @@ Arrows point from caller to callee, and each label names what is asked. The app 
 ![Sequence diagram: Plan Trip](images/seq_plan_trip.png)
 4. [**View & Adjust Trip**](#uc4)\
 ![Sequence diagram: View & Adjust Trip](images/seq_view_adjust_trip.png)
-5. [**Re-plan Trip**](#uc5)\
-![Sequence diagram: Re-plan Trip](images/seq_replan_trip.png)
+5. [**Accept or Decline Disruption Suggestion**](#uc5)\
+![Sequence diagram: Accept or Decline Disruption Suggestion](images/seq_accept_decline_suggestion.png)
 
 The PlantUML sources are in [`res/`](res/).
 
