@@ -23,7 +23,12 @@ object TestTags {
     const val TAB_EXPLORE = "tabExplore"
     const val TAB_PROFILE = "tabProfile"
     const val TAB_FEED = "tabFeed"
-    const val TAB_NEARBY = "tabNearby"
+    const val TAB_GROUPS = "tabGroups"
+    const val TAB_BADGE = "tabBadge"
+    const val NEW_DOT = "newDot"
+    const val GROUPS_SECTION_MINE = "groupsSectionMine"
+    const val GROUPS_SECTION_NEARBY = "groupsSectionNearby"
+    const val FEED_NEW_ON_POSTS = "feedNewOnPosts"
 
     const val NEARBY_TRIP = "nearbyTrip"
     const val NEARBY_ASK_BUTTON = "nearbyAskButton"

@@ -33,6 +33,7 @@ fun HomeScreen(
     user: UserProfile,
     recentTrips: List<TripSummary>,
     actions: HomeActions,
+    newTripIds: Set<String> = emptySet(),
 ) {
     Scaffold(
         topBar = { TopAppBar(title = { Wordmark(style = MaterialTheme.typography.titleLarge) }) },
@@ -62,7 +63,12 @@ fun HomeScreen(
             if (recentTrips.isNotEmpty()) {
                 SectionLabel("Recent trips")
                 recentTrips.forEach { trip ->
-                    TripCard(trip, onClick = { actions.onOpenTrip(trip.id) }, modifier = Modifier.testTag(TestTags.RECENT_TRIP))
+                    TripCard(
+                        trip,
+                        onClick = { actions.onOpenTrip(trip.id) },
+                        modifier = Modifier.testTag(TestTags.RECENT_TRIP),
+                        isNew = trip.id in newTripIds,
+                    )
                 }
             }
         }

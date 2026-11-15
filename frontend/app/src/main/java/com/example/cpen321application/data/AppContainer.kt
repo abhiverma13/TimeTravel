@@ -17,6 +17,7 @@ class AppContainer(context: Context) {
     val friends = FriendRepository(retrofit.create(FriendApi::class.java))
     val posts = PostRepository(retrofit.create(PostApi::class.java))
     val nearby = NearbyRepository(retrofit.create(NearbyApi::class.java))
+    val notifications = NotificationRepository(retrofit.create(NotificationApi::class.java))
     val liveTrips = LiveTripClient(BuildConfig.API_BASE_URL, sessionStore)
     val liveEvents = LiveEventStream(BuildConfig.API_BASE_URL, sessionStore)
 }

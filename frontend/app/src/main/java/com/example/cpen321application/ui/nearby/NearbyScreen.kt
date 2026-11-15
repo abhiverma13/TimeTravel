@@ -55,7 +55,7 @@ private const val MAX_NOTE_LENGTH = 200
 /** The Nearby tab: group trips near you that are open to new members. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NearbyScreen(viewModel: NearbyViewModel) {
+fun NearbyScreen(viewModel: NearbyViewModel, title: String = "Nearby", header: @Composable () -> Unit = {}) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     var permitted by remember { mutableStateOf(hasLocationPermission(context)) }
@@ -78,7 +78,7 @@ fun NearbyScreen(viewModel: NearbyViewModel) {
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("Nearby") },
+                title = { Text(title) },
                 actions = { if (permitted) IconButton(onClick = refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Refresh") } },
             )
         },
@@ -88,6 +88,7 @@ fun NearbyScreen(viewModel: NearbyViewModel) {
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            item { header() }
             item { Hint("Group trips within 10 km in the next week whose organizers welcome new people. You only see their plan, never where anyone is or stays.") }
             when {
                 !permitted -> item {

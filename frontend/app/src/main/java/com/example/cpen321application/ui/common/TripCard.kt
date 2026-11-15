@@ -1,11 +1,14 @@
 package com.example.cpen321application.ui.common
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.cpen321application.data.TripSummary
@@ -26,12 +29,15 @@ fun tripDatesText(startDate: String, endDate: String): String {
 
 /** A saved trip in a list: city, dates and number of stops, marked when it is a group trip. */
 @Composable
-fun TripCard(trip: TripSummary, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun TripCard(trip: TripSummary, onClick: () -> Unit, modifier: Modifier = Modifier, isNew: Boolean = false) {
     val dates = tripDatesText(trip)
     val group = if (trip.groupId != null) " · Group trip" else ""
     BrandCard(onClick = onClick, modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(trip.city, style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(trip.city, style = MaterialTheme.typography.titleMedium)
+                if (isNew) NewDot()
+            }
             Text(
                 text = "$dates · ${countText(trip.stopCount, "stop")}$group",
                 style = MaterialTheme.typography.bodyMedium,

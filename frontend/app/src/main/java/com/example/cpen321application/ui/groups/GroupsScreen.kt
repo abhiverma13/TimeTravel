@@ -25,18 +25,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.cpen321application.data.GroupSummary
 import com.example.cpen321application.data.ROLE_OWNER
 import com.example.cpen321application.ui.common.BrandCard
+import com.example.cpen321application.ui.common.NewDot
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.countText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GroupsScreen(viewModel: GroupsViewModel, onBack: () -> Unit, onOpenGroup: (String) -> Unit) {
+fun GroupsScreen(
+    viewModel: GroupsViewModel,
+    onBack: (() -> Unit)?,
+    onOpenGroup: (String) -> Unit,
+    newGroupIds: Set<String> = emptySet(),
+    header: @Composable () -> Unit = {},
+) {
     val state by viewModel.state.collectAsState()
     LaunchedEffect(Unit) { viewModel.refresh() }
     LaunchedEffect(state.openedGroupId) {
@@ -49,7 +57,11 @@ fun GroupsScreen(viewModel: GroupsViewModel, onBack: () -> Unit, onOpenGroup: (S
         topBar = {
             TopAppBar(
                 title = { Text("Groups") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    }
+                },
             )
         },
     ) { innerPadding ->
@@ -57,6 +69,7 @@ fun GroupsScreen(viewModel: GroupsViewModel, onBack: () -> Unit, onOpenGroup: (S
             modifier = Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            header()
             Text("Plan trips together. Everyone's interests and vetoes shape the group's trips.", style = MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
@@ -70,7 +83,7 @@ fun GroupsScreen(viewModel: GroupsViewModel, onBack: () -> Unit, onOpenGroup: (S
                     modifier = Modifier.weight(1f).testTag(TestTags.GROUPS_JOIN_BUTTON),
                 ) { Text("Join with a code") }
             }
-            GroupList(state, onRetry = viewModel::refresh, onOpenGroup = onOpenGroup)
+            GroupList(state, newGroupIds, onRetry = viewModel::refresh, onOpenGroup = onOpenGroup)
         }
     }
     state.dialog?.let { dialog ->
@@ -85,7 +98,7 @@ fun GroupsScreen(viewModel: GroupsViewModel, onBack: () -> Unit, onOpenGroup: (S
 }
 
 @Composable
-private fun GroupList(state: GroupsUiState, onRetry: () -> Unit, onOpenGroup: (String) -> Unit) {
+private fun GroupList(state: GroupsUiState, newGroupIds: Set<String>, onRetry: () -> Unit, onOpenGroup: (String) -> Unit) {
     when {
         state.loading -> CircularProgressIndicator()
         state.error != null -> Column {
@@ -98,15 +111,18 @@ private fun GroupList(state: GroupsUiState, onRetry: () -> Unit, onOpenGroup: (S
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.testTag(TestTags.GROUPS_EMPTY),
         )
-        else -> state.groups.forEach { group -> GroupCard(group, onClick = { onOpenGroup(group.id) }) }
+        else -> state.groups.forEach { group -> GroupCard(group, isNew = group.id in newGroupIds, onClick = { onOpenGroup(group.id) }) }
     }
 }
 
 @Composable
-private fun GroupCard(group: GroupSummary, onClick: () -> Unit) {
+private fun GroupCard(group: GroupSummary, isNew: Boolean, onClick: () -> Unit) {
     BrandCard(onClick = onClick, modifier = Modifier.fillMaxWidth().testTag(TestTags.GROUP_CARD)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(group.name, style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(group.name, style = MaterialTheme.typography.titleMedium)
+                if (isNew) NewDot()
+            }
             Text(
                 text = countText(group.memberCount, "member") + if (group.myRole == ROLE_OWNER) " · You own this group" else "",
                 style = MaterialTheme.typography.bodyMedium,

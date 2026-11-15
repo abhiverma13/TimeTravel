@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -34,6 +36,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.cpen321application.data.NotificationAreas
+import com.example.cpen321application.ui.builder.TripBuilderScreen
+import com.example.cpen321application.ui.builder.TripBuilderViewModel
+import com.example.cpen321application.ui.builder.TripGroup
 import com.example.cpen321application.ui.common.FullScreenLoading
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.appViewModel
@@ -52,33 +58,29 @@ import com.example.cpen321application.ui.friends.TravellerViewModel
 import com.example.cpen321application.ui.groups.GroupDetailActions
 import com.example.cpen321application.ui.groups.GroupDetailScreen
 import com.example.cpen321application.ui.groups.GroupDetailViewModel
-import com.example.cpen321application.ui.groups.GroupsScreen
+import com.example.cpen321application.ui.groups.GroupsTab
 import com.example.cpen321application.ui.groups.GroupsViewModel
 import com.example.cpen321application.ui.home.HomeActions
 import com.example.cpen321application.ui.home.HomeScreen
 import com.example.cpen321application.ui.home.HomeViewModel
 import com.example.cpen321application.ui.home.ProfileDialog
-import com.example.cpen321application.ui.trip.TripDependencies
-import com.example.cpen321application.ui.trip.TripScreen
-import com.example.cpen321application.ui.trip.TripViewModel
 import com.example.cpen321application.ui.map.MapScreen
 import com.example.cpen321application.ui.map.MapViewModel
-import com.example.cpen321application.ui.nearby.NearbyScreen
 import com.example.cpen321application.ui.nearby.NearbyViewModel
+import com.example.cpen321application.ui.notifications.UnreadViewModel
 import com.example.cpen321application.ui.profile.ProfileActions
 import com.example.cpen321application.ui.profile.ProfileScreen
 import com.example.cpen321application.ui.profile.ProfileViewModel
 import com.example.cpen321application.ui.signin.SignInScreen
-import com.example.cpen321application.ui.builder.TripBuilderScreen
-import com.example.cpen321application.ui.builder.TripBuilderViewModel
-import com.example.cpen321application.ui.builder.TripGroup
+import com.example.cpen321application.ui.trip.TripDependencies
+import com.example.cpen321application.ui.trip.TripScreen
+import com.example.cpen321application.ui.trip.TripViewModel
 
 private object Routes {
     const val HOME = "home"
     const val EXPLORE = "explore"
     const val PROFILE = "profile"
     const val FEED = "feed"
-    const val NEARBY = "nearby"
     const val POST_ID = "postId"
     const val POST = "post/{$POST_ID}"
     const val FIND_FRIENDS = "findFriends"
@@ -110,15 +112,15 @@ private object Routes {
 // Used to prefill searches until the traveller sets a home city.
 private const val DEFAULT_CITY = "Vancouver"
 
-/** A destination in the bottom navigation bar. */
-private class Tab(val route: String, val label: String, val icon: ImageVector, val testTag: String)
+/** A destination in the bottom navigation bar; `area` is the part of the app whose unread notifications give it a red dot. */
+private class Tab(val route: String, val label: String, val icon: ImageVector, val testTag: String, val area: String?)
 
 private val TABS = listOf(
-    Tab(Routes.HOME, "Trips", Icons.Filled.Home, TestTags.TAB_TRIPS),
-    Tab(Routes.EXPLORE, "Explore", Icons.Filled.Search, TestTags.TAB_EXPLORE),
-    Tab(Routes.NEARBY, "Nearby", Icons.Filled.LocationOn, TestTags.TAB_NEARBY),
-    Tab(Routes.FEED, "Feed", Icons.AutoMirrored.Filled.List, TestTags.TAB_FEED),
-    Tab(Routes.PROFILE, "Profile", Icons.Filled.Person, TestTags.TAB_PROFILE),
+    Tab(Routes.HOME, "Trips", Icons.Filled.Home, TestTags.TAB_TRIPS, NotificationAreas.TRIPS),
+    Tab(Routes.EXPLORE, "Explore", Icons.Filled.Search, TestTags.TAB_EXPLORE, null),
+    Tab(Routes.GROUPS, "Groups", Icons.Filled.Face, TestTags.TAB_GROUPS, NotificationAreas.GROUPS),
+    Tab(Routes.FEED, "Feed", Icons.AutoMirrored.Filled.List, TestTags.TAB_FEED, NotificationAreas.FEED),
+    Tab(Routes.PROFILE, "Profile", Icons.Filled.Person, TestTags.TAB_PROFILE, NotificationAreas.PROFILE),
 )
 
 /** Shows sign-in until there is a session, then the signed-in screens. */
@@ -152,11 +154,25 @@ fun TimeTravelApp() {
 }
 
 // The tabs show the bottom bar; screens opened from them cover it until the traveller goes back. Live events from other
-// travellers ("Ava joined Crew") show briefly over whichever screen is open.
+// travellers ("Ava joined Crew") show briefly over whichever screen is open, and a red dot marks each tab with something
+// new until the traveller opens it.
 @Composable
 private fun SignedInScreens(session: SessionState.SignedIn, viewModel: SessionViewModel) {
     val navController = rememberNavController()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    val unread = appViewModel(key = "unread-${session.user.id}") { UnreadViewModel(it.notifications, it.liveEvents.events) }
+    val unreadState by unread.state.collectAsState()
+    val openArea = TABS.firstOrNull { it.route == currentRoute }?.area
+    val waiting = openArea?.let { unreadState.counts[it] } ?: 0
+    LaunchedEffect(openArea) { openArea?.let { unread.open(it, sameVisit = false) } }
+    LaunchedEffect(openArea, waiting) { if (openArea != null && waiting > 0) unread.open(openArea, sameVisit = true) }
+    val selectTab: (String) -> Unit = { route ->
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
     val notices = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {
         viewModel.liveEvents.collect { event -> notices.showSnackbar(event.text) }
@@ -165,13 +181,7 @@ private fun SignedInScreens(session: SessionState.SignedIn, viewModel: SessionVi
         snackbarHost = { SnackbarHost(notices, modifier = Modifier.testTag(TestTags.LIVE_EVENT_NOTICE)) },
         bottomBar = {
             if (TABS.any { it.route == currentRoute }) {
-                TabBar(currentRoute) { route ->
-                    navController.navigate(route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                }
+                TabBar(currentRoute, unreadState.counts, selectTab)
             }
         },
     ) { innerPadding ->
@@ -180,23 +190,28 @@ private fun SignedInScreens(session: SessionState.SignedIn, viewModel: SessionVi
             startDestination = Routes.HOME,
             modifier = Modifier.padding(innerPadding).consumeWindowInsets(innerPadding),
         ) {
-            tabScreens(navController, session, viewModel)
+            tabScreens(navController, session, viewModel, TabExtras(unread, selectTab))
             tripScreens(navController, session)
             groupScreens(navController, session)
             friendScreens(navController)
-            feedScreens(navController)
+            feedScreens(navController, unread)
         }
     }
 }
 
 @Composable
-private fun TabBar(currentRoute: String?, onSelect: (String) -> Unit) {
+private fun TabBar(currentRoute: String?, unread: Map<String, Int>, onSelect: (String) -> Unit) {
     NavigationBar {
         TABS.forEach { tab ->
+            val hasNew = (tab.area?.let { unread[it] } ?: 0) > 0
             NavigationBarItem(
                 selected = tab.route == currentRoute,
                 onClick = { onSelect(tab.route) },
-                icon = { Icon(tab.icon, contentDescription = null) },
+                icon = {
+                    BadgedBox(badge = { if (hasNew) Badge(Modifier.testTag(TestTags.TAB_BADGE)) }) {
+                        Icon(tab.icon, contentDescription = if (hasNew) "${tab.label}, new activity" else null)
+                    }
+                },
                 label = { Text(tab.label) },
                 modifier = Modifier.testTag(tab.testTag),
             )
@@ -204,7 +219,15 @@ private fun TabBar(currentRoute: String?, onSelect: (String) -> Unit) {
     }
 }
 
-private fun NavGraphBuilder.tabScreens(navController: NavHostController, session: SessionState.SignedIn, viewModel: SessionViewModel) {
+/** What the tabs need besides navigation: the red dots, and a way to switch tab from inside one. */
+private class TabExtras(val unread: UnreadViewModel, val selectTab: (String) -> Unit)
+
+private fun NavGraphBuilder.tabScreens(
+    navController: NavHostController,
+    session: SessionState.SignedIn,
+    viewModel: SessionViewModel,
+    extras: TabExtras,
+) {
     composable(Routes.HOME) {
         val home = appViewModel { HomeViewModel(it.repository, it.liveEvents.events) }
         val recentTrips by home.recentTrips.collectAsState()
@@ -212,9 +235,10 @@ private fun NavGraphBuilder.tabScreens(navController: NavHostController, session
         HomeScreen(
             user = session.user,
             recentTrips = recentTrips,
+            newTripIds = extras.unread.state.collectAsState().value.freshIn(NotificationAreas.TRIPS).mapNotNull { it.tripId }.toSet(),
             actions = HomeActions(
                 onPlanTrip = { navController.navigate(Routes.tripBuilder()) },
-                onGroups = { navController.navigate(Routes.GROUPS) },
+                onGroups = { extras.selectTab(Routes.GROUPS) },
                 onOpenTrip = { navController.navigate(Routes.trip(it)) },
             ),
         )
@@ -223,8 +247,13 @@ private fun NavGraphBuilder.tabScreens(navController: NavHostController, session
         val startCity = session.user.homeCity.ifBlank { DEFAULT_CITY }
         ExploreScreen(viewModel = appViewModel { ExploreViewModel(it.repository, startCity) })
     }
-    composable(Routes.NEARBY) {
-        NearbyScreen(viewModel = appViewModel { NearbyViewModel(it.nearby, it.liveEvents.events) })
+    composable(Routes.GROUPS) {
+        GroupsTab(
+            groups = appViewModel { GroupsViewModel(it.groups, it.liveEvents.events) },
+            nearby = appViewModel { NearbyViewModel(it.nearby, it.liveEvents.events) },
+            newGroupIds = extras.unread.state.collectAsState().value.freshIn(NotificationAreas.GROUPS).mapNotNull { it.groupId }.toSet(),
+            onOpenGroup = { groupId -> navController.navigate(Routes.group(groupId)) },
+        )
     }
     composable(Routes.PROFILE) {
         ProfileScreen(
@@ -258,12 +287,13 @@ private fun NavGraphBuilder.friendScreens(navController: NavHostController) {
     }
 }
 
-private fun NavGraphBuilder.feedScreens(navController: NavHostController) {
+private fun NavGraphBuilder.feedScreens(navController: NavHostController, unread: UnreadViewModel) {
     composable(Routes.FEED) {
         FeedScreen(
             viewModel = appViewModel { FeedViewModel(it.posts) },
             onOpenPost = { navController.navigate(Routes.post(it)) },
             onOpenTraveller = { navController.navigate(Routes.traveller(it)) },
+            newOnYourPosts = unread.state.collectAsState().value.freshIn(NotificationAreas.FEED),
         )
     }
     composable(Routes.POST) { entry ->
@@ -321,13 +351,6 @@ private fun NavGraphBuilder.tripScreens(navController: NavHostController, sessio
 }
 
 private fun NavGraphBuilder.groupScreens(navController: NavHostController, session: SessionState.SignedIn) {
-    composable(Routes.GROUPS) {
-        GroupsScreen(
-            viewModel = appViewModel { GroupsViewModel(it.groups, it.liveEvents.events) },
-            onBack = navController::popBackStack,
-            onOpenGroup = { groupId -> navController.navigate(Routes.group(groupId)) },
-        )
-    }
     composable(Routes.GROUP) { entry ->
         val groupId = entry.arguments?.getString(Routes.GROUP_ID).orEmpty()
         GroupDetailScreen(

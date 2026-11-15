@@ -15,6 +15,8 @@ import org.json.JSONObject
 /** Something another traveller (or the disruption timer) did that concerns you, pushed live: "Ava joined Crew". */
 data class LiveEvent(
     val type: String,
+    /** The part of the app it belongs to: one of [NotificationAreas]. */
+    val area: String,
     val text: String,
     val actorId: String,
     val groupId: String? = null,
