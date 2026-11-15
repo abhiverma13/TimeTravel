@@ -61,6 +61,27 @@ afterAll(stopTestDatabase);
 
 // Interface Disruption timer: checkActiveTrips()
 describe('Mocked: Disruption timer: checkActiveTrips()', () => {
+  // Mocked behavior: Google's status lookup fails; the last check (more than 6 hours ago) found Town Museum closed
+  // Input: the timer runs on Saturday morning with no rain
+  // Expected status code: none (timer)
+  // Expected behavior: the venue keeps its last known status, so it is still treated as closed; the failure is logged
+  // Expected output: one "closed" suggestion for Town Museum
+  test('A failed status check keeps the last known closure', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const places = placesWithClosedMuseum();
+    places.businessStatus.mockRejectedValue(new Error('Places is down'));
+    const { disruptionService, pushed } = await tripUnderWay({ placesClient: places });
+    await ActivityModel.updateOne(
+      { placeId: 'testville-museum' },
+      { $set: { businessStatus: 'CLOSED_TEMPORARILY', statusCheckedAt: new Date('2026-10-23T08:00:00Z') } },
+    );
+
+    await disruptionService.checkActiveTrips();
+
+    expect(pushed.map((suggestion) => [suggestion.reason, suggestion.activityName])).toEqual([['closed', 'Town Museum']]);
+    expect(warn).toHaveBeenCalledWith('Venue status unavailable; using the last known status', expect.any(Error));
+  });
+
   // Mocked behavior: OpenWeather forecasts a 90% chance of rain all Saturday
   // Input: the timer runs twice on Saturday morning
   // Expected status code: none (timer)

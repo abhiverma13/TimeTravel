@@ -95,6 +95,25 @@ describe('Mocked: GET /api/groups', () => {
 
 // Interface POST /api/groups/join
 describe('Mocked: POST /api/groups/join', () => {
+  // Mocked behavior: the group is deleted between finding it by its code and adding the traveller
+  // Input: { inviteCode } of a group that then disappears
+  // Expected status code: 404
+  // Expected behavior: the traveller is told the group is gone, not that it is full
+  // Expected output: { error: "Group not found" }
+  test('Group deleted while joining', async () => {
+    const { app, authService } = createTestApp();
+    const owner = await signedInUser(authService, 'Owner');
+    const joiner = await signedInUser(authService, 'Joiner');
+    const group = (await request(app).post('/api/groups').set(owner.authorization).send({ name: 'Crew' })).body as GroupDto;
+    jest.spyOn(GroupModel, 'findOneAndUpdate').mockResolvedValueOnce(null);
+    jest.spyOn(GroupModel, 'findById').mockResolvedValueOnce(null);
+
+    const response = await request(app).post('/api/groups/join').set(joiner.authorization).send({ inviteCode: group.inviteCode });
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'Group not found' });
+  });
+
   // Mocked behavior: adding the member to the group fails
   // Input: a valid invite code
   // Expected status code: 500

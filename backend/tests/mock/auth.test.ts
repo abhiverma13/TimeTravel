@@ -100,17 +100,38 @@ describe('Mocked: POST /api/auth/google', () => {
 
   // Mocked behavior: none needed; the server was started without GOOGLE_CLIENT_ID
   // Input: { idToken: "valid-google-token" }
-  // Expected status code: 401
-  // Expected behavior: Google is never called because the audience is unknown
-  // Expected output: { error: "Invalid Google ID token" }
+  // Expected status code: 503
+  // Expected behavior: Google is never called because the audience is unknown; the error blames the server, not the
+  //                    traveller's token
+  // Expected output: { error: "Google sign-in is unavailable right now; please try again later" }
   test('Server missing GOOGLE_CLIENT_ID', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const verifyIdToken = mockGoogleClaims({ sub: 'google-sub-123', email: 'ada@example.com' });
     const { app } = createTestApp({ verifyGoogleToken: createGoogleTokenVerifier('') });
 
     const response = await request(app).post('/api/auth/google').send({ idToken: 'valid-google-token' });
 
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({ error: 'Google sign-in is unavailable right now; please try again later' });
     expect(verifyIdToken).not.toHaveBeenCalled();
+  });
+
+  // Mocked behavior: Google cannot be reached to fetch its signing keys (a network error, ENOTFOUND)
+  // Input: { idToken: "valid-google-token" }, using the production verifier wrapper
+  // Expected status code: 503
+  // Expected behavior: the traveller is told the server cannot sign anyone in right now, not that their token is invalid
+  // Expected output: { error: "Google sign-in is unavailable right now; please try again later" }
+  test('Google cannot be reached', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    jest.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockImplementation(() => {
+      throw Object.assign(new Error('getaddrinfo ENOTFOUND www.googleapis.com'), { code: 'ENOTFOUND' });
+    });
+    const { app } = createTestApp({ verifyGoogleToken: createGoogleTokenVerifier(TEST_GOOGLE_CLIENT_ID) });
+
+    const response = await request(app).post('/api/auth/google').send({ idToken: 'valid-google-token' });
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({ error: 'Google sign-in is unavailable right now; please try again later' });
   });
 
   // Mocked behavior: Google verification returns the same Google account with a new display name

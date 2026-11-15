@@ -222,7 +222,9 @@ function missedMustSees(
       if (name === undefined) {
         return 'One of your must-see places is not in this city\'s activities.';
       }
-      return excludedIds.has(id) ? `${name} was vetoed by a member of the group, so it was left out.` : `${name} did not fit your days: check its opening hours.`;
+      return excludedIds.has(id)
+        ? `${name} was vetoed by a member of the group, so it was left out.`
+        : `${name} did not fit your days: check its opening hours.`;
     });
 }
 
@@ -262,6 +264,7 @@ export class TripService {
 
   async generateTrip(userId: string, input: GenerateTripInput): Promise<TripDto> {
     const startedAt = performance.now();
+    // 1. What the trip may contain: the city's activities within budget, minus anything avoided or vetoed by the group.
     const group: GroupTripPreferences | null =
       input.groupId === undefined ? null : await this.groupService.tripPreferences(userId, input.groupId);
     const catalogue = await this.activityService.listActivities(input.city);
@@ -272,6 +275,7 @@ export class TripService {
     const activities = selectActivities(catalogue, { budget: input.budget, excludedIds });
     const interests = group ? [...group.interestShares.keys()] : input.interests;
 
+    // 2. Where each day starts and ends (the lodging, or the city centre with a warning), and the planning request.
     const warnings: string[] = [];
     const lodging = await this.resolveLodging(input, catalogue, warnings);
     const request: PlanRequest = {
@@ -284,6 +288,7 @@ export class TripService {
       mustSeeIds: new Set(input.mustSeeIds),
       pace: input.pace,
     };
+    // 3. Plan every day with the Trip Engine, on real travel times where Google Routes gives them.
     const candidates = activities.map(toCandidate);
     // Real travel times among the lodging and the best candidates; the planner estimates the rest.
     const routed = pruneCandidates(candidates, request).slice(0, ROUTED_CANDIDATES);
@@ -293,6 +298,7 @@ export class TripService {
       ...(this.options.searchBudgetMsPerDay === undefined ? {} : { searchBudgetMsPerDay: this.options.searchBudgetMsPerDay }),
     });
 
+    // 4. Turn the engine's minutes back into timed stops, then store the trip with any warnings.
     const activitiesById = new Map(activities.map((activity) => [activity.id, activity]));
     const days = plan.days.map((day) => ({
       date: day.date,
@@ -565,7 +571,11 @@ export class TripService {
     const ranked = pruneCandidates(selectActivities(catalogue, { budget: trip.budget, excludedIds }).map(toCandidate), request);
     const calendarDay = request.days.at(dayIndex) ?? { date: day.date, weekday: day.weekday };
     // Adjustments must stay fast for live updates, so they use cached Routes times only, never a new request.
-    const points = [request.origin, ...days.flatMap((other) => other.stops.map((stop) => stop.location)), ...ranked.slice(0, ROUTED_CANDIDATES).map((candidate) => candidate.location)];
+    const points = [
+      request.origin,
+      ...days.flatMap((other) => other.stops.map((stop) => stop.location)),
+      ...ranked.slice(0, ROUTED_CANDIDATES).map((candidate) => candidate.location),
+    ];
     const times = await this.travelTimes.forPoints(points, trip.transportMode, false);
     return {
       day,

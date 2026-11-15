@@ -44,6 +44,27 @@ afterAll(stopTestDatabase);
 
 // Interface GET /api/activities
 describe('Mocked: GET /api/activities', () => {
+  // Mocked behavior: Google Places fails for the museum search but answers every other interest's search
+  // Input: city=Victoria, which is not cached yet
+  // Expected status code: 200
+  // Expected behavior: the searches that worked still build the city's activities; the failure is logged
+  // Expected output: the park from the other searches
+  test('Some of a city\'s searches fail', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const placesClient = placesClientReturning([harbourWalk]);
+    placesClient.searchText.mockImplementation(async (query: string) =>
+      query.startsWith('museums') ? Promise.reject(new Error('Places quota exceeded')) : Promise.resolve([harbourWalk]),
+    );
+    const { app, authService } = createTestApp({ placesClient });
+    const { authorization } = await signedInUser(authService);
+
+    const response = await request(app).get('/api/activities').query({ city: 'Victoria' }).set(authorization);
+
+    expect(response.status).toBe(200);
+    expect((response.body as { activities: ActivityDto[] }).activities.map((activity) => activity.name)).toEqual([harbourWalk.name]);
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^1 of \d+ Google Places searches failed/), expect.any(Error));
+  });
+
   // Mocked behavior: Google Places returns one park for every interest search
   // Input: city=Victoria, which is not cached yet; then the same request again
   // Expected status code: 200 both times

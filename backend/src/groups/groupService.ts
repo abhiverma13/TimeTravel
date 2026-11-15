@@ -5,6 +5,7 @@ import { Types, isValidObjectId } from 'mongoose';
 import { UserModel } from '../auth/userModel';
 import { TripModel } from '../trips/tripModel';
 import { HttpError } from '../middleware/errorHandler';
+import { isDuplicateKeyError } from '../shared/mongo';
 import { INTEREST_TAGS, type InterestTag } from '../shared/interestTags';
 import { LiveEvents, firstNameOf } from '../sync/liveEvents';
 import { type GroupDocument, type GroupMember, GroupModel, type GroupRole } from './groupModel';
@@ -15,7 +16,6 @@ export const INVITE_CODE_LENGTH = 6;
 // No 0/O or 1/I, so a code read aloud or off a screen is not mistyped.
 const INVITE_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const INVITE_CODE_ATTEMPTS = 5;
-const DUPLICATE_KEY_ERROR = 11000;
 const FORMER_MEMBER_NAME = 'Former traveller';
 
 export interface GroupMemberDto {
@@ -68,10 +68,6 @@ export type MembersLeftListener = (left: MembersLeft) => void;
 
 function randomInviteCode(): string {
   return Array.from({ length: INVITE_CODE_LENGTH }, () => INVITE_CODE_ALPHABET.charAt(randomInt(INVITE_CODE_ALPHABET.length))).join('');
-}
-
-function isDuplicateKeyError(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === DUPLICATE_KEY_ERROR;
 }
 
 function memberIds(group: GroupDocument): string[] {
@@ -179,9 +175,22 @@ export class GroupService {
       { new: true },
     );
     if (!joined) {
+      // The update matched nothing: say why, rather than assuming the group is full.
+      const group = await GroupModel.findById(groupId);
+      if (!group) {
+        throw new HttpError(404, 'Group not found');
+      }
+      if (memberOf(group, userId)) {
+        return group;
+      }
       throw new HttpError(409, 'This group is full');
     }
-    await this.events.publish(memberIds(joined), { type: 'memberJoined', actorId: userId, groupId: joined._id.toString(), text: `${await firstNameOf(userId)} joined ${joined.name}` });
+    await this.events.publish(memberIds(joined), {
+      type: 'memberJoined',
+      actorId: userId,
+      groupId: joined._id.toString(),
+      text: `${await firstNameOf(userId)} joined ${joined.name}`,
+    });
     return joined;
   }
 
@@ -243,7 +252,12 @@ export class GroupService {
     await TripModel.deleteMany({ groupId: group._id });
     await GroupModel.deleteOne({ _id: group._id });
     this.announceMembersLeft(group, memberIds(group), trips);
-    await this.events.publish(memberIds(group), { type: 'groupDeleted', actorId: userId, groupId: group._id.toString(), text: `${await firstNameOf(userId)} deleted ${group.name}` });
+    await this.events.publish(memberIds(group), {
+      type: 'groupDeleted',
+      actorId: userId,
+      groupId: group._id.toString(),
+      text: `${await firstNameOf(userId)} deleted ${group.name}`,
+    });
   }
 
   /** Every member's interests and vetoes, combined; the caller must be a member. */

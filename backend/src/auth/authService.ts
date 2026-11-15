@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { isValidObjectId } from 'mongoose';
 
 import { HttpError } from '../middleware/errorHandler';
-import type { GoogleTokenVerifier } from './googleTokenVerifier';
+import { type GoogleTokenVerifier, GoogleUnavailableError } from './googleTokenVerifier';
 import { type ProfileUpdate, UserModel, type UserProfile, toUserProfile } from './userModel';
 
 const SESSION_LIFETIME = '7d';
@@ -24,7 +24,11 @@ export class AuthService {
     let identity;
     try {
       identity = await this.verifyGoogleToken(idToken);
-    } catch {
+    } catch (error) {
+      if (error instanceof GoogleUnavailableError) {
+        console.error('Google sign-in is unavailable', error);
+        throw new HttpError(503, 'Google sign-in is unavailable right now; please try again later');
+      }
       throw new HttpError(401, 'Invalid Google ID token');
     }
 

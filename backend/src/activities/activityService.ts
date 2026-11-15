@@ -1,10 +1,11 @@
-import { Types, isValidObjectId } from 'mongoose';
+import mongoose, { Types, isValidObjectId } from 'mongoose';
 
 import { UserModel } from '../auth/userModel';
 import { haversineKm } from '../trips/engine/travelTime';
 import type { GeoPoint } from '../trips/engine/types';
 import { isScheduledOn } from '../trips/visits';
 import { HttpError } from '../middleware/errorHandler';
+import { isDuplicateKeyError } from '../shared/mongo';
 import { type ActivityDocument, ActivityModel, type CityCatalogue, CityCatalogueModel, toCityKey } from './activityModel';
 import { DEFAULT_CITY_MEAN_RATING, cityMeanRating, communityScore } from './communityScore';
 import { INTEREST_TAGS, type InterestTag, SEARCH_PHRASE_BY_TAG, interestsForPlace, typicalVisitMinutes } from './interests';
@@ -19,6 +20,8 @@ export const CATALOGUE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const VERIFIED_RADIUS_M = 150;
 const METRES_PER_KM = 1000;
 const REVIEW_LIST_LIMIT = 50;
+/** How many times a review save is tried when another save of the same review gets in first. */
+const REVIEW_SAVE_ATTEMPTS = 3;
 const FORMER_TRAVELLER = 'Former traveller';
 
 /** A place together with the interest searches that returned it. */
@@ -137,8 +140,23 @@ export class ActivityService {
     return activities.map((activity) => toActivityDto(activity, catalogue.meanRating)).sort(byCommunityScore);
   }
 
-  /** Creates or edits the traveller's review of an activity and returns its updated community score. */
-  async reviewActivity(userId: string, activityId: string, input: ReviewInput): Promise<ReviewResult> {
+  /**
+   * Creates or edits the traveller's review of an activity and returns its updated community score. Two saves of the
+   * same review at once cannot both apply: the second sees the first (a duplicate on create, a version clash on edit)
+   * and is redone as an edit of it, so the activity's counters stay right.
+   */
+  async reviewActivity(userId: string, activityId: string, input: ReviewInput, attempt = 1): Promise<ReviewResult> {
+    try {
+      return await this.saveReview(userId, activityId, input);
+    } catch (error) {
+      if (attempt < REVIEW_SAVE_ATTEMPTS && (isDuplicateKeyError(error) || error instanceof mongoose.Error.VersionError)) {
+        return this.reviewActivity(userId, activityId, input, attempt + 1);
+      }
+      throw error;
+    }
+  }
+
+  private async saveReview(userId: string, activityId: string, input: ReviewInput): Promise<ReviewResult> {
     if (!isValidObjectId(activityId) || (await ActivityModel.exists({ _id: activityId })) === null) {
       throw new HttpError(404, 'Activity not found');
     }
@@ -279,15 +297,26 @@ export class ActivityService {
     return this.importPlaces(city, places);
   }
 
-  /** One Places text search per interest tag, e.g. "museums and galleries in Vancouver". */
+  /**
+   * One Places text search per interest tag, e.g. "museums and galleries in Vancouver". The searches that work are
+   * kept when others fail; only when every one fails is the city's search a failure.
+   */
   private async searchCity(placesClient: PlacesClient, city: string): Promise<TaggedPlace[]> {
-    const results = await Promise.all(
+    const results = await Promise.allSettled(
       INTEREST_TAGS.map(async (tag) => {
         const phrase = SEARCH_PHRASE_BY_TAG.get(tag) ?? tag;
         const places = await placesClient.searchText(`${phrase} in ${city}`);
         return places.map((place) => ({ ...place, foundBy: [tag] }));
       }),
     );
-    return results.flat();
+    const found = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+    const failures: unknown[] = results.flatMap((result) => (result.status === 'rejected' ? [result.reason as unknown] : []));
+    if (found.length === 0) {
+      throw failures.at(0);
+    }
+    if (failures.length > 0) {
+      console.warn(`${String(failures.length)} of ${String(results.length)} Google Places searches failed; keeping the rest`, failures.at(0));
+    }
+    return found.flat();
   }
 }

@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { isValidObjectId } from 'mongoose';
 import { z } from 'zod';
 
 import type { AuthService } from '../auth/authService';
 import { authenticatedUserId, requireSession } from '../middleware/authenticate';
 import { INTEREST_TAGS } from '../shared/interestTags';
+import { objectIdOf } from '../shared/mongo';
 import { INVITE_CODE_LENGTH, type GroupService } from './groupService';
 
 const MAX_VETOES = 100;
@@ -18,7 +18,7 @@ const joinGroupBody = z.object({
 const preferencesBody = z.object({
   interests: z.array(z.enum(INTEREST_TAGS)).max(INTEREST_TAGS.length).optional(),
   vetoedActivityIds: z
-    .array(z.string().refine((id) => isValidObjectId(id), 'must be an activity id'))
+    .array(objectIdOf('an activity'))
     .max(MAX_VETOES)
     .optional(),
 });

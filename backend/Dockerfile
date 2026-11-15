@@ -18,4 +18,7 @@ ENV NODE_ENV=development
 # documents that the container listens on port 3000
 EXPOSE 3000
 
+# Run as the image's unprivileged "node" user rather than root, so a compromised server cannot change the image.
+USER node
+
 CMD ["npm", "run", "dev"]

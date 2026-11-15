@@ -1,19 +1,17 @@
 import { Router } from 'express';
-import { isValidObjectId } from 'mongoose';
 import { z } from 'zod';
 
 import type { AuthService } from '../auth/authService';
 import { isIsoDate } from '../trips/tripCalendar';
 import { authenticatedUserId, requireSession } from '../middleware/authenticate';
+import { objectIdOf } from '../shared/mongo';
 import { FEEDS, type PostService } from './postService';
 
 const MAX_CAPTION_LENGTH = 500;
 const MAX_COMMENT_LENGTH = 300;
 
-const objectId = (what: string) => z.string().refine((id) => isValidObjectId(id), `must be ${what} id`);
-
 const createPostBody = z.object({
-  tripId: objectId('a trip'),
+  tripId: objectIdOf('a trip'),
   rating: z.number().int().min(1).max(5),
   caption: z.string().trim().max(MAX_CAPTION_LENGTH).default(''),
   linkToOriginal: z.boolean().optional(),
@@ -22,7 +20,7 @@ const createPostBody = z.object({
 const feedQuery = z.object({
   feed: z.enum(FEEDS).default('everyone'),
   city: z.string().trim().min(1).max(80).optional(),
-  authorId: objectId('a user').optional(),
+  authorId: objectIdOf('a user').optional(),
   before: z.iso.datetime().optional(),
 });
 
@@ -54,7 +52,8 @@ export function createPostRouter(authService: AuthService, postService: PostServ
 
   router.get('/', async (request, response) => {
     const { before, ...query } = feedQuery.parse(request.query);
-    const posts = await postService.listPosts(authenticatedUserId(response), { ...query, before: before === undefined ? undefined : new Date(before) });
+    const page = { ...query, before: before === undefined ? undefined : new Date(before) };
+    const posts = await postService.listPosts(authenticatedUserId(response), page);
     response.json({ posts });
   });
 

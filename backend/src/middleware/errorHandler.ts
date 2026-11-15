@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 
+import { isDuplicateKeyError } from '../shared/mongo';
+
 /** An error whose message is safe to show to the client, with the HTTP status to send. */
 export class HttpError extends Error {
   constructor(
@@ -37,6 +39,11 @@ export function errorHandler(error: unknown, _request: Request, response: Respon
   }
   if (isMalformedJsonError(error)) {
     response.status(400).json({ error: 'Malformed JSON body' });
+    return;
+  }
+  // Two requests raced to create the same thing (a unique index refused the second): a conflict, not a crash.
+  if (isDuplicateKeyError(error)) {
+    response.status(409).json({ error: 'This was just saved by another request; please try again' });
     return;
   }
   console.error('Unhandled request error', error);

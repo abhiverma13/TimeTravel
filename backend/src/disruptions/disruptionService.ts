@@ -100,7 +100,10 @@ function toDto(suggestion: SuggestionDocument): SuggestionDto {
 /** Whether rain is likely in any forecast slot overlapping [start, end). */
 export function rainDuring(forecast: Forecast, start: number, end: number): boolean {
   return forecast.slots.some(
-    (slot) => slot.start.getTime() < end && slot.end.getTime() > start && (slot.precipitationChance >= RAIN_LIKELY || WET_CONDITIONS.has(slot.condition)),
+    (slot) =>
+      slot.start.getTime() < end &&
+      slot.end.getTime() > start &&
+      (slot.precipitationChance >= RAIN_LIKELY || WET_CONDITIONS.has(slot.condition)),
   );
 }
 
@@ -119,7 +122,17 @@ function upcomingStops(trip: TripDocument, now: number, utcOffsetSeconds: number
       const end = Date.parse(`${day.date}T${stop.endTime}:00Z`) - utcOffsetSeconds * MS_PER_SECOND;
       const upcoming = start > now && start - now <= LOOKAHEAD_MS;
       return upcoming
-        ? [{ dayIndex, activityId: stop.activityId.toString(), name: stop.name, startTime: stop.startTime, outdoor: stop.interests.includes('outdoors'), start, end }]
+        ? [
+            {
+              dayIndex,
+              activityId: stop.activityId.toString(),
+              name: stop.name,
+              startTime: stop.startTime,
+              outdoor: stop.interests.includes('outdoors'),
+              start,
+              end,
+            },
+          ]
         : [];
     }),
   );
@@ -167,8 +180,14 @@ export class DisruptionService {
    */
   async suggest(tripId: Types.ObjectId, dayIndex: number, activityId: string, reason: SuggestionReason): Promise<boolean> {
     const now = this.now();
-    const waiting = await SuggestionModel.countDocuments({ tripId, activityId: new Types.ObjectId(activityId), status: 'pending', expiresAt: { $gt: now } });
-    const proposal = waiting > 0 ? null : await this.tripService.proposeReplacement(tripId, dayIndex, activityId, reason === 'rain' ? isIndoor : () => true);
+    const waiting = await SuggestionModel.countDocuments({
+      tripId,
+      activityId: new Types.ObjectId(activityId),
+      status: 'pending',
+      expiresAt: { $gt: now },
+    });
+    const allowed = reason === 'rain' ? isIndoor : () => true;
+    const proposal = waiting > 0 ? null : await this.tripService.proposeReplacement(tripId, dayIndex, activityId, allowed);
     const trip = proposal ? await TripModel.findById(tripId) : null;
     const disrupted = trip?.days.at(dayIndex)?.stops.find((stop) => stop.activityId.toString() === activityId);
     if (!proposal || !disrupted) {
@@ -199,7 +218,12 @@ export class DisruptionService {
     }
     const group = trip?.groupId ? await GroupModel.findById(trip.groupId) : null;
     const members = group ? group.members.map((member) => member.userId) : [trip?.userId ?? ''];
-    await this.events.publish(members, { type: 'suggestion', actorId: '', tripId: tripId.toString(), text: `${problem} There is a suggestion for your ${trip?.city ?? ''} trip.` });
+    await this.events.publish(members, {
+      type: 'suggestion',
+      actorId: '',
+      tripId: tripId.toString(),
+      text: `${problem} There is a suggestion for your ${trip?.city ?? ''} trip.`,
+    });
     return true;
   }
 
@@ -305,8 +329,8 @@ export class DisruptionService {
         activity.statusCheckedAt = this.now();
         await activity.save();
       } catch (error) {
-        console.warn('Venue status unavailable', error);
-        return false;
+        // Keep the last known status: a venue known to be closed stays closed while Google cannot be reached.
+        console.warn('Venue status unavailable; using the last known status', error);
       }
     }
     return activity.businessStatus === 'CLOSED_TEMPORARILY' || activity.businessStatus === 'CLOSED_PERMANENTLY';

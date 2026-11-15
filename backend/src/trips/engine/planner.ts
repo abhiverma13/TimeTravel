@@ -1,5 +1,5 @@
 import { type RankedCandidate, pruneCandidates } from './candidates';
-import { type DayContext, type SimulatedDay, simulateDay } from './daySchedule';
+import { type DayContext, type SimulatedDay, insertAt, simulateDay } from './daySchedule';
 import { dayUtility, improveDay } from './localSearch';
 import { estimateTravelMinutes } from './travelTime';
 import type { DayPlan, Pace, PlanRequest, TravelTimeEstimator, CalendarDay, TripPlan } from './types';
@@ -28,10 +28,6 @@ export interface RoutedDay {
 }
 
 const EMPTY_DAY: SimulatedDay = { stops: [], returnTravelMinutes: 0, totalTravelMinutes: 0 };
-
-function insertAt<T>(items: readonly T[], position: number, item: T): T[] {
-  return [...items.slice(0, position), item, ...items.slice(position)];
-}
 
 /**
  * The feasible insertion with the best score density: utility / (visit length + extra travel)^exponent.

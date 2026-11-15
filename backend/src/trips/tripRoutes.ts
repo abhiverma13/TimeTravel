@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { isValidObjectId } from 'mongoose';
 import { z } from 'zod';
 
 import { INTEREST_TAGS } from '../activities/interests';
 import type { AuthService } from '../auth/authService';
 import { authenticatedUserId, requireSession } from '../middleware/authenticate';
+import { objectIdOf } from '../shared/mongo';
 import { PACES, TRANSPORT_MODES } from './engine/types';
 import { MAX_TRIP_DAYS, type TripService } from './tripService';
 import { isClockTime, isIsoDate, minutesFromClock, tripLengthDays } from './tripCalendar';
@@ -15,8 +15,8 @@ const MIN_DAY_MINUTES = 120;
 
 const isoDate = z.string().refine(isIsoDate, 'must be a date written YYYY-MM-DD');
 const clockTime = z.string().refine(isClockTime, 'must be a time written HH:MM');
-const groupId = z.string().refine((id) => isValidObjectId(id), 'must be a group id');
-const activityId = z.string().refine((id) => isValidObjectId(id), 'must be an activity id');
+const groupId = objectIdOf('a group');
+const activityId = objectIdOf('an activity');
 const MAX_MUST_SEE = 10;
 const MAX_AVOID = 50;
 

@@ -114,6 +114,25 @@ describe('Unmocked: GET /api/groups', () => {
 
 // Interface POST /api/groups/join
 describe('Unmocked: POST /api/groups/join', () => {
+  // Input: a traveller sends the same invite code twice at the same moment
+  // Expected status code: 200 both times
+  // Expected behavior: they join once; the second request finds them already in, rather than "This group is full"
+  // Expected output: the group with two members both times
+  test('Joining twice at once', async () => {
+    const { app, authService } = createTestApp();
+    const owner = await signedInUser(authService, 'Owner');
+    const joiner = await signedInUser(authService, 'Joiner');
+    const group = await createGroup(app, owner.authorization);
+
+    const responses = await Promise.all([1, 2].map(async () =>
+      request(app).post('/api/groups/join').set(joiner.authorization).send({ inviteCode: group.inviteCode }),
+    ));
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(responses.map((response) => (response.body as GroupDto).members.length)).toEqual([2, 2]);
+    expect((await GroupModel.findById(group.id))?.members).toHaveLength(2);
+  });
+
   // Input: another group's invite code, typed in lower case with spaces, by a traveller interested in outdoors
   // Expected status code: 200
   // Expected behavior: the traveller becomes a member, with their profile interests as group interests

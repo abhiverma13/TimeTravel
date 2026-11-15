@@ -147,7 +147,10 @@ const tripSchema = new Schema<Trip>(
     openToJoin: { type: Boolean, default: false },
     copiedFrom: {
       type: new Schema<CopiedFrom>(
-        { postId: { type: Schema.Types.ObjectId, ref: 'Post', required: true }, authorId: { type: Schema.Types.ObjectId, ref: 'User', required: true } },
+        {
+          postId: { type: Schema.Types.ObjectId, ref: 'Post', required: true },
+          authorId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+        },
         { _id: false },
       ),
       default: undefined,

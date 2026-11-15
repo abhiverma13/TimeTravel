@@ -54,6 +54,26 @@ afterAll(stopTestDatabase);
 
 // Interface POST /api/activities/:activityId/reviews
 describe('Unmocked: POST /api/activities/:activityId/reviews', () => {
+  // Input: the same traveller sends two reviews of an activity at the same moment, { rating: 4 } and { rating: 5 }
+  // Expected status code: 201 and 200, in either order
+  // Expected behavior: one review is created and the other edits it; the activity counts one review
+  // Expected output: the activity has 1 review, rated 4 or 5
+  test('Two reviews sent at once count as one', async () => {
+    const { app, authService, activityService } = createTestApp();
+    const { authorization } = await signedInUser(authService);
+    await seedVancouver(activityService);
+    const activityId = await activityIdFor('demo-vancouver-aquarium');
+
+    const responses = await Promise.all([4, 5].map(async (rating) =>
+      request(app).post(`/api/activities/${activityId}/reviews`).set(authorization).send({ rating }),
+    ));
+
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 201]);
+    const activity = await ActivityModel.findById(activityId);
+    expect(activity?.reviewCount).toBe(1);
+    expect([4, 5]).toContain(activity?.reviewRatingSum);
+  });
+
   // Input: rating 4 with a comment, from a traveller who has not reviewed this activity
   // Expected status code: 201
   // Expected behavior: the review is stored and the activity's review count and community score are updated

@@ -215,9 +215,11 @@ export class PostService {
     };
     const posts = await PostModel.find(filter).sort({ createdAt: -1, _id: -1 }).limit(FEED_PAGE_SIZE);
     const originals = await PostModel.find({ _id: { $in: posts.flatMap((post) => post.originalPostId ?? []) } }, { authorId: 1 });
-    const names = await authorNames([...posts, ...originals].map((post) => post.authorId));
-    const commentCounts = await this.commentCounts(posts);
-    const ratings = await linkedRatings(posts);
+    const [names, commentCounts, ratings] = await Promise.all([
+      authorNames([...posts, ...originals].map((post) => post.authorId)),
+      this.commentCounts(posts),
+      linkedRatings(posts),
+    ]);
     const plannerOf = new Map(originals.map((original) => [original._id.toString(), original.authorId]));
     return posts.map((post) =>
       this.toPostDto(viewerId, post, {
@@ -272,7 +274,8 @@ export class PostService {
   async setLike(viewerId: string, postId: string, liked: boolean): Promise<LikeState> {
     const post = await this.requireVisible(viewerId, postId);
     const viewer = new Types.ObjectId(viewerId);
-    const updated = await PostModel.findByIdAndUpdate(post._id, liked ? { $addToSet: { likedBy: viewer } } : { $pull: { likedBy: viewer } }, { new: true });
+    const change = liked ? { $addToSet: { likedBy: viewer } } : { $pull: { likedBy: viewer } };
+    const updated = await PostModel.findByIdAndUpdate(post._id, change, { new: true });
     if (!updated) {
       throw new HttpError(404, 'Post not found');
     }

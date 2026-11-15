@@ -1,4 +1,5 @@
 import request from 'supertest';
+import mongoose from 'mongoose';
 
 import { ActivityModel, CityCatalogueModel } from '../../src/activities/activityModel';
 import type { ActivityDto } from '../../src/activities/activityService';
@@ -25,6 +26,73 @@ afterAll(stopTestDatabase);
 
 // Interface POST /api/activities/:activityId/reviews
 describe('Mocked: POST /api/activities/:activityId/reviews', () => {
+  // Mocked behavior: another request saves the same traveller's review of the activity just before this one creates it
+  //                 (the unique index refuses the second create)
+  // Input: { rating: 4 } for an activity the traveller had not reviewed
+  // Expected status code: 200
+  // Expected behavior: the save is redone as an edit of the review that won, so the activity counts one review
+  // Expected output: the review with rating 4; the activity has 1 review summing to 4
+  test('Another save of the same review gets in first', async () => {
+    const { app, authService, activityService } = createTestApp();
+    const { userId, authorization } = await signedInUser(authService);
+    await seedVancouver(activityService);
+    const activityId = await aquariumId();
+    const create = ReviewModel.create.bind(ReviewModel);
+    jest.spyOn(ReviewModel, 'create').mockImplementationOnce((async () => {
+      await create({ activityId, userId, rating: 2 });
+      await ActivityModel.updateOne({ _id: activityId }, { $inc: { reviewCount: 1, reviewRatingSum: 2 } });
+      throw Object.assign(new Error('E11000 duplicate key error'), { code: 11000 });
+    }) as never);
+
+    const response = await request(app).post(`/api/activities/${activityId}/reviews`).set(authorization).send({ rating: 4 });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ review: { rating: 4 } });
+    expect(await ActivityModel.findById(activityId)).toMatchObject({ reviewCount: 1, reviewRatingSum: 4 });
+  });
+
+  // Mocked behavior: every attempt to create the review is refused as a duplicate (another save keeps winning)
+  // Input: { rating: 4 }
+  // Expected status code: 409
+  // Expected behavior: after a few attempts the traveller is asked to try again; nothing is counted
+  // Expected output: { error: "This was just saved by another request; please try again" }
+  test('Saves of the same review keep clashing', async () => {
+    const { app, authService, activityService } = createTestApp();
+    const { authorization } = await signedInUser(authService);
+    await seedVancouver(activityService);
+    const activityId = await aquariumId();
+    jest.spyOn(ReviewModel, 'create').mockImplementation(() => {
+      throw Object.assign(new Error('E11000 duplicate key error'), { code: 11000 });
+    });
+
+    const response = await request(app).post(`/api/activities/${activityId}/reviews`).set(authorization).send({ rating: 4 });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ error: 'This was just saved by another request; please try again' });
+    expect((await ActivityModel.findById(activityId))?.reviewCount).toBe(0);
+  });
+
+  // Mocked behavior: the traveller's review changes between being read and being saved (a version clash)
+  // Input: an edit of an existing review, { rating: 5 }
+  // Expected status code: 200
+  // Expected behavior: the edit is redone on the latest review, so the counters stay right
+  // Expected output: the review with rating 5; the activity's ratings sum to 5
+  test('An edit clashes with another edit', async () => {
+    const { app, authService, activityService } = createTestApp();
+    const { authorization } = await signedInUser(authService);
+    await seedVancouver(activityService);
+    const activityId = await aquariumId();
+    await request(app).post(`/api/activities/${activityId}/reviews`).set(authorization).send({ rating: 3 });
+    jest.spyOn(ReviewModel.prototype, 'save').mockImplementationOnce(function (this: never) {
+      throw new mongoose.Error.VersionError(this, 0, []);
+    });
+
+    const response = await request(app).post(`/api/activities/${activityId}/reviews`).set(authorization).send({ rating: 5 });
+
+    expect(response.status).toBe(200);
+    expect(await ActivityModel.findById(activityId)).toMatchObject({ reviewCount: 1, reviewRatingSum: 5 });
+  });
+
   // Mocked behavior: saving the review to the review database fails
   // Input: { rating: 4 } for an existing activity
   // Expected status code: 500

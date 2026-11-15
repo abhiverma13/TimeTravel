@@ -67,6 +67,11 @@ function candidateFor(stop: TripStop, inputs: RepairInputs, pin = false): Ranked
   return pin ? pinned(candidate, stop, inputs.context.weekday) : candidate;
 }
 
+/**
+ * The ranked candidate for a stop already in the plan. A stop whose activity is no longer ranked (it left the catalogue,
+ * or a member vetoed it) is rebuilt from the stop itself, with no opening hours and no score, so the day can still be
+ * re-timed around it.
+ */
 function unpinnedCandidateFor(stop: TripStop, inputs: RepairInputs): RankedCandidate {
   const id = stop.activityId.toString();
   const ranked = inputs.ranked.get(id);
@@ -113,6 +118,7 @@ export function timedStops(
   });
 }
 
+/** Where the stop for this activity is in the day; 404 if the day has no such stop. */
 function stopIndex(day: TripDay, activityId: string): number {
   const index = day.stops.findIndex((stop) => stop.activityId.toString() === activityId);
   if (index === -1) {
@@ -121,10 +127,12 @@ function stopIndex(day: TripDay, activityId: string): number {
   return index;
 }
 
+/** Ranked candidates free to fill time: not on another day of the trip, and not in `excluded` (such as this day's stops). */
 function freePool(inputs: RepairInputs, excluded: ReadonlySet<string>): RankedCandidate[] {
   return [...inputs.ranked.values()].filter((candidate) => !inputs.usedElsewhere.has(candidate.id) && !excluded.has(candidate.id));
 }
 
+/** Locks a stop (later re-plans keep its time) or unlocks it; the day's times do not change. */
 function setLock(inputs: RepairInputs, activityId: string, locked: boolean): RepairedDay {
   const index = stopIndex(inputs.day, activityId);
   const stops = inputs.day.stops.map((stop, position) => (position === index ? { ...stop, locked } : stop));
@@ -149,7 +157,8 @@ export function replaceStop(inputs: RepairInputs, activityId: string, allowed: (
   const removed = inputs.day.stops.at(index);
   const kept = inputs.day.stops.filter((_, position) => position !== index);
   const pool = freePool(inputs, new Set([activityId])).filter(allowed);
-  const day = repairDay(kept.map((stop) => candidateFor(stop, inputs, stop.locked)), pool, inputs.context, { maxStops: inputs.maxStops, reorder: false });
+  const route = kept.map((stop) => candidateFor(stop, inputs, stop.locked));
+  const day = repairDay(route, pool, inputs.context, { maxStops: inputs.maxStops, reorder: false });
   if (day === null) {
     throw new HttpError(422, 'The rest of the day no longer fits; re-plan the day instead');
   }

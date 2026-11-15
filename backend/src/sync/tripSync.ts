@@ -122,7 +122,8 @@ async function shareLocation(socket: TripSocket, tripService: TripService, paylo
     return;
   }
   socket.data.sharingIn = new Set([...(socket.data.sharingIn ?? []), tripId]);
-  socket.to(roomFor(tripId)).emit('memberLocation', { tripId, userId: socket.data.userId, name: socket.data.name, lat, lng, at: new Date().toISOString() });
+  const location = { tripId, userId: socket.data.userId, name: socket.data.name, lat, lng, at: new Date().toISOString() };
+  socket.to(roomFor(tripId)).emit('memberLocation', location);
   acknowledge({ ok: true });
 }
 

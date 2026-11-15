@@ -21,6 +21,11 @@ export interface SimulatedDay {
   totalTravelMinutes: number;
 }
 
+/** A copy of a route with `item` inserted before position `position`, for trying every place a stop could go. */
+export function insertAt<T>(items: readonly T[], position: number, item: T): T[] {
+  return [...items.slice(0, position), item, ...items.slice(position)];
+}
+
 /** Stops start on a 15-minute grid (08:30, not 08:22), so a plan reads like one a person would make. */
 export const TIME_SLOT_MINUTES = 15;
 

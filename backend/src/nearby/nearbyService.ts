@@ -124,10 +124,16 @@ export class NearbyService {
       .filter((trip) => trip.distanceKm <= NEARBY_RADIUS_KM)
       .sort((a, b) => a.distanceKm - b.distanceKm)
       .slice(0, NEARBY_LIMIT);
-    const groups = new Map((await GroupModel.find({ _id: { $in: nearby.map((entry) => entry.trip.groupId) } })).map((group) => [group._id.toString(), group]));
-    const ownerIds = [...groups.values()].flatMap((group) => group.members.filter((member) => member.role === 'owner').map((member) => member.userId));
+    const found = await GroupModel.find({ _id: { $in: nearby.map((entry) => entry.trip.groupId) } });
+    const groups = new Map(found.map((group) => [group._id.toString(), group]));
+    const ownerIds = [...groups.values()].flatMap((group) =>
+      group.members.filter((member) => member.role === 'owner').map((member) => member.userId),
+    );
     const names = new Map((await UserModel.find({ _id: { $in: ownerIds } }, { name: 1 })).map((user) => [user._id.toString(), user.name]));
-    const requests = await JoinRequestModel.find({ requesterId: new Types.ObjectId(userId), tripId: { $in: nearby.map((entry) => entry.trip._id) } }).sort({ createdAt: 1 });
+    const requests = await JoinRequestModel.find({
+      requesterId: new Types.ObjectId(userId),
+      tripId: { $in: nearby.map((entry) => entry.trip._id) },
+    }).sort({ createdAt: 1 });
     const latestRequest = new Map(requests.map((request) => [request.tripId.toString(), request.status]));
     return nearby.flatMap(({ trip, distanceKm }) => {
       const group = groups.get(trip.groupId?.toString() ?? '');

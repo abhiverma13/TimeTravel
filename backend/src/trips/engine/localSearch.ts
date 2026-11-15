@@ -1,15 +1,11 @@
 import type { RankedCandidate } from './candidates';
-import { type DayContext, simulateDay } from './daySchedule';
+import { type DayContext, insertAt, simulateDay } from './daySchedule';
 import type { RoutedDay } from './planner';
 
 /** Stops local search once `now()` reaches `deadline` (both in milliseconds). */
 export interface SearchBudget {
   deadline: number;
   now: () => number;
-}
-
-function insertAt<T>(items: readonly T[], position: number, item: T): T[] {
-  return [...items.slice(0, position), item, ...items.slice(position)];
 }
 
 /** When the traveller is back at the lodging: the end of the last visit plus the trip back. */

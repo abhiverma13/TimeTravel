@@ -38,7 +38,8 @@ const reviewSchema = new Schema<Review>(
     },
     verified: { type: Boolean, default: false },
   },
-  { timestamps: true },
+  // A save fails (VersionError) if the review changed since it was read, so two edits at once cannot both count.
+  { timestamps: true, optimisticConcurrency: true },
 );
 // One review per traveller per activity; reviewing again edits it.
 reviewSchema.index({ activityId: 1, userId: 1 }, { unique: true });

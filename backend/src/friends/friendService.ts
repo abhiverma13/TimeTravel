@@ -2,11 +2,11 @@ import { Types, isValidObjectId } from 'mongoose';
 
 import { type UserDocument, UserModel } from '../auth/userModel';
 import { HttpError } from '../middleware/errorHandler';
+import { isDuplicateKeyError } from '../shared/mongo';
 import { LiveEvents, firstNameOf } from '../sync/liveEvents';
 import { type FriendshipDocument, FriendshipModel, pairKey } from './friendshipModel';
 
 const SEARCH_LIMIT = 20;
-const DUPLICATE_KEY_ERROR = 11000;
 
 /** How a traveller relates to the one looking: themselves, nobody yet, asked by them, asking them, or friends. */
 export type FriendRelation = 'self' | 'none' | 'requested' | 'incoming' | 'friends';
@@ -46,10 +46,6 @@ export interface FriendRequestResult {
   traveller: TravellerDto;
   /** False if nothing new was saved: already asked, already friends, or it accepted their request. */
   created: boolean;
-}
-
-function isDuplicateKeyError(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === DUPLICATE_KEY_ERROR;
 }
 
 // Searched text is matched literally, not as a pattern.
@@ -95,8 +91,11 @@ export class FriendService {
 
   async getTraveller(viewerId: string, userId: string): Promise<TravellerProfileDto> {
     const user = await this.requireUser(userId);
-    const friendCount = await FriendshipModel.countDocuments({ status: 'accepted', $or: [{ requesterId: user._id }, { recipientId: user._id }] });
-    return { ...(await this.toTraveller(viewerId, user)), friendCount };
+    const [friendCount, traveller] = await Promise.all([
+      FriendshipModel.countDocuments({ status: 'accepted', $or: [{ requesterId: user._id }, { recipientId: user._id }] }),
+      this.toTraveller(viewerId, user),
+    ]);
+    return { ...traveller, friendCount };
   }
 
   async listFriends(userId: string): Promise<FriendListsDto> {
@@ -133,10 +132,12 @@ export class FriendService {
       }
     } else if (existing.status === 'pending' && existing.recipientId.toString() === userId) {
       await FriendshipModel.updateOne({ _id: existing._id }, { $set: { status: 'accepted' } });
-      await this.events.publish([targetId], { type: 'friendAccepted', actorId: userId, text: `${await firstNameOf(userId)} accepted your friend request` });
+      const text = `${await firstNameOf(userId)} accepted your friend request`;
+      await this.events.publish([targetId], { type: 'friendAccepted', actorId: userId, text });
     }
     if (created) {
-      await this.events.publish([targetId], { type: 'friendRequest', actorId: userId, text: `${await firstNameOf(userId)} sent you a friend request` });
+      const text = `${await firstNameOf(userId)} sent you a friend request`;
+      await this.events.publish([targetId], { type: 'friendRequest', actorId: userId, text });
     }
     return { traveller: await this.toTraveller(userId, target), created };
   }
@@ -151,7 +152,8 @@ export class FriendService {
     if (!accepted) {
       throw new HttpError(404, 'Friend request not found');
     }
-    await this.events.publish([requesterId], { type: 'friendAccepted', actorId: userId, text: `${await firstNameOf(userId)} accepted your friend request` });
+    const text = `${await firstNameOf(userId)} accepted your friend request`;
+    await this.events.publish([requesterId], { type: 'friendAccepted', actorId: userId, text });
     return this.toTraveller(userId, await this.requireUser(requesterId));
   }
 
@@ -183,7 +185,9 @@ export class FriendService {
   async audience(viewerId: string): Promise<Audience> {
     const viewer = new Types.ObjectId(viewerId);
     const friendships = await FriendshipModel.find({ status: 'accepted', $or: [{ requesterId: viewer }, { recipientId: viewer }] });
-    const friendIds = [viewer, ...friendships.map((friendship) => (friendship.requesterId.equals(viewer) ? friendship.recipientId : friendship.requesterId))];
+    const otherOf = (friendship: (typeof friendships)[number]) =>
+      friendship.requesterId.equals(viewer) ? friendship.recipientId : friendship.requesterId;
+    const friendIds = [viewer, ...friendships.map(otherOf)];
     const hidden = await UserModel.find({ isPrivate: true, _id: { $nin: friendIds } }, { _id: 1 });
     return { friendIds, hiddenIds: hidden.map((user) => user._id) };
   }
