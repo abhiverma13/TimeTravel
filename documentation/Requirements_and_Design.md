@@ -22,6 +22,7 @@
 | 2026-11-12 | 4.1 | Fixed the peer review's major fault: a member removed from a group kept receiving its live locations. The Group Service now announces who lost access, and the hub disconnects them from the group's trips at once (`tripAccessLost`); every shared position also re-checks access. |
 | 2026-11-12 | 3.1, 4.1 | Added live updates for friends, groups, join requests, posts and suggestions (`liveEvent`), after CP2 feedback asked for friends being added and members joining to appear without a refresh. Each traveller's devices share a room, so one event reaches all of them. |
 | 2026-11-12 | 3.1, 3.4, 4.1, 4.2 | Added red dots for what is new, owned by a new Notification Service that keeps each live event until the traveller opens its part of the app, so the dots survive a restart. The Groups tab replaces the Nearby tab and holds both the traveller's groups and nearby trips, so the dot for group news has a tab. |
+| 2026-11-12 | 3.4, 3.5, 4.1, 4.6 | A suggestion now carries the whole proposed day with its times, and the app previews it against the day as it is before a member answers, after CP2 feedback asked to see the change first. "Dismiss" became "Decline" to match the words used everywhere else (add, remove, accept, decline). |
 | 2026-11-12 | 3.1, 4.1 | Stop times now start on a 15-minute grid (09:15 rather than 09:07), after CP2 feedback that minute-exact times looked machine-made. Rounding waits a few minutes longer, never shortens travel, and is skipped only when it would miss a closing time. |
 
 ---
@@ -93,7 +94,7 @@ Each feature is a package, and each branch of an actor's line ends at one of its
   13. **Notify Trip Party**: every member's device receives the updated plan when it changes. Included by Add Place to Trip, View & Adjust Trip, Tick Off Stops on Arrival and Re-plan Trip.
 - Use cases for feature 5: **Disruption-aware re-planning**
   14. **Monitor Trip Conditions**: on a timer, the system checks the forecast and venue status of active trips' upcoming stops.
-  15. **Re-plan Trip**: for a disrupted stop, the system suggests a new day that members accept or dismiss.
+  15. **Re-plan Trip**: for a disrupted stop, the system suggests a new day that members preview, then accept or decline.
 - Use cases for feature 6: **Friends and the trip feed**
   16. **Find Travellers**: a traveller searches for others by name or email and opens a profile.
   17. **Manage Friends**: a traveller sends, answers or cancels friend requests, or removes a friend.
@@ -249,7 +250,7 @@ Each feature is a package, and each branch of an actor's line ends at one of its
 1. Every 30 minutes, the system checks the stops starting in the next 36 hours of each trip under way: the forecast for outdoor stops (a 60% chance of rain or more) and Google's business status for every stop.
 2. The system detects a disruption: rain during an outdoor stop, or a closed venue.
 3. The system plans the day without that stop, filling the time with another activity (only indoor ones in the rain) and keeping locked stops.
-4. Every member with the trip open sees a suggestion card above the trip with the proposed day, for example "Rain is likely at 10:52 during VanDusen Botanical Garden. Swap it for Canada Place?".
+4. Every member with the trip open sees a suggestion card above the trip, for example "Rain is likely at 10:45 during VanDusen Botanical Garden. Swap it for Canada Place?", with a preview of the day if they accept: every stop with its new time, the removed stop struck through, the new one marked New, and moved ones with their old time.
 5. A member taps Accept.
 6. The system saves the new day, and every member's app shows it with "Ava accepted a suggestion: swapped VanDusen Botanical Garden for Canada Place".
 
@@ -260,7 +261,7 @@ Each feature is a package, and each branch of an actor's line ends at one of its
     - 3a1. The suggestion offers to take the stop out and keep the time free.
 - 4a. A member's device is offline or the trip is not open.
     - 4a1. The suggestion appears the next time they open the trip.
-- 5a. A member taps Dismiss.
+- 5a. A member taps Decline.
     - 5a1. The suggestion disappears and the plan stays as it is.
 - 5b. Someone changed the trip after the suggestion was made, or 12 hours passed.
     - 5b1. The suggestion is no longer shown; accepting it anyway shows "The trip changed since this suggestion; it no longer applies".
@@ -389,11 +390,11 @@ Screens from the CP1 build:
         8. `boolean suggest(ObjectId tripId, int dayIndex, String activityId, String reason)` and server event `suggestionAdded { suggestion: SuggestionDto }`
             - **Purpose**: Asks the Trip Engine for the day without the disrupted stop, saves it as a suggestion for 12 hours, and pushes it to the room, unless one is already waiting for that stop.
         9. `GET /api/suggestions?tripId=<id>` returns `{ suggestions: SuggestionDto[] }`
-            - **Purpose**: Returns the trip's waiting suggestions for its current version. `SuggestionDto` is `{ id, tripId, dayIndex, date, activityId, activityName, reason, message, proposedStops, createdAt, expiresAt }`.
+            - **Purpose**: Returns the trip's waiting suggestions for its current version. `SuggestionDto` is `{ id, tripId, dayIndex, date, activityId, activityName, reason, message, proposedStops, proposedDay, createdAt, expiresAt }`; `proposedDay` is `{ stops: [{ activityId, name, startTime, endTime, travelMinutes }], returnTravelMinutes }`, the whole day if accepted, for the preview.
         10. `POST /api/suggestions/{suggestionId}/accept` returns `TripDto`
             - **Purpose**: Saves the proposed day if the trip is unchanged (409 otherwise) and pushes it like any adjustment.
-        11. `POST /api/suggestions/{suggestionId}/dismiss` returns 204
-            - **Purpose**: Turns the suggestion down. Each suggestion is answered once (409 after that).
+        11. `POST /api/suggestions/{suggestionId}/decline` returns 204
+            - **Purpose**: Declines the suggestion; the trip stays as it is. Each suggestion is answered once (409 after that).
 
 6. **Friend Service**
     - **Purpose**: Manages traveller search, friend requests, friendships and account privacy. It is separate so the rule for who sees a traveller's details and posts lives in one place.

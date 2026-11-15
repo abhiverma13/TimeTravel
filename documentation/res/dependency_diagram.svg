@@ -57,7 +57,7 @@
 <text x="1065" y="824" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">Trip Sync &amp; Disruption Service</text>
 <text x="1065" y="850" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Socket.io room per trip: live changes and</text>
 <text x="1065" y="870" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">locations. Timer: forecast and venue</text>
-<text x="1065" y="890" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">checks, suggestions to accept or dismiss.</text>
+<text x="1065" y="890" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">checks, suggestions to accept or decline.</text>
 <rect x="585" y="810" width="390" height="112" fill="#FCF8F4" stroke="#CFC9B6" stroke-width="2"/>
 <text x="605" y="844" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" font-style="normal" fill="#1C382C" text-anchor="start">Nearby Service</text>
 <text x="605" y="870" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="normal" font-style="normal" fill="#5A6B5E" text-anchor="start">Trips open to travellers nearby,</text>

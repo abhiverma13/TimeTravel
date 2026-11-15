@@ -22,6 +22,7 @@
 | 2026-11-12 | 2.1.1 | Added the live event interfaces (`liveEvent`) for friends, groups, join requests, posts and suggestions. |
 | 2026-11-12 | 2.1.1 | Added the Notification Service interfaces (`GET /api/notifications`, `POST /api/notifications/read`). |
 | 2026-11-12 | 2.1.1 | Plan Trip's interface tests now check that every stop is on the 15-minute grid. |
+| 2026-11-12 | 2.1.1 | The suggestion interface tests check the proposed day used for the preview, and Dismiss became Decline. |
 
 ---
 
@@ -85,9 +86,9 @@
 | **POST /api/nearby/requests/:requestId/accept** | [`backend/tests/no-mock/nearby.test.ts#L287`](../backend/tests/no-mock/nearby.test.ts#L287) | [`backend/tests/mock/nearby.test.ts#L126`](../backend/tests/mock/nearby.test.ts#L126) | Group DB (the group fills up first) |
 | **POST /api/nearby/requests/:requestId/decline** | [`backend/tests/no-mock/nearby.test.ts#L345`](../backend/tests/no-mock/nearby.test.ts#L345) | [`backend/tests/mock/nearby.test.ts#L146`](../backend/tests/mock/nearby.test.ts#L146) | Join request DB |
 | **GET /api/suggestions** | [`backend/tests/no-mock/suggestions.test.ts#L43`](../backend/tests/no-mock/suggestions.test.ts#L43) | [`backend/tests/mock/suggestions.test.ts#L151`](../backend/tests/mock/suggestions.test.ts#L151) | Suggestion DB |
-| **POST /api/suggestions/:suggestionId/accept** | [`backend/tests/no-mock/suggestions.test.ts#L106`](../backend/tests/no-mock/suggestions.test.ts#L106) | [`backend/tests/mock/suggestions.test.ts#L181`](../backend/tests/mock/suggestions.test.ts#L181) | Trip DB (a change saved at the same moment), Suggestion DB |
-| **POST /api/suggestions/:suggestionId/dismiss** | [`backend/tests/no-mock/suggestions.test.ts#L169`](../backend/tests/no-mock/suggestions.test.ts#L169) | [`backend/tests/mock/suggestions.test.ts#L217`](../backend/tests/mock/suggestions.test.ts#L217) | Suggestion DB |
-| **Disruption timer: checkActiveTrips()** | [`backend/tests/no-mock/suggestions.test.ts#L191`](../backend/tests/no-mock/suggestions.test.ts#L191) | [`backend/tests/mock/suggestions.test.ts#L63`](../backend/tests/mock/suggestions.test.ts#L63), [`#L254`](../backend/tests/mock/suggestions.test.ts#L254) (through the production OpenWeather and Places clients) | OpenWeather API, Google Places API (business status), Suggestion DB |
+| **POST /api/suggestions/:suggestionId/accept** | [`backend/tests/no-mock/suggestions.test.ts#L130`](../backend/tests/no-mock/suggestions.test.ts#L130) | [`backend/tests/mock/suggestions.test.ts#L181`](../backend/tests/mock/suggestions.test.ts#L181) | Trip DB (a change saved at the same moment), Suggestion DB |
+| **POST /api/suggestions/:suggestionId/decline** | [`backend/tests/no-mock/suggestions.test.ts#L193`](../backend/tests/no-mock/suggestions.test.ts#L193) | [`backend/tests/mock/suggestions.test.ts#L217`](../backend/tests/mock/suggestions.test.ts#L217) | Suggestion DB |
+| **Disruption timer: checkActiveTrips()** | [`backend/tests/no-mock/suggestions.test.ts#L215`](../backend/tests/no-mock/suggestions.test.ts#L215) | [`backend/tests/mock/suggestions.test.ts#L63`](../backend/tests/mock/suggestions.test.ts#L63), [`#L254`](../backend/tests/mock/suggestions.test.ts#L254) (through the production OpenWeather and Places clients) | OpenWeather API, Google Places API (business status), Suggestion DB |
 | **GET /health** | [`backend/tests/no-mock/health.test.ts#L10`](../backend/tests/no-mock/health.test.ts#L10) | [`backend/tests/mock/health.test.ts#L11`](../backend/tests/mock/health.test.ts#L11) | MongoDB connection state |
 
 The tests without mocks run against a real in-memory MongoDB (`backend/tests/helpers/testDatabase.ts`) preloaded with the Vancouver catalogue, so they need no Google Places key. The engine's scheduling core also has unit tests in [`backend/tests/unit/`](../backend/tests/unit/), including a comparison against a brute-forced optimum.
