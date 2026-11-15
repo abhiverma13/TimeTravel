@@ -5,26 +5,20 @@ import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Face
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.DynamicFeed
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Luggage
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -41,6 +35,7 @@ import com.example.cpen321application.ui.builder.TripBuilderScreen
 import com.example.cpen321application.ui.builder.TripBuilderViewModel
 import com.example.cpen321application.ui.builder.TripGroup
 import com.example.cpen321application.ui.common.FullScreenLoading
+import com.example.cpen321application.ui.common.NeoSnackbarHost
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.appViewModel
 import com.example.cpen321application.ui.explore.ExploreScreen
@@ -74,6 +69,11 @@ import com.example.cpen321application.ui.profile.ProfileActions
 import com.example.cpen321application.ui.profile.ProfileScreen
 import com.example.cpen321application.ui.profile.ProfileViewModel
 import com.example.cpen321application.ui.signin.SignInScreen
+import com.example.cpen321application.ui.theme.Lime
+import com.example.cpen321application.ui.theme.Pink
+import com.example.cpen321application.ui.theme.Sky
+import com.example.cpen321application.ui.theme.Sun
+import com.example.cpen321application.ui.theme.Tangerine
 import com.example.cpen321application.ui.trip.TripDependencies
 import com.example.cpen321application.ui.trip.TripScreen
 import com.example.cpen321application.ui.trip.TripViewModel
@@ -117,15 +117,18 @@ private object Routes {
 // Used to prefill searches until the traveller sets a home city.
 private const val DEFAULT_CITY = "Vancouver"
 
-/** A destination in the bottom navigation bar; `area` is the part of the app whose unread notifications give it a red dot. */
-private class Tab(val route: String, val label: String, val icon: ImageVector, val testTag: String, val area: String?)
+/**
+ * A destination in the bottom navigation bar; `area` is the part of the app whose unread notifications give it a red dot,
+ * and `color` fills its block in the bar and the highlighter under its headline.
+ */
+class Tab(val route: String, val label: String, val icon: ImageVector, val testTag: String, val area: String?, val color: Color)
 
 private val TABS = listOf(
-    Tab(Routes.HOME, "Trips", Icons.Filled.Home, TestTags.TAB_TRIPS, NotificationAreas.TRIPS),
-    Tab(Routes.EXPLORE, "Explore", Icons.Filled.Search, TestTags.TAB_EXPLORE, null),
-    Tab(Routes.GROUPS, "Groups", Icons.Filled.Face, TestTags.TAB_GROUPS, NotificationAreas.GROUPS),
-    Tab(Routes.FEED, "Feed", Icons.AutoMirrored.Filled.List, TestTags.TAB_FEED, NotificationAreas.FEED),
-    Tab(Routes.PROFILE, "Profile", Icons.Filled.Person, TestTags.TAB_PROFILE, NotificationAreas.PROFILE),
+    Tab(Routes.HOME, "Trips", Icons.Filled.Luggage, TestTags.TAB_TRIPS, NotificationAreas.TRIPS, Lime),
+    Tab(Routes.EXPLORE, "Explore", Icons.Filled.Explore, TestTags.TAB_EXPLORE, null, Sky),
+    Tab(Routes.GROUPS, "Groups", Icons.Filled.Groups, TestTags.TAB_GROUPS, NotificationAreas.GROUPS, Tangerine),
+    Tab(Routes.FEED, "Feed", Icons.Filled.DynamicFeed, TestTags.TAB_FEED, NotificationAreas.FEED, Pink),
+    Tab(Routes.PROFILE, "Profile", Icons.Filled.AccountBox, TestTags.TAB_PROFILE, NotificationAreas.PROFILE, Sun),
 )
 
 /** Shows sign-in until there is a session, then the signed-in screens. */
@@ -183,10 +186,10 @@ private fun SignedInScreens(session: SessionState.SignedIn, viewModel: SessionVi
         viewModel.liveEvents.collect { event -> notices.showSnackbar(event.text) }
     }
     Scaffold(
-        snackbarHost = { SnackbarHost(notices, modifier = Modifier.testTag(TestTags.LIVE_EVENT_NOTICE)) },
+        snackbarHost = { NeoSnackbarHost(notices, modifier = Modifier.testTag(TestTags.LIVE_EVENT_NOTICE)) },
         bottomBar = {
             if (TABS.any { it.route == currentRoute }) {
-                TabBar(currentRoute, unreadState.counts, selectTab)
+                TabBar(TABS, currentRoute, unreadState.counts, selectTab)
             }
         },
     ) { innerPadding ->
@@ -200,26 +203,6 @@ private fun SignedInScreens(session: SessionState.SignedIn, viewModel: SessionVi
             groupScreens(navController, session)
             friendScreens(navController)
             feedScreens(navController, unread)
-        }
-    }
-}
-
-@Composable
-private fun TabBar(currentRoute: String?, unread: Map<String, Int>, onSelect: (String) -> Unit) {
-    NavigationBar {
-        TABS.forEach { tab ->
-            val hasNew = (tab.area?.let { unread[it] } ?: 0) > 0
-            NavigationBarItem(
-                selected = tab.route == currentRoute,
-                onClick = { onSelect(tab.route) },
-                icon = {
-                    BadgedBox(badge = { if (hasNew) Badge(Modifier.testTag(TestTags.TAB_BADGE)) }) {
-                        Icon(tab.icon, contentDescription = if (hasNew) "${tab.label}, new activity" else null)
-                    }
-                },
-                label = { Text(tab.label) },
-                modifier = Modifier.testTag(tab.testTag),
-            )
         }
     }
 }
@@ -370,7 +353,9 @@ private fun NavGraphBuilder.groupScreens(navController: NavHostController, sessi
     composable(Routes.GROUP) { entry ->
         val groupId = entry.arguments?.getString(Routes.GROUP_ID).orEmpty()
         GroupDetailScreen(
-            viewModel = appViewModel(key = "group-$groupId") { GroupDetailViewModel(it.groups, it.repository, it.nearby, groupId, session.user.id, it.liveEvents.events) },
+            viewModel = appViewModel(key = "group-$groupId") {
+                GroupDetailViewModel(it.groups, it.repository, it.nearby, groupId, session.user.id, it.liveEvents.events)
+            },
             actions = GroupDetailActions(
                 onBack = navController::popBackStack,
                 onPlanTrip = { id, name -> navController.navigate(Routes.tripBuilder(TripGroup(id, name))) },
