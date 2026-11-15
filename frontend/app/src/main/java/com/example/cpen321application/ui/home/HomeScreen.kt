@@ -1,33 +1,50 @@
 package com.example.cpen321application.ui.home
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.cpen321application.data.TripSummary
 import com.example.cpen321application.data.UserProfile
-import com.example.cpen321application.ui.common.BrandCard
-import com.example.cpen321application.ui.common.SectionLabel
+import com.example.cpen321application.ui.common.Neo
+import com.example.cpen321application.ui.common.NeoCard
+import com.example.cpen321application.ui.common.SectionHeader
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.TripCard
 import com.example.cpen321application.ui.common.Wordmark
+import com.example.cpen321application.ui.common.inkOn
+import com.example.cpen321application.ui.common.neoBlock
+import com.example.cpen321application.ui.theme.Blue
+import com.example.cpen321application.ui.theme.Card
+import com.example.cpen321application.ui.theme.Ink
+import com.example.cpen321application.ui.theme.Lime
+import com.example.cpen321application.ui.theme.Tangerine
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     user: UserProfile,
@@ -35,33 +52,32 @@ fun HomeScreen(
     actions: HomeActions,
     newTripIds: Set<String> = emptySet(),
 ) {
-    Scaffold(
-        topBar = { TopAppBar(title = { Wordmark(style = MaterialTheme.typography.titleLarge) }) },
-    ) { innerPadding ->
+    Scaffold(topBar = { HomeTopBar() }) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Text("Hi, ${user.name.substringBefore(' ')}", style = MaterialTheme.typography.headlineMedium)
+            Text("Hi, ${user.name.substringBefore(' ')}", style = MaterialTheme.typography.displayMedium, color = Ink)
             HomeActionCard(
                 title = "Plan a trip",
                 subtitle = "Dates, lodging, interests and pace in; a ranked, time-feasible, day-by-day plan out.",
                 onClick = actions.onPlanTrip,
+                look = ActionLook(Blue, Icons.AutoMirrored.Filled.ArrowForward, Lime),
                 modifier = Modifier.testTag(TestTags.HOME_PLAN_TRIP),
-                highlighted = true,
             )
             HomeActionCard(
                 title = "Groups",
                 subtitle = "Plan trips with friends: everyone's interests count, and anyone can veto a stop.",
                 onClick = actions.onGroups,
+                look = ActionLook(Tangerine, Icons.Filled.Groups, Card),
                 modifier = Modifier.testTag(TestTags.HOME_GROUPS),
             )
             if (recentTrips.isNotEmpty()) {
-                SectionLabel("Recent trips")
+                SectionHeader("Recent trips", Lime, modifier = Modifier.padding(top = 6.dp))
                 recentTrips.forEach { trip ->
                     TripCard(
                         trip,
@@ -82,23 +98,34 @@ data class HomeActions(
     val onOpenTrip: (String) -> Unit,
 )
 
-// A feature box like the presentation's: cream card, serif title, green bar along the bottom.
 @Composable
-private fun HomeActionCard(
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    highlighted: Boolean = false,
-) {
-    // The highlighted card is filled green, like the presentation's trip-engine box.
-    val container = if (highlighted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceContainerLowest
-    val content = if (highlighted) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurface
-    BrandCard(onClick = onClick, containerColor = container, modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, color = content)
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = content)
+private fun HomeTopBar() {
+    Wordmark(
+        style = MaterialTheme.typography.headlineSmall,
+        modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = 18.dp, top = 18.dp, bottom = 6.dp),
+    )
+}
+
+/** A home card's fill, and the icon tile in its corner with that tile's fill. */
+private class ActionLook(val fill: Color, val icon: ImageVector, val tile: Color)
+
+// A big flat colour block: chunky title, what it does, and an outlined icon tile.
+@Composable
+private fun HomeActionCard(title: String, subtitle: String, onClick: () -> Unit, look: ActionLook, modifier: Modifier = Modifier) {
+    val content = inkOn(look.fill)
+    NeoCard(onClick = onClick, color = look.fill, modifier = modifier.fillMaxWidth()) {
+        Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(title, style = MaterialTheme.typography.headlineLarge, color = content)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = content)
+            }
+            Box(
+                Modifier.size(48.dp).neoBlock(Neo.ButtonShape, look.tile, Neo.SmallShadow, Neo.SmallShadow),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(look.icon, contentDescription = null, tint = Ink, modifier = Modifier.size(26.dp))
+            }
         }
-        Box(modifier = Modifier.fillMaxWidth().height(5.dp).background(MaterialTheme.colorScheme.secondary))
+        Spacer(Modifier.height(2.dp))
     }
 }

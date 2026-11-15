@@ -5,27 +5,22 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,10 +36,27 @@ import androidx.compose.ui.unit.dp
 import com.example.cpen321application.data.MemberLocation
 import com.example.cpen321application.data.Trip
 import com.example.cpen321application.data.TripDay
-import com.example.cpen321application.ui.common.BrandCard
+import com.example.cpen321application.ui.common.ErrorNote
+import com.example.cpen321application.ui.common.Neo
+import com.example.cpen321application.ui.common.NeoButton
+import com.example.cpen321application.ui.common.NeoCard
+import com.example.cpen321application.ui.common.NeoChip
+import com.example.cpen321application.ui.common.NeoLoader
+import com.example.cpen321application.ui.common.NeoSnackbarHost
+import com.example.cpen321application.ui.common.NeoTopBar
 import com.example.cpen321application.ui.common.TestTags
+import com.example.cpen321application.ui.common.neoBlock
+import com.example.cpen321application.ui.common.neoSwitchColors
+import com.example.cpen321application.ui.theme.Blue
+import com.example.cpen321application.ui.theme.Card
+import com.example.cpen321application.ui.theme.Ink
+import com.example.cpen321application.ui.theme.InkSoft
+import com.example.cpen321application.ui.theme.PaperDeep
+import com.example.cpen321application.ui.theme.Sun
+import com.example.cpen321application.ui.theme.Tangerine
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.CameraPositionState
@@ -61,8 +73,11 @@ import java.time.format.DateTimeFormatter
 private val CHIP_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d")
 private const val BOUNDS_PADDING_PX = 120
 
+// Close enough to see the city around the lodging until the day's stops are fitted.
+private const val CITY_ZOOM = 12f
+private const val ROUTE_WIDTH_PX = 10f
+
 /** The trip map: the day's stops and route, where you are, and the members sharing their position. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(viewModel: MapViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsState()
@@ -83,13 +98,8 @@ fun MapScreen(viewModel: MapViewModel, onBack: () -> Unit) {
         }
     }
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
-        topBar = {
-            TopAppBar(
-                title = { Text(state.trip?.city?.let { "$it map" } ?: "Map") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
-            )
-        },
+        snackbarHost = { NeoSnackbarHost(snackbar) },
+        topBar = { NeoTopBar(title = state.trip?.city?.let { "$it map" } ?: "Map", onBack = onBack) },
     ) { innerPadding ->
         val trip = state.trip
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
@@ -99,8 +109,8 @@ fun MapScreen(viewModel: MapViewModel, onBack: () -> Unit) {
                     TripMap(trip.days[state.dayIndex], trip, state.members.values.toList(), permitted, Modifier.weight(1f))
                     MapPanel(state, viewModel, LocationAccess(permitted, precise), onAllow = { askPermission.launch(LOCATION_PERMISSIONS) })
                 }
-                state.error != null -> Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(20.dp))
-                else -> CircularProgressIndicator(modifier = Modifier.padding(20.dp))
+                state.error != null -> ErrorNote(state.error.orEmpty(), modifier = Modifier.padding(18.dp))
+                else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { NeoLoader() }
             }
         }
     }
@@ -109,50 +119,62 @@ fun MapScreen(viewModel: MapViewModel, onBack: () -> Unit) {
 @Composable
 private fun DayChips(trip: Trip, selected: Int, onSelect: (Int) -> Unit) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.horizontalScroll(rememberScrollState()).padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 14.dp),
     ) {
         trip.days.forEachIndexed { index, day ->
-            FilterChip(selected = index == selected, onClick = { onSelect(index) }, label = { Text(LocalDate.parse(day.date).format(CHIP_FORMAT)) })
+            NeoChip(
+                label = LocalDate.parse(day.date).format(CHIP_FORMAT),
+                selected = index == selected,
+                onClick = { onSelect(index) },
+                color = Sun,
+            )
         }
     }
 }
 
+// The map sits in a thick-outlined frame on its own hard shadow.
 @Composable
 private fun TripMap(day: TripDay, trip: Trip, members: List<MemberLocation>, showMyLocation: Boolean, modifier: Modifier) {
-    val camera = rememberCameraPositionState()
     var loaded by remember { mutableStateOf(false) }
     val lodging = LatLng(trip.lodging.lat, trip.lodging.lng)
+    val camera = rememberCameraPositionState(key = trip.id) {
+        position = CameraPosition.fromLatLngZoom(lodging, CITY_ZOOM)
+    }
     val stops = day.stops.map { LatLng(it.location.lat, it.location.lng) }
     LaunchedEffect(loaded, day.date) { if (loaded) fitTo(camera, listOf(lodging) + stops) }
-    GoogleMap(
-        modifier = modifier.fillMaxWidth().testTag(TestTags.MAP_VIEW),
-        cameraPositionState = camera,
-        properties = MapProperties(isMyLocationEnabled = showMyLocation),
-        uiSettings = MapUiSettings(myLocationButtonEnabled = showMyLocation, zoomControlsEnabled = false),
-        onMapLoaded = { loaded = true },
-    ) {
-        Polyline(points = listOf(lodging) + stops + lodging, color = MaterialTheme.colorScheme.secondary, width = 8f)
-        Marker(
-            state = rememberMarkerState(key = "lodging", position = lodging),
-            title = trip.lodging.label,
-            icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET),
-        )
-        day.stops.forEachIndexed { index, stop ->
+    Box(modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp + Neo.Shadow, bottom = Neo.Shadow)) {
+        GoogleMap(
+            modifier = Modifier.fillMaxSize().neoBlock(Neo.CardShape, PaperDeep, Neo.Shadow, Neo.Shadow).testTag(TestTags.MAP_VIEW),
+            cameraPositionState = camera,
+            properties = MapProperties(isMyLocationEnabled = showMyLocation),
+            uiSettings = MapUiSettings(myLocationButtonEnabled = showMyLocation, zoomControlsEnabled = false),
+            onMapLoaded = { loaded = true },
+        ) {
+            Polyline(points = listOf(lodging) + stops + lodging, color = Blue, width = ROUTE_WIDTH_PX)
             Marker(
-                state = rememberMarkerState(key = "${day.date}-${stop.activityId}", position = stops[index]),
-                title = "${index + 1}. ${stop.name}",
-                snippet = "${stop.startTime} to ${stop.endTime}" + if (stop.visited) " · visited" else "",
-                icon = BitmapDescriptorFactory.defaultMarker(if (stop.visited) BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_ORANGE),
+                state = rememberMarkerState(key = "lodging", position = lodging),
+                title = trip.lodging.label,
+                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET),
             )
-        }
-        members.forEach { member ->
-            Marker(
-                state = rememberMarkerState(key = "${member.userId}-${member.lat}-${member.lng}", position = LatLng(member.lat, member.lng)),
-                title = member.name,
-                snippet = "Sharing their location",
-                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE),
-            )
+            day.stops.forEachIndexed { index, stop ->
+                Marker(
+                    state = rememberMarkerState(key = "${day.date}-${stop.activityId}", position = stops[index]),
+                    title = "${index + 1}. ${stop.name}",
+                    snippet = "${stop.startTime} to ${stop.endTime}" + if (stop.visited) " · visited" else "",
+                    icon = BitmapDescriptorFactory.defaultMarker(
+                        if (stop.visited) BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_ORANGE,
+                    ),
+                )
+            }
+            members.forEach { member ->
+                Marker(
+                    state = rememberMarkerState(key = "${member.userId}-${member.lat}-${member.lng}", position = LatLng(member.lat, member.lng)),
+                    title = member.name,
+                    snippet = "Sharing their location",
+                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE),
+                )
+            }
         }
     }
 }
@@ -168,9 +190,43 @@ private class LocationAccess(val permitted: Boolean, val precise: Boolean)
 
 @Composable
 private fun MapPanel(state: MapUiState, viewModel: MapViewModel, access: LocationAccess, onAllow: () -> Unit) {
-    Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        BrandCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.MAP_NEXT_STOP)) {
-            Column(modifier = Modifier.padding(16.dp)) {
+    Column(modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        NextStopCard(state, viewModel)
+        if (!access.permitted) {
+            AllowRow("Allow location to see where you are on the map.", onAllow)
+        } else if (!access.precise && viewModel.isToday(state)) {
+            AllowRow(
+                "Ticking stops off as you arrive needs precise location; approximate location can be a kilometre out.",
+                onAllow,
+                Modifier.testTag(TestTags.MAP_PRECISE_HINT),
+            )
+        }
+        if (access.permitted && state.trip?.groupId != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Share my location with the group", style = MaterialTheme.typography.titleSmall, color = Ink, modifier = Modifier.weight(1f))
+                Switch(
+                    checked = state.sharing,
+                    onCheckedChange = viewModel::setSharing,
+                    colors = neoSwitchColors(),
+                    modifier = Modifier.testTag(TestTags.MAP_SHARE_SWITCH),
+                )
+            }
+        }
+    }
+}
+
+// The next stop on a white card with a tangerine flag tile.
+@Composable
+private fun NextStopCard(state: MapUiState, viewModel: MapViewModel) {
+    NeoCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.MAP_NEXT_STOP)) {
+        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                Modifier.size(42.dp).neoBlock(Neo.ButtonShape, Tangerine, 0.dp, 0.dp, border = Neo.ThinBorder),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Flag, contentDescription = null, tint = Ink)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 val next = viewModel.nextStop(state)
                 Text(
                     when {
@@ -179,34 +235,22 @@ private fun MapPanel(state: MapUiState, viewModel: MapViewModel, access: Locatio
                         else -> "Next: ${next.stop.name} · ${distanceText(next.metresAway)} away · ${next.stop.startTime}"
                     },
                     style = MaterialTheme.typography.titleSmall,
+                    color = Ink,
                 )
                 Text(
                     if (viewModel.isToday(state)) "Stops are ticked off as you arrive." else "On the day itself, stops are ticked off as you arrive.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = InkSoft,
                 )
             }
         }
-        if (!access.permitted) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Allow location to see where you are on the map.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                TextButton(onClick = onAllow) { Text("Allow") }
-            }
-        } else if (!access.precise && viewModel.isToday(state)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag(TestTags.MAP_PRECISE_HINT)) {
-                Text(
-                    "Ticking stops off as you arrive needs precise location; approximate location can be a kilometre out.",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = onAllow) { Text("Allow") }
-            }
-        }
-        if (access.permitted && state.trip?.groupId != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Share my location with the group", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                Switch(checked = state.sharing, onCheckedChange = viewModel::setSharing, modifier = Modifier.testTag(TestTags.MAP_SHARE_SWITCH))
-            }
-        }
+    }
+}
+
+@Composable
+private fun AllowRow(text: String, onAllow: () -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(text, style = MaterialTheme.typography.bodySmall, color = Ink, modifier = Modifier.weight(1f))
+        NeoButton("Allow", onClick = onAllow, color = Card, compact = true)
     }
 }

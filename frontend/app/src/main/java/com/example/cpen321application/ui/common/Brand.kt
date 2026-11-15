@@ -1,7 +1,6 @@
 package com.example.cpen321application.ui.common
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -17,16 +16,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.cpen321application.ui.theme.Ink
 import com.example.cpen321application.ui.theme.InkSoft
@@ -84,39 +78,4 @@ fun BrandCard(
             content = content,
         )
     }
-}
-
-// The previous look's compass rose, kept until the sign-in screen is restyled.
-private const val INNER_RING = 0.84f
-private const val LONG_ARM = 0.74f
-private const val SHORT_ARM = 0.5f
-private const val ARM_WIDTH = 0.13f
-private const val HUB = 0.05f
-private const val RING_STROKE = 0.045f
-
-/** The compass rose from the presentation's title slide, drawn in the theme's colours. */
-@Composable
-fun CompassMark(modifier: Modifier = Modifier, size: Dp = 72.dp) {
-    val dark = MaterialTheme.colorScheme.primary
-    val light = MaterialTheme.colorScheme.secondary
-    val ring = MaterialTheme.colorScheme.outlineVariant
-    Canvas(modifier = modifier.size(size)) {
-        val radius = this.size.minDimension / 2
-        drawCircle(color = dark, radius = radius * (1 - RING_STROKE), style = Stroke(width = radius * RING_STROKE * 2))
-        drawCircle(color = ring, radius = radius * INNER_RING, style = Stroke(width = radius * RING_STROKE))
-        val directions = listOf(Offset(0f, -1f), Offset(1f, 0f), Offset(0f, 1f), Offset(-1f, 0f))
-        directions.forEachIndexed { index, direction ->
-            val armLength = radius * if (index % 2 == 0) LONG_ARM else SHORT_ARM
-            drawArm(direction, armLength, radius * ARM_WIDTH, dark, light)
-        }
-        drawCircle(color = dark, radius = radius * HUB)
-    }
-}
-
-// One arm of the rose: two triangles, dark on one side and light on the other.
-private fun DrawScope.drawArm(direction: Offset, length: Float, width: Float, dark: Color, light: Color) {
-    val tip = center + direction * length
-    val side = Offset(-direction.y, direction.x) * width
-    drawPath(Path().apply { moveTo(center.x, center.y); lineTo(tip.x, tip.y); lineTo(center.x + side.x, center.y + side.y); close() }, dark)
-    drawPath(Path().apply { moveTo(center.x, center.y); lineTo(tip.x, tip.y); lineTo(center.x - side.x, center.y - side.y); close() }, light)
 }

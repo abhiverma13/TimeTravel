@@ -1,5 +1,7 @@
 package com.example.cpen321application.ui.builder
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -10,11 +12,11 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
@@ -24,7 +26,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.cpen321application.ui.common.Neo
+import com.example.cpen321application.ui.common.NeoButton
 import com.example.cpen321application.ui.common.clockTime
+import com.example.cpen321application.ui.common.neoDatePickerColors
+import com.example.cpen321application.ui.common.neoField
+import com.example.cpen321application.ui.common.neoFieldColors
+import com.example.cpen321application.ui.theme.Card
+import com.example.cpen321application.ui.theme.Ink
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -49,21 +58,34 @@ fun TimeDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
-        OutlinedTextField(
+        TextField(
             value = value ?: notSetLabel.orEmpty(),
             onValueChange = {},
             readOnly = true,
             singleLine = true,
             label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+            shape = Neo.FieldShape,
+            colors = neoFieldColors(),
+            textStyle = MaterialTheme.typography.titleMedium.copy(fontFamily = MaterialTheme.typography.labelMedium.fontFamily),
+            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable).neoField(),
         )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = Neo.ButtonShape,
+            containerColor = Card,
+            shadowElevation = 0.dp,
+            border = BorderStroke(Neo.Border, Ink),
+        ) {
             if (notSetLabel != null) {
                 DropdownMenuItem(text = { Text(notSetLabel) }, onClick = { onValueChange(null); expanded = false })
             }
             TIME_SLOTS.forEach { slot ->
-                DropdownMenuItem(text = { Text(slot) }, onClick = { onValueChange(slot); expanded = false })
+                DropdownMenuItem(
+                    text = { Text(slot, style = MaterialTheme.typography.labelMedium) },
+                    onClick = { onValueChange(slot); expanded = false },
+                )
             }
         }
     }
@@ -93,14 +115,26 @@ fun TripDatesDialog(
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(
+            NeoButton(
+                "Done",
                 onClick = { onConfirm(state.selectedStartDateMillis?.toUtcDate(), state.selectedEndDateMillis?.toUtcDate()) },
                 enabled = state.selectedStartDateMillis != null,
-            ) { Text("Done") }
+                compact = true,
+            )
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { NeoButton("Cancel", onClick = onDismiss, color = Card, compact = true) },
+        shape = Neo.CardShape,
+        colors = neoDatePickerColors(),
+        modifier = Modifier.border(Neo.Border, Ink, Neo.CardShape),
     ) {
-        DateRangePicker(state = state, title = { Text("Trip dates", modifier = Modifier.padding(start = 24.dp, top = 16.dp, end = 12.dp)) }, modifier = Modifier.height(DATE_PICKER_HEIGHT_DP.dp))
+        DateRangePicker(
+            state = state,
+            colors = neoDatePickerColors(),
+            title = {
+                Text("Trip dates", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 24.dp, top = 16.dp, end = 12.dp))
+            },
+            modifier = Modifier.height(DATE_PICKER_HEIGHT_DP.dp),
+        )
     }
 }
 
@@ -117,12 +151,28 @@ fun StartDateDialog(title: String, onConfirm: (LocalDate) -> Unit, onDismiss: ()
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = { state.selectedDateMillis?.let { onConfirm(it.toUtcDate()) } }, enabled = state.selectedDateMillis != null) {
-                Text("Done")
-            }
+            NeoButton(
+                "Done",
+                onClick = { state.selectedDateMillis?.let { onConfirm(it.toUtcDate()) } },
+                enabled = state.selectedDateMillis != null,
+                compact = true,
+            )
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { NeoButton("Cancel", onClick = onDismiss, color = Card, compact = true) },
+        shape = Neo.CardShape,
+        colors = neoDatePickerColors(),
+        modifier = Modifier.border(Neo.Border, Ink, Neo.CardShape),
     ) {
-        DatePicker(state = state, title = { Text(title, modifier = Modifier.padding(start = 24.dp, top = 16.dp, end = 12.dp)) })
+        DatePicker(
+            state = state,
+            colors = neoDatePickerColors(),
+            title = {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(start = 24.dp, top = 16.dp, end = 12.dp),
+                )
+            },
+        )
     }
 }

@@ -1,33 +1,35 @@
 package com.example.cpen321application.ui.trip
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,18 +37,26 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import com.example.cpen321application.data.Trip
 import com.example.cpen321application.data.TripDay
 import com.example.cpen321application.data.TripStop
 import com.example.cpen321application.data.LiveStatus
 import com.example.cpen321application.data.Suggestion
-import com.example.cpen321application.ui.common.BrandCard
-import com.example.cpen321application.ui.common.SectionLabel
+import com.example.cpen321application.ui.common.ErrorNote
+import com.example.cpen321application.ui.common.Neo
+import com.example.cpen321application.ui.common.NeoButton
+import com.example.cpen321application.ui.common.NeoCard
+import com.example.cpen321application.ui.common.NeoIconButton
+import com.example.cpen321application.ui.common.NeoLoader
+import com.example.cpen321application.ui.common.NeoSnackbarHost
+import com.example.cpen321application.ui.common.NeoTopBar
+import com.example.cpen321application.ui.common.Sticker
 import com.example.cpen321application.ui.common.TestTags
 import com.example.cpen321application.ui.common.clockTime
+import com.example.cpen321application.ui.common.neoBlock
 import com.example.cpen321application.ui.common.onTheGrid
 import com.example.cpen321application.ui.common.interestLabel
 import com.example.cpen321application.ui.feed.SharePostDialog
@@ -55,13 +65,23 @@ import com.example.cpen321application.ui.builder.BUDGETS
 import com.example.cpen321application.ui.builder.PACES
 import com.example.cpen321application.ui.builder.TRANSPORT_MODES
 import com.example.cpen321application.ui.builder.labelFor
+import com.example.cpen321application.ui.theme.Card
+import com.example.cpen321application.ui.theme.ErrorWash
+import com.example.cpen321application.ui.theme.Ink
+import com.example.cpen321application.ui.theme.InkSoft
+import com.example.cpen321application.ui.theme.Lime
+import com.example.cpen321application.ui.theme.Pink
+import com.example.cpen321application.ui.theme.Tangerine
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d")
+private const val DAY_TILT = -2f
+private const val TRIP_TILT = 3f
+private const val PULSE_MILLIS = 900
+private val LiveDot = 10.dp
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripScreen(viewModel: TripViewModel, share: SharePostViewModel, onBack: () -> Unit, onOpenMap: () -> Unit) {
     val state by viewModel.state.collectAsState()
@@ -84,7 +104,7 @@ fun TripScreen(viewModel: TripViewModel, share: SharePostViewModel, onBack: () -
         }
     }
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { NeoSnackbarHost(snackbar) },
         topBar = {
             val trip = (state as? TripUiState.Loaded)?.trip
             TripTopBar(trip, onBack, onOpenMap, onShare = { share.open(askLinkBack = trip?.copiedFrom != null && trip.modifiedSinceCopy) })
@@ -92,14 +112,14 @@ fun TripScreen(viewModel: TripViewModel, share: SharePostViewModel, onBack: () -
     ) { innerPadding ->
         val modifier = Modifier.fillMaxSize().padding(innerPadding)
         when (val current = state) {
-            TripUiState.Loading -> Box(modifier, contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            is TripUiState.Failed -> Column(modifier.padding(20.dp)) {
-                Text(current.message, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = viewModel::load) { Text("Try again") }
+            TripUiState.Loading -> Box(modifier, contentAlignment = Alignment.Center) { NeoLoader() }
+            is TripUiState.Failed -> Column(modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                ErrorNote(current.message)
+                NeoButton("Try again", onClick = viewModel::load, color = Card, compact = true)
             }
             is TripUiState.Loaded -> Column(modifier) {
                 if (busy) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(4.dp), color = Ink, trackColor = Lime)
                 }
                 Timeline(current.trip, live, suggestions, viewModel)
             }
@@ -112,7 +132,7 @@ fun TripScreen(viewModel: TripViewModel, share: SharePostViewModel, onBack: () -
 
 @Composable
 private fun Timeline(trip: Trip, live: LiveStatus, suggestions: List<Suggestion>, viewModel: TripViewModel) {
-    LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
+    LazyColumn(contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 28.dp)) {
         item { LiveBanner(live) }
         items(suggestions, key = { "suggestion-${it.id}" }) { suggestion ->
             SuggestionCard(
@@ -168,77 +188,111 @@ private fun stopActions(viewModel: TripViewModel, at: StopPosition, stop: TripSt
     }
 
 // The trip's city, back, and once the plan is loaded, its map and sharing it to the feed.
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TripTopBar(trip: Trip?, onBack: () -> Unit, onOpenMap: () -> Unit, onShare: () -> Unit) {
-    TopAppBar(
-        title = { Text(trip?.city?.let { "$it trip" } ?: "Trip") },
-        navigationIcon = {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-        },
-        actions = {
-            if (trip != null) {
-                IconButton(onClick = onOpenMap, modifier = Modifier.testTag(TestTags.MAP_BUTTON)) {
-                    Icon(Icons.Filled.Place, contentDescription = "Map")
-                }
-                IconButton(onClick = onShare, modifier = Modifier.testTag(TestTags.SHARE_TRIP_BUTTON)) {
-                    Icon(Icons.Filled.Share, contentDescription = "Share to the feed")
-                }
-            }
-        },
-    )
+    NeoTopBar(title = trip?.city?.let { "$it trip" } ?: "Trip", onBack = onBack) {
+        if (trip != null) {
+            NeoIconButton(
+                Icons.Filled.Map,
+                contentDescription = "Map",
+                onClick = onOpenMap,
+                color = Lime,
+                modifier = Modifier.testTag(TestTags.MAP_BUTTON),
+            )
+            NeoIconButton(
+                Icons.Filled.Share,
+                contentDescription = "Share to the feed",
+                onClick = onShare,
+                color = Pink,
+                modifier = Modifier.testTag(TestTags.SHARE_TRIP_BUTTON),
+            )
+        }
+    }
 }
 
-// Whether everyone's edits are arriving live, or the device is waiting to reconnect.
+// Whether everyone's edits are arriving live (a lime strip with a beating dot), or the device is waiting to reconnect.
 @Composable
 private fun LiveBanner(live: LiveStatus) {
-    val (text, color) = when (live) {
-        LiveStatus.LIVE -> "Live: everyone in the trip sees changes as they happen" to MaterialTheme.colorScheme.secondary
-        LiveStatus.CONNECTING -> "Connecting to live updates..." to MaterialTheme.colorScheme.onSurfaceVariant
-        LiveStatus.OFFLINE -> "Offline: live updates will resume when you reconnect" to MaterialTheme.colorScheme.error
+    val (text, fill) = when (live) {
+        LiveStatus.LIVE -> "Live: everyone in the trip sees changes as they happen" to Lime
+        LiveStatus.CONNECTING -> "Connecting to live updates..." to Card
+        LiveStatus.OFFLINE -> "Offline: live updates will resume when you reconnect" to ErrorWash
     }
-    Text(
-        text = text.uppercase(Locale.ROOT),
-        style = MaterialTheme.typography.labelSmall,
-        color = color,
-        modifier = Modifier.padding(bottom = 8.dp).testTag(TestTags.LIVE_STATUS),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp)
+            .neoBlock(Neo.ButtonShape, fill, Neo.TinyShadow, Neo.TinyShadow, border = Neo.ThinBorder)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        BeatingDot(beating = live == LiveStatus.LIVE)
+        Text(
+            text = text.uppercase(Locale.ROOT),
+            style = MaterialTheme.typography.labelSmall,
+            color = Ink,
+            modifier = Modifier.testTag(TestTags.LIVE_STATUS),
+        )
+    }
+}
+
+// An ink dot with a ring that swells and fades while the trip is live.
+@Composable
+private fun BeatingDot(beating: Boolean) {
+    val transition = rememberInfiniteTransition(label = "live")
+    val beat by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = if (beating) 1f else 0f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = PULSE_MILLIS), RepeatMode.Restart),
+        label = "beat",
+    )
+    Box(
+        Modifier
+            .size(LiveDot)
+            .drawBehind { drawCircle(Ink.copy(alpha = 1 - beat), radius = size.minDimension / 2 * (1 + beat)) }
+            .background(Ink, Neo.PillShape),
     )
 }
 
+// The plan's basis: where it starts from, the pace and interests, how it gets around, and how it was made.
 @Composable
 private fun Summary(trip: Trip) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-        BrandCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                SectionLabel(if (trip.groupId != null) "Your group's trip" else "Your trip")
-                Text("From ${trip.lodging.label}", style = MaterialTheme.typography.titleMedium)
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+        NeoCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Sticker(if (trip.groupId != null) "Your group's trip" else "Your trip", color = Lime, tilt = TRIP_TILT)
+                Text(
+                    "From ${trip.lodging.label}",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Ink,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
                 val pace = PACES.firstOrNull { it.first == trip.pace }?.second ?: trip.pace
                 val interests = trip.interests.joinToString(", ") { interestLabel(it) }.ifEmpty { "all interests" }
-                Text("$pace pace · $interests", style = MaterialTheme.typography.bodyMedium)
+                Text("$pace pace · $interests", style = MaterialTheme.typography.titleSmall, color = Ink)
                 val travelTimes = if (trip.travelTimeSource == "google-routes") "travel times from Google Maps" else "estimated travel times"
                 Text(
                     text = "${labelFor(TRANSPORT_MODES, trip.transportMode)} · budget ${labelFor(BUDGETS, trip.budget)} · $travelTimes",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Ink,
                 )
+                Box(Modifier.padding(vertical = 4.dp).fillMaxWidth().height(Neo.ThinBorder).background(Ink))
                 Text(
                     text = "Highest-rated first, but only where the clock, the opening hours and the travel time allow it.",
                     style = MaterialTheme.typography.bodySmall,
-                    fontStyle = FontStyle.Italic,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = InkSoft,
                 )
                 Text(
                     text = "Planned in ${trip.generationMs} ms from ${trip.candidateCount} candidate activities.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = InkSoft,
                 )
             }
         }
         trip.warnings.forEach { warning ->
-            BrandCard(
-                modifier = Modifier.fillMaxWidth().testTag(TestTags.TRIP_WARNING),
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-            ) {
-                Text(warning, color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.padding(14.dp))
+            NeoCard(modifier = Modifier.fillMaxWidth().testTag(TestTags.TRIP_WARNING), color = Tangerine, shadow = Neo.SmallShadow) {
+                Text(warning, style = MaterialTheme.typography.bodyMedium, color = Ink, modifier = Modifier.padding(14.dp))
             }
         }
     }
@@ -255,16 +309,27 @@ private fun LazyListScope.dayTimeline(
     stopActions: (Int, TripStop) -> List<StopAction>,
 ) {
     item(key = "day-${day.date}") {
-        Column(modifier = Modifier.padding(top = 16.dp, bottom = 4.dp).testTag(TestTags.TRIP_DAY)) {
-            SectionLabel("Day ${heading.dayNumber} of ${heading.dayCount} · ${heading.city}")
+        Column(
+            modifier = Modifier.padding(top = 26.dp, bottom = 8.dp).testTag(TestTags.TRIP_DAY),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    LocalDate.parse(day.date).format(DAY_FORMAT.withLocale(Locale.getDefault())),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.weight(1f),
+                Sticker("Day ${heading.dayNumber} of ${heading.dayCount} · ${heading.city}".uppercase(), color = Ink, tilt = DAY_TILT)
+                Spacer(Modifier.weight(1f))
+                NeoButton(
+                    "Re-plan",
+                    onClick = onReplan,
+                    color = Card,
+                    compact = true,
+                    icon = Icons.Filled.Refresh,
+                    modifier = Modifier.testTag(TestTags.DAY_REPLAN_BUTTON),
                 )
-                TextButton(onClick = onReplan, modifier = Modifier.testTag(TestTags.DAY_REPLAN_BUTTON)) { Text("Re-plan") }
             }
+            Text(
+                LocalDate.parse(day.date).format(DAY_FORMAT.withLocale(Locale.getDefault())),
+                style = MaterialTheme.typography.headlineLarge,
+                color = Ink,
+            )
         }
     }
     if (day.stops.isEmpty()) {
@@ -272,11 +337,13 @@ private fun LazyListScope.dayTimeline(
         return
     }
     itemsIndexed(day.stops, key = { _, stop -> "${day.date}-${stop.activityId}" }) { index, stop ->
-        TransitRow(transitText(stop.travelMinutes, transportMode, fromLodging = index == 0))
+        val cap = if (index == 0) SpineCap.START else SpineCap.NONE
+        TransitRow(transitText(stop.travelMinutes, transportMode, fromLodging = index == 0), mode = transportMode, cap = cap)
         StopRow(stop, stopActions(index, stop))
     }
     item(key = "return-${day.date}") {
-        TransitRow("Back at lodging by ${backAt(day)}  ·  ${day.returnTravelMinutes} min $transportMode")
+        val text = "Back at lodging by ${backAt(day)}  ·  ${day.returnTravelMinutes} min $transportMode"
+        TransitRow(text, mode = transportMode, cap = SpineCap.END)
     }
 }
 
