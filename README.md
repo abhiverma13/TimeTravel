@@ -68,7 +68,7 @@ The back-end runs at `https://136.67.87.217` on a Google Cloud VM (Ubuntu 24.04,
    mkdir -p backend/certs
    openssl req -x509 -newkey rsa:2048 -nodes -days 365 -keyout backend/certs/server.key -out backend/certs/server.crt -subj "/CN=$IP" -addext "subjectAltName=IP:$IP"
    ```
-3. Create `backend/.env` as above, with `PORT=443`, `TLS_CERT_PATH=/certs/server.crt` and `TLS_KEY_PATH=/certs/server.key`.
+3. Create `backend/.env` as above, with `PORT=443`, `TLS_CERT_PATH=/certs/server.crt` and `TLS_KEY_PATH=/certs/server.key`. The back-end runs as the unprivileged `node` user (uid 1000) inside its container, so the key must be readable by that user: `sudo chown 1000 backend/certs/server.key`.
 4. Run `./scripts/run-backend.sh`, then check that `https://<VM public IP>/health` answers `{"status":"ok","database":"connected"}`. If the VM restarts, run the script again.
 
 The app trusts this self-signed certificate because it bundles a copy of it: [`frontend/app/src/main/res/raw/backend_certificate.pem`](frontend/app/src/main/res/raw/backend_certificate.pem), referenced from `res/xml/network_security_config.xml`. The committed copy belongs to the server at `136.67.87.217`. For a different server, replace that file with the new `backend/certs/server.crt` before building the app.

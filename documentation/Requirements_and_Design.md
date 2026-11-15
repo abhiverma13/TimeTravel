@@ -23,6 +23,7 @@
 | 2026-11-12 | 3.1, 4.1 | Added live updates for friends, groups, join requests, posts and suggestions (`liveEvent`), after CP2 feedback asked for friends being added and members joining to appear without a refresh. Each traveller's devices share a room, so one event reaches all of them. |
 | 2026-11-12 | 3.1, 3.4, 4.1, 4.2 | Added red dots for what is new, owned by a new Notification Service that keeps each live event until the traveller opens its part of the app, so the dots survive a restart. The Groups tab replaces the Nearby tab and holds both the traveller's groups and nearby trips, so the dot for group news has a tab. |
 | 2026-11-12 | 3.1, 3.4, 4.1, 4.2 | After CP2 feedback that a copied trip posted again appeared twice, a copy shared unchanged now joins the original's feed card, which shows its planner, how many travellers took it and their average rating, and lists them. A changed copy asks whether to link back: linked, the feed shows the original's stops and the traveller's own profile keeps theirs. Copies of copies link to the first trip so one trip has one card. |
+| 2026-11-12 | 4.1, 4.2 | Fixed what the peer review's code review found: sign-in blames the server (503) when Google cannot check a token; a review saved twice at once is counted once; "This group is full" only when it is; a city keeps the Google searches that worked; a failed venue check keeps the last known status; any duplicate-key race is a 409, not a 500. |
 | 2026-11-12 | 3.4, 3.5, 4.1, 4.6 | A suggestion now carries the whole proposed day with its times, and the app previews it against the day as it is before a member answers, after CP2 feedback asked to see the change first. "Dismiss" became "Decline" to match the words used everywhere else (add, remove, accept, decline). |
 | 2026-11-12 | 3.1, 4.1 | Stop times now start on a 15-minute grid (09:15 rather than 09:07), after CP2 feedback that minute-exact times looked machine-made. Rounding waits a few minutes longer, never shortens travel, and is skipped only when it would miss a closing time. |
 
@@ -305,7 +306,7 @@ Screens from the CP1 build:
     - **Purpose**: Verifies Google ID tokens, issues session tokens and stores profiles. It is separate because every component depends on its session check, and it keeps all Google Identity code in one place.
     - **Interfaces**:
         1. `POST /api/auth/google` body `{ idToken: string }` returns `{ token: string, user: UserProfile }`
-            - **Purpose**: Verifies the ID token with Google, creates or updates the user, and returns a 7-day session token.
+            - **Purpose**: Verifies the ID token with Google, creates or updates the user, and returns a 7-day session token. An invalid token is 401; when Google cannot check it (not configured, or not reachable) it is 503, so the error blames the server rather than the traveller.
         2. `GET /api/users/me` returns `UserProfile { id, email, name, homeCity, interests }`
             - **Purpose**: Returns the signed-in traveller's profile; the app also uses it to validate a stored session.
         3. `PUT /api/users/me` body `{ homeCity?: string, interests?: string[] }` returns `UserProfile`
@@ -318,7 +319,7 @@ Screens from the CP1 build:
         1. `GET /api/activities?city=<city>&interest=<tag>` returns `{ city: string, activities: ActivityDto[] }`
             - **Purpose**: Returns a city's activities, best community score first, optionally for one interest. `ActivityDto` is `{ id, name, address, location, interests, durationMinutes, communityTags, googleRating, googleRatingCount, reviewCount, communityScore, openingHours, cost, verifiedReviewCount }`.
         2. `POST /api/activities/{activityId}/reviews` body `{ rating: 1-5, comment?: string, tags?: { durationMinutes?, bestTimeOfDay?, cost?, setting? }, location?: { lat, lng } }` returns `{ review: ReviewDto, activity: ActivityDto }`
-            - **Purpose**: Creates or edits the traveller's review and returns the activity with its new score. A `location` within 150 m of the place, on a day the place is in one of the traveller's trips, marks the review verified, and it counts double.
+            - **Purpose**: Creates or edits the traveller's review and returns the activity with its new score. A `location` within 150 m of the place, on a day the place is in one of the traveller's trips, marks the review verified, and it counts double. Two saves of the same review at once are applied one after the other (the second becomes an edit), so the activity's counts stay right.
         3. `GET /api/activities/{activityId}/reviews` returns `{ reviews: ReviewListItemDto[] }`
             - **Purpose**: Returns up to 50 reviews, verified first, then newest.
         4. `ActivityDto[] listActivities(String city, String interest)`
@@ -354,7 +355,7 @@ Screens from the CP1 build:
         2. `GET /api/groups` returns `{ groups: GroupSummary[] }`
             - **Purpose**: Returns the caller's groups with their member counts and the caller's role.
         3. `POST /api/groups/join` body `{ inviteCode: string }` returns `GroupDto`
-            - **Purpose**: Adds the caller to the group with that code, up to 12 members (409 when full).
+            - **Purpose**: Adds the caller to the group with that code, up to 12 members (409 only when it is full; joining twice at once joins once).
         4. `GET /api/groups/{groupId}` returns `GroupDto`
             - **Purpose**: Returns a group the caller belongs to (404 otherwise, so groups are not revealed).
         5. `PUT /api/groups/{groupId}/members/me` body `{ interests?: string[], vetoedActivityIds?: string[] }` returns `GroupDto`
@@ -472,7 +473,7 @@ Screens from the CP1 build:
         - `friendships`: friend requests and friendships, unique per pair of travellers.
         - `activities`: the cached catalogue and review counters, with a 2dsphere index on location.
         - `citycatalogues`: when each city was last fetched, for cache expiry.
-        - `reviews`: ratings, comments and tags, each marked verified or not.
+        - `reviews`: ratings, comments and tags, each marked verified or not, with a version so two edits at once cannot both count.
         - `groups`: the invite code and each member's role, interests and vetoes.
         - `trips`: one document per trip with its days, stops, options and group, and for a copy the post it came from and whether its stops changed since. Stored as `itineraries` before CP3; the back-end moves old data on start.
         - `joinrequests`: requests to join a group through a nearby trip, and their answers.
