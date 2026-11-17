@@ -1,0 +1,5 @@
+---
+# Jest's own configuration is plain JavaScript outside backend/tsconfig.json, which the course's ESLint configuration
+# needs for type information, so ESLint cannot parse it. It holds no application code.
+exclude_paths:
+  - "backend/jest.config.js"

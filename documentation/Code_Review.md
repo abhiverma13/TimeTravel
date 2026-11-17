@@ -10,6 +10,7 @@
 | 2026-11-02 | All | Shortened the wording after CP1 feedback. |
 | 2026-11-12 | 2 | CP3: Codacy is to run with only detekt, ESLint and Trivy and the repository's configuration files, as the peer review pointed out; the Dockerfile finding is fixed rather than justified, and every justification cites its sources. |
 | 2026-11-12 | 3 | CP3: recorded our review of Fabricate, Donut's review of TimeTravel, and what we changed in response. |
+| 2026-11-17 | 2.4 | CP3: fixed Trivy's dependency findings and excluded Jest's configuration file, which ESLint cannot parse. |
 | 2026-11-17 | 3.3 | Plan Trip now has five end-to-end tests: the unknown-lodging test was removed (Testing.md 4.2 explains why). |
 
 ---
@@ -42,7 +43,9 @@ _A screenshot of the CP3 run's issues by code pattern (`images/codacy_issues_by_
 - **ESLint: `security/detect-non-literal-fs-filename`**, at [`backend/src/index.ts`](../backend/src/index.ts) (its two `readFileSync` calls)
     - **Justification:** the rule "Detects variable in filename argument of `fs` calls, which might allow an attacker to access anything on your system" ([eslint-plugin-security rule documentation](https://github.com/eslint-community/eslint-plugin-security/blob/main/docs/rules/detect-non-literal-fs-filename.md)), that is, path traversal, where a request's input reaches a file path ([OWASP, Path Traversal](https://owasp.org/www-community/attacks/Path_Traversal)). Here no request input can reach the path: the server reads its TLS certificate and key once at start-up from `TLS_CERT_PATH` and `TLS_KEY_PATH` in its own `.env`, set by whoever deploys it. A literal path would tie the code to one server's layout (the deployment mounts the certificates at `/certs/...`).
 
-- **Trivy:** any finding on a dependency is fixed by updating it (`npm audit fix`, or a newer version in `frontend/gradle/libs.versions.toml`) before the final run; one that cannot be updated is justified here with the advisory's own assessment.
+- **Trivy:** any finding on a dependency is fixed by updating it (`npm audit fix`, or a newer version in `frontend/gradle/libs.versions.toml`) before the final run; one that cannot be updated is justified here with the advisory's own assessment. **Fixed for CP3:** Trivy's four findings (`mongoose` 8.24.5 and `follow-redirects`) were fixed by `npm audit fix`, which updated them to 8.24.10 and 1.16.3.
+
+- **ESLint could not parse `backend/jest.config.js`:** the course's [`.eslintrc.json`](../.eslintrc.json) reads type information through `backend/tsconfig.json`, which holds only the TypeScript sources and tests. That file is Jest's own configuration, with no application code, so [`.codacy.yml`](../.codacy.yml) excludes it from analysis.
 
 ---
 
