@@ -33,6 +33,7 @@
 | 2026-11-17 | 3.5 | Tapping Cancel or Decline is a step of the main scenario, not a failure scenario, after CP2 feedback. Plan Trip's places can be searched and are marked with Must-see and Avoid buttons instead of one or two taps, and the trip lists how its stops were picked, after CP2 feedback that the plan looked arbitrary. |
 | 2026-11-17 | 3.7, 4.7 | After CP2 feedback, NFR 2 explains its 2 seconds, and NFR 3 states the cost limit it was written for; caching is how 4.7 meets it. |
 | 2026-11-17 | 3.2, 4.1, 4.4, 4.5, 4.6 | After CP2 feedback that "and" in a component's name mixes concerns, each component is named for one job: the User Service, the Activity Service, and the Trip Sync Service and Disruption Service, split as they are in the code. The dependency diagram shows names only, the use case diagram has larger text, and each sequence diagram shows every failure scenario of its specification. |
+| 2026-11-17 | 3.6 | Retook the Trips, Trip and Group screens to show deleting a trip and how a trip's stops were picked. |
 
 ---
 
@@ -280,7 +281,7 @@ Actions use the same words everywhere: travellers *add* and *remove* friends, pl
 
 Screens from the CP3 build, signed in as a demo traveller:
 
-| Sign in | Trips | Trip Builder | Trip, with a suggestion | Trip map |
+| Sign in | Trips | Trip Builder | Trip | Trip map |
 | --- | --- | --- | --- | --- |
 | <img src="images/screen_sign_in.png" width="150"/> | <img src="images/screen_trips.png" width="150"/> | <img src="images/screen_trip_builder.png" width="150"/> | <img src="images/screen_trip.png" width="150"/> | <img src="images/screen_trip_map.png" width="150"/> |
 
