@@ -46,7 +46,7 @@ fun tripDatesText(startDate: String, endDate: String): String {
 
 /**
  * A saved trip in a list, like a ticket: a stub with the first day's date (lime for a solo trip, lilac for a group's),
- * then the city, dates and number of stops, and a sticker on a group trip. With `onDelete`, a delete button at the end.
+ * then the city, dates and number of stops, with a sticker under them on a group trip. With `onDelete`, a delete button at the end.
  */
 @Composable
 fun TripCard(
@@ -73,11 +73,6 @@ fun TripCard(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(trip.city, style = MaterialTheme.typography.titleLarge, color = Ink, modifier = Modifier.weight(1f, fill = false))
                     if (isNew) NewDot()
-                    if (isGroup) {
-                        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                            Sticker("Group trip", color = Lilac, tilt = GROUP_TILT)
-                        }
-                    }
                 }
                 Text(
                     text = "${tripDatesText(trip)} · ${countText(trip.stopCount, "stop")}",
@@ -85,6 +80,7 @@ fun TripCard(
                     color = InkSoft,
                     modifier = Modifier.padding(top = 4.dp),
                 )
+                if (isGroup) Sticker("Group trip", color = Lilac, tilt = GROUP_TILT, modifier = Modifier.padding(top = 8.dp))
             }
             if (onDelete != null) {
                 Box(Modifier.fillMaxHeight().padding(end = 12.dp), contentAlignment = Alignment.Center) {
