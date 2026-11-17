@@ -2,7 +2,6 @@ package com.example.cpen321application.e2e
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
-import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performScrollTo
@@ -23,7 +22,7 @@ private const val TOO_LONG_EXTRA_DAYS = 8L
 
 /**
  * Use Case 3, Plan Trip, as designed in documentation/Testing.md section 4.2: the main success scenario and each failure
- * scenario are separate tests, so a failure points at one step.
+ * scenario the phone can trigger are separate tests, so a failure points at one step.
  */
 @RunWith(AndroidJUnit4::class)
 class PlanTripTest : E2eTest() {
@@ -98,19 +97,5 @@ class PlanTripTest : E2eTest() {
         for (day in 1..TRIP_DAYS) {
             scrollListTo(hasText("Day $day of $TRIP_DAYS", substring = true, ignoreCase = true))
         }
-    }
-
-    // 6b. A lodging that cannot be found: the days start from the city centre, with a warning.
-    @Test
-    fun startsFromTheCityCentreWhenTheLodgingCannotBeFound() {
-        openTripBuilder()
-        typeInto(TestTags.TRIP_CITY_FIELD, "Vancouver")
-        chooseTripDates(firstDay, lastDay)
-        typeInto(TestTags.TRIP_LODGING_FIELD, "no such place zzzz")
-        clickTag(TestTags.GENERATE_BUTTON)
-        waitFor(hasTestTag(TestTags.TRIP_WARNING))
-        compose.onNode(hasText("Could not find", substring = true) and hasAnyAncestor(hasTestTag(TestTags.TRIP_WARNING)))
-            .assertIsDisplayed()
-        compose.onNode(hasText("From Vancouver centre")).assertIsDisplayed()
     }
 }

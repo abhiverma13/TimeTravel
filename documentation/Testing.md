@@ -28,6 +28,7 @@
 | 2026-11-12 | 2.1.1, 3, 4.2 | Added what the peer review's test review asked for: expired-session and 7-day-session tests, the order of the reviews list, `parsePort`, NFR 3 while Google fails, an app test timing NFR 2 on the phone, Plan Trip split into one test per scenario, a unique review per run, and comments on the unit tests. |
 | 2026-11-12 | 2.3, 2.4, 2.5, 3.2 | Completed for CP3: new coverage screenshots and the reasons for every uncovered line, and this commit's NFR logs. The text coverage tables were removed, since they only repeated the screenshots. |
 | 2026-11-12 | 3.2, 4.2 | The Android test logs come from the redesigned app: the tests find the same tags and labels, so none changed. |
+| 2026-11-17 | 4.2 | Removed the Plan Trip test for an unknown lodging (7b): Google Places now matches its made-up lodging to a real place, so it failed against the deployed back-end. |
 
 ---
 
@@ -245,7 +246,7 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
 
 - **Use Case: Plan Trip** ([formal specification](Requirements_and_Design.md#uc3)): [`PlanTripTest.kt`](../frontend/app/src/androidTest/java/com/example/cpen321application/e2e/PlanTripTest.kt)
 
-  The scenario is split into six tests, one for the main success scenario and one for each failure scenario, so a failure points at one step: `refusesATripWithoutADestination` (3a), `refusesATripWithoutDates` (3b), `refusesATripLongerThanSevenDays` (3c), `refusesADayShorterThanTwoHours` (4a), `generatesADayByDayPlanAfterTheArrival` (3 to 7) and `startsFromTheCityCentreWhenTheLodgingCannotBeFound` (6b). Each starts on the home screen and opens the Trip Builder (steps 1 and 2).
+  The scenario is split into five tests, one for the main success scenario and one for each failure scenario the phone can trigger, so a failure points at one step: `refusesATripWithoutADestination` (3a), `refusesATripWithoutDates` (3b), `refusesATripLongerThanSevenDays` (3c), `refusesADayShorterThanTwoHours` (4a) and `generatesADayByDayPlanAfterTheArrival` (3 to 7). Each starts on the home screen and opens the Trip Builder (steps 1 and 2).
 
   - **Expected Behaviors:**
 
@@ -266,20 +267,20 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
     | 6. The organizer taps "Generate trip". | Click `generateButton`. |
     | 7. The system ranks and schedules the city's activities into each day. | Wait until a node tagged `tripDay` is displayed (up to 10 s). |
     | 8. The app shows a day-by-day timeline. | Wait until a stop's "HH:MM to HH:MM" line (inside a node tagged `tripStop`) is displayed. Check the first day's first stop starts at or after 13:00. Scroll the timeline to the text "Back at lodging by", then to the headings "Day 1 of 3", "Day 2 of 3" and "Day 3 of 3". |
-    | 7b. The lodging cannot be found. | Go back to home, click `homePlanTrip`, replace the text in `tripCityField` with "Vancouver", choose the same dates, type "no such place zzzz" in `tripLodgingField`, click `generateButton`. |
-    | 7b1-7b2. The system plans from the city centre and the trip shows a warning. | Wait until a node tagged `tripWarning` is displayed. Check the text inside it contains "Could not find". Check the text "From Vancouver centre" is displayed. |
 
-    Failure scenarios 7a (no activities for the city) and 7f (TimeTravel unreachable) need a city without activities or a stopped back-end, so they are verified manually; the front-end tests run against the real deployed back-end without mocks.
+    Failure scenarios 7a (no activities for the city) and 7f (TimeTravel unreachable) need a city without activities or a stopped back-end, so they are verified manually; the front-end tests run against the real deployed back-end without mocks. Failure scenario 7b (the lodging cannot be found) has no app test: Google Places matches made-up lodging names to real places (on 2026-11-17 it matched "no such place zzzz" to a Dollar Tree in Vancouver), so no input triggers it reliably on the real back-end.
 
   - **Test Logs:**
     ```
     $ adb shell am instrument -w -e class com.example.cpen321application.e2e.PlanTripTest com.example.cpen321application.test/androidx.test.runner.AndroidJUnitRunner
-
-    com.example.cpen321application.e2e.PlanTripTest:......
-
-    Time: 41.847
-
-    OK (6 tests)
+    $ adb logcat -d -s TestRunner
+    11-17 17:34:19.257 I TestRunner: run started: 5 tests
+    11-17 17:34:28.754 I TestRunner: finished: refusesATripWithoutADestination(com.example.cpen321application.e2e.PlanTripTest)
+    11-17 17:34:40.101 I TestRunner: finished: generatesADayByDayPlanAfterTheArrival(com.example.cpen321application.e2e.PlanTripTest)
+    11-17 17:34:45.515 I TestRunner: finished: refusesATripLongerThanSevenDays(com.example.cpen321application.e2e.PlanTripTest)
+    11-17 17:34:48.842 I TestRunner: finished: refusesATripWithoutDates(com.example.cpen321application.e2e.PlanTripTest)
+    11-17 17:34:54.733 I TestRunner: finished: refusesADayShorterThanTwoHours(com.example.cpen321application.e2e.PlanTripTest)
+    11-17 17:34:54.755 I TestRunner: run finished: 5 tests, 0 failed, 0 ignored
     ```
 
 - **Use Case: Rate & Review Activity** ([formal specification](Requirements_and_Design.md#uc2)): [`RateReviewActivityTest.kt`](../frontend/app/src/androidTest/java/com/example/cpen321application/e2e/RateReviewActivityTest.kt)

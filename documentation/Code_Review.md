@@ -10,6 +10,7 @@
 | 2026-11-02 | All | Shortened the wording after CP1 feedback. |
 | 2026-11-12 | 2 | CP3: Codacy is to run with only detekt, ESLint and Trivy and the repository's configuration files, as the peer review pointed out; the Dockerfile finding is fixed rather than justified, and every justification cites its sources. |
 | 2026-11-12 | 3 | CP3: recorded our review of Fabricate, Donut's review of TimeTravel, and what we changed in response. |
+| 2026-11-17 | 3.3 | Plan Trip now has five end-to-end tests: the unknown-lodging test was removed (Testing.md 4.2 explains why). |
 
 ---
 
@@ -108,7 +109,7 @@ Each change is a commit on `main` (named below by its subject) with tests.
 | An expired session leaves the app showing errors | The app returns to sign-in with "Your session expired. Sign in again." | "fix: address the peer review's code review of the app" |
 | The map retries a stale visit forever while offline | On a 409 it fetches the trip again before the next try. | same commit |
 | Approximate location cannot tick stops off within 100 m | Stops are ticked off only from precise location, and the map says so. | same commit |
-| The generate end-to-end test is one large test | Six tests: the main success scenario and one per failure scenario. | "test: split Plan Trip, make reviews unique, and time live updates on the phone" |
+| The generate end-to-end test is one large test | Five tests: the main success scenario and one per failure scenario the phone can trigger. | "test: split Plan Trip, make reviews unique, and time live updates on the phone" |
 | The review end-to-end test can pass on an earlier run's review | Each run writes a review with its run time in it. | same commit |
 | NFR 2 is not checked on the phone | An instrumented test times a change made elsewhere until it is gone from the open trip screen (at most 2 s; 191 ms in our run). | same commit; Testing.md section 3 |
 | No test for an expired session or the 7-day lifetime | Both added. | "test: add the back-end tests the peer review asked for"; `backend/tests/no-mock/auth.test.ts` |
