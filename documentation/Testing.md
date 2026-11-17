@@ -30,6 +30,7 @@
 | 2026-11-12 | 3.2, 4.2 | The Android test logs come from the redesigned app: the tests find the same tags and labels, so none changed. |
 | 2026-11-17 | 4.2 | Removed the Plan Trip test for an unknown lodging (7b): Google Places now matches its made-up lodging to a real place, so it failed against the deployed back-end. |
 | 2026-11-17 | 2.1.1, 3, 4.2 | Added the tests of `DELETE /api/trips/:tripId`, renamed NFR 3 to Google Places cost, and made Cancel in Rate & Review a step of the main scenario, after CP2 feedback that it is not a failure. |
+| 2026-11-17 | 2.1.2, 2.3, 2.4, 2.5, 3.2 | Recorded the back-end run on `d7fdffb`, the commit with Delete Trip: its coverage screenshots, the uncovered lines of `tripService.ts` (moved by the new code) and the NFR 1 and NFR 2 logs. |
 
 ---
 
@@ -105,7 +106,7 @@ The tests without mocks run against a real in-memory MongoDB (`backend/tests/hel
 
 #### 2.1.2. Commit Hash Where Tests Run
 
-`c8a650cfdb8219d9c664edb325538bcdad687282`
+`d7fdffb54ce389ce557ae72739053926795432b6`
 
 #### 2.1.3. Explanation on How to Run the Tests
 
@@ -151,8 +152,8 @@ Without mocks, the external service clients are not reached: Google Places (`pla
 
 - **`src/config/env.ts` (0%)**: reads the environment variables once at start-up and is imported only by `src/index.ts`, which is excluded from coverage. The tests build the app with explicit configuration (`backend/tests/helpers/testApp.ts`) so they do not depend on a developer's `.env`. Its one piece of logic, `parsePort`, has unit tests ([`backend/tests/unit/env.test.ts`](../backend/tests/unit/env.test.ts)).
 - **`src/db/tripRename.ts` lines 16, 20-22 and 30-31**: moving data stored before CP3 (the `itineraries` collection and `itineraryId` fields) to the new names. The interface tests start from an empty database, which has nothing to move; the unit tests cover it with old data ([`backend/tests/unit/tripRename.test.ts`](../backend/tests/unit/tripRename.test.ts)), and it ran on the CP2 database (17 trips moved).
-- **`src/trips/tripService.ts` line 310**: a guard for a planned stop whose activity is not a candidate. The engine schedules only its candidates, so this cannot happen; the guard exists because `Map.get` may return `undefined`.
-- **`src/trips/tripService.ts` lines 521 and 528, and `src/trips/dayRepair.ts` line 163**: a disruption proposal is dropped if the stop left the day between the timer's check and the proposal (a simultaneous edit), or if the rest of the day no longer fits without it (line 163, surfaced as line 528). Removing a stop from a feasible day keeps it feasible whenever travel times obey the triangle inequality, which the offline estimate and the cached Routes times do.
+- **`src/trips/tripService.ts` line 312**: a guard for a planned stop whose activity is not a candidate. The engine schedules only its candidates, so this cannot happen; the guard exists because `Map.get` may return `undefined`.
+- **`src/trips/tripService.ts` lines 533 and 540, and `src/trips/dayRepair.ts` line 163**: a disruption proposal is dropped if the stop left the day between the timer's check and the proposal (a simultaneous edit), or if the rest of the day no longer fits without it (line 163, surfaced as line 528). Removing a stop from a feasible day keeps it feasible whenever travel times obey the triangle inequality, which the offline estimate and the cached Routes times do.
 - **`src/trips/dayRepair.ts` line 223**: the tie-break when two ways of making room on a full day drop stops of exactly the same value; the one with less travel wins. A tie needs two places with the same rating, rating count and interests.
 - **`src/trips/engine/adjust.ts` line 18**: during a re-plan, a reordering ends the day sooner and the freed time goes to another activity. Greedy insertion already places each stop at the least travel, so the short test days never improve by reordering; the engine's unit tests cover the reorder step ([`backend/tests/unit/localSearch.test.ts`](../backend/tests/unit/localSearch.test.ts) and [`backend/tests/unit/dayRepair.test.ts`](../backend/tests/unit/dayRepair.test.ts)).
 - **`src/sync/tripSync.ts` lines 148, 178, 182, 190 and 196**: `.catch` handlers on Socket.io calls (joining and leaving rooms, subscribing, sharing a location). Subscribing and sharing catch their own errors (tested with mocks), and joining or leaving a room cannot fail with the in-memory adapter, so these only log an unexpected bug instead of letting an unhandled rejection stop the server.
@@ -183,7 +184,7 @@ Without mocks, the external service clients are not reached: Google Places (`pla
     ==> Running backend NFR tests (tests/nfr/) ...
       console.info
         NFR trip generation: 20 runs, 5 days, 40 candidates, 31 stops
-        p50 816 ms, p95 992 ms, max 1006 ms (limit 3000 ms)
+        p50 1086 ms, p95 1346 ms, max 1605 ms (limit 3000 ms)
 
     Test Suites: 1 passed, 1 total
     Tests:       1 passed, 1 total
@@ -198,7 +199,7 @@ Without mocks, the external service clients are not reached: Google Places (`pla
     ==> Running backend NFR tests (tests/nfr/) ...
       console.info
         NFR live update latency: 20 adjustments x 3 other members = 60 deliveries
-        p50 88 ms, p95 143 ms, max 196 ms (limit 2000 ms)
+        p50 119 ms, p95 214 ms, max 251 ms (limit 2000 ms)
     ```
   - **Verification on the phone:** the back-end test stops when the update reaches the device; the app test times the rest. With a 2-day Vancouver trip open and live on the emulator, it removes the first stop through the REST API with the same session (as another member's device would; the app only hears of it over Socket.io), and times from sending the change until the stop is gone from the screen, asserting at most 2,000 ms. Run it with `./scripts/run-frontend-nfr-tests.sh`.
   - **Log Output (phone)**
