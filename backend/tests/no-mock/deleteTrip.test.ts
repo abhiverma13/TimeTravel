@@ -3,10 +3,12 @@ import request from 'supertest';
 import type { GroupDto } from '../../src/groups/groupService';
 import type { TripDto, TripSummaryDto } from '../../src/trips/tripService';
 import { TripModel } from '../../src/trips/tripModel';
-import { createTestApp, seedVancouver, signedInUser } from '../helpers/testApp';
+import { createTestApp, signedInUser } from '../helpers/testApp';
 import { DATABASE_STARTUP_TIMEOUT_MS, clearTestDatabase, startTestDatabase, stopTestDatabase } from '../helpers/testDatabase';
+import { seedTestville } from '../helpers/testville';
 
-const TRIP = { city: 'Vancouver', startDate: '2026-10-24', endDate: '2026-10-25', interests: ['museums'], pace: 'moderate' };
+// A one-day trip in the small Testville catalogue, so generating it is quick
+const TRIP = { city: 'Testville', startDate: '2026-10-24', endDate: '2026-10-24', dayStart: '09:00', dayEnd: '18:00' };
 
 beforeAll(startTestDatabase, DATABASE_STARTUP_TIMEOUT_MS);
 afterEach(clearTestDatabase);
@@ -21,7 +23,7 @@ describe('Unmocked: DELETE /api/trips/:tripId', () => {
   test('Own trip', async () => {
     const { app, authService, activityService } = createTestApp();
     const { authorization } = await signedInUser(authService);
-    await seedVancouver(activityService);
+    await seedTestville(activityService);
     const trip = (await request(app).post('/api/trips/generate').set(authorization).send(TRIP)).body as TripDto;
 
     const response = await request(app).delete(`/api/trips/${trip.id}`).set(authorization);
@@ -39,7 +41,7 @@ describe('Unmocked: DELETE /api/trips/:tripId', () => {
     const { app, authService, activityService } = createTestApp();
     const planner = await signedInUser(authService, 'Trip Planner');
     const member = await signedInUser(authService, 'Group Member');
-    await seedVancouver(activityService);
+    await seedTestville(activityService);
     const group = (await request(app).post('/api/groups').set(planner.authorization).send({ name: 'Crew' })).body as GroupDto;
     await request(app).post('/api/groups/join').set(member.authorization).send({ inviteCode: group.inviteCode });
     const trip = (await request(app).post('/api/trips/generate').set(planner.authorization).send({ ...TRIP, groupId: group.id })).body as TripDto;
@@ -65,7 +67,7 @@ describe('Unmocked: DELETE /api/trips/:tripId', () => {
     const { app, authService, activityService } = createTestApp();
     const owner = await signedInUser(authService, 'Trip Owner');
     const stranger = await signedInUser(authService, 'Someone Else');
-    await seedVancouver(activityService);
+    await seedTestville(activityService);
     const trip = (await request(app).post('/api/trips/generate').set(owner.authorization).send(TRIP)).body as TripDto;
     const tripId = scenario === 'stranger' ? trip.id : scenario;
 
