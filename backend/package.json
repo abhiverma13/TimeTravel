@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest",
+    "lint:types": "eslint --no-eslintrc --parser @typescript-eslint/parser --parser-options project:./tsconfig.json --plugin @typescript-eslint --rule \"@typescript-eslint/no-unsafe-return: error\" --rule \"@typescript-eslint/no-misused-promises: error\" --rule \"@typescript-eslint/require-await: error\" --rule \"@typescript-eslint/no-unsafe-argument: error\" --rule \"@typescript-eslint/no-redundant-type-constituents: error\" --ext .ts src tests",
     "seed:demo": "tsx src/dev/seedDemoCatalogue.ts"
   },
   "engines": {

@@ -10,7 +10,7 @@
 | 2026-11-02 | All | Shortened the wording after CP1 feedback. |
 | 2026-11-12 | 2 | CP3: Codacy is to run with only detekt, ESLint and Trivy and the repository's configuration files, as the peer review pointed out; the Dockerfile finding is fixed rather than justified, and every justification cites its sources. |
 | 2026-11-12 | 3 | CP3: recorded our review of Fabricate, Donut's review of TimeTravel, and what we changed in response. |
-| 2026-11-17 | 2.4 | CP3: fixed Trivy's dependency findings and excluded Jest's configuration file, which ESLint cannot parse. |
+| 2026-11-17 | 2 | CP3: recorded Codacy's run on `0cd318e` (121 issues), after fixing Trivy's findings and excluding Jest's configuration file. Shortened the justifications after CP2 feedback, and added `npm run lint:types` to check the type-aware rules locally. |
 | 2026-11-17 | 3.3 | Plan Trip now has five end-to-end tests: the unknown-lodging test was removed (Testing.md 4.2 explains why). |
 
 ---
@@ -23,29 +23,27 @@ Locally, ESLint with the course's [`.eslintrc.json`](../.eslintrc.json) over `ba
 
 ### 2.1. Commit Hash Where Codacy Ran
 
-_The commit Codacy analyses for CP3, recorded by the repository owner after the run._
+`0cd318e1c21d6f8725b8ff3b56c31a4a68ee27d7`
 
 ### 2.2. Unfixed Issues per Codacy Category
 
-_A screenshot of the CP3 run's issues by category (`images/codacy_category_breakdown.png`), added after the run._
+![Codacy issues by category](images/codacy_category_breakdown.png)
 
 ### 2.3. Unfixed Issues per Codacy Code Pattern
 
-_A screenshot of the CP3 run's issues by code pattern (`images/codacy_issues_by_pattern.png`), added after the run._
+![Codacy issues by code pattern](images/codacy_issues_by_pattern.png)
 
 ### 2.4. Justifications for Unfixed Issues
 
-- **Fixed since CP2:** the container now runs as the unprivileged `node` user ([`backend/Dockerfile`](../backend/Dockerfile)), so Codacy's non-root `USER` finding no longer applies; the deployment makes the TLS key readable by that user ([README](../README.md), deployment step 3). The other Opengrep findings (NoSQL injection, SSRF) came from a tool the course's setup does not use.
+The 121 open issues have two causes.
 
-- **ESLint: TypeScript rules that need type information** (`@typescript-eslint/no-misused-promises`, `no-unsafe-return`, `require-await`, `no-unsafe-argument`, `no-redundant-type-constituents`), if Codacy reports them:
-    - **Justification:** these rules "utilize TypeScript's type checking APIs", which "requires TypeScript to analyze your entire project instead of just the file being linted" ([typescript-eslint, Linting with Type Information](https://typescript-eslint.io/getting-started/typed-linting)). The types of `express`, `supertest`, `socket.io` and `mongodb-memory-server` come from the installed packages, so a run without them sees those values as `any`; at CP2 Codacy's own messages showed this ("Unsafe return of an error typed value", and "'any' overrides all other types in this union type" for `MongoMemoryServer | undefined`). With the dependencies installed (`npm ci`), the course's [`.eslintrc.json`](../.eslintrc.json), which enables these rules as errors, reports none of them over `backend/src` and `backend/tests`.
+- **120 issues from ESLint rules that need type information** (`no-unsafe-return` 50, `no-misused-promises` 46, `require-await` 13, `no-unsafe-argument` 10, `no-redundant-type-constituents` 1)
+    - **Justification:** these are false positives. The rules read the types of our installed packages ([typescript-eslint, Linting with Type Information](https://typescript-eslint.io/getting-started/typed-linting)), and Codacy does not install them, so it treats values from `express`, `supertest` and `mongodb-memory-server` as `any`. Its own messages show this: "Unsafe return of an *error typed* value". With the packages installed, the same five rules find nothing: run `npm ci` and then `npm run lint:types` in `backend/`. We checked that this command does report these rules on code that breaks them.
 
-- **ESLint: `security/detect-non-literal-fs-filename`**, at [`backend/src/index.ts`](../backend/src/index.ts) (its two `readFileSync` calls)
-    - **Justification:** the rule "Detects variable in filename argument of `fs` calls, which might allow an attacker to access anything on your system" ([eslint-plugin-security rule documentation](https://github.com/eslint-community/eslint-plugin-security/blob/main/docs/rules/detect-non-literal-fs-filename.md)), that is, path traversal, where a request's input reaches a file path ([OWASP, Path Traversal](https://owasp.org/www-community/attacks/Path_Traversal)). Here no request input can reach the path: the server reads its TLS certificate and key once at start-up from `TLS_CERT_PATH` and `TLS_KEY_PATH` in its own `.env`, set by whoever deploys it. A literal path would tie the code to one server's layout (the deployment mounts the certificates at `/certs/...`).
+- **1 issue from `security/detect-non-literal-fs-filename`** at [`backend/src/index.ts`](../backend/src/index.ts) line 64
+    - **Justification:** the rule guards against path traversal, where a request's input ends up in a file path ([OWASP, Path Traversal](https://owasp.org/www-community/attacks/Path_Traversal)). Here, `readFileSync` reads the TLS certificate and key once at start-up, from paths in the server's own `.env`. No request input can reach them.
 
-- **Trivy:** any finding on a dependency is fixed by updating it (`npm audit fix`, or a newer version in `frontend/gradle/libs.versions.toml`) before the final run; one that cannot be updated is justified here with the advisory's own assessment. **Fixed for CP3:** Trivy's four findings (`mongoose` 8.24.5 and `follow-redirects`) were fixed by `npm audit fix`, which updated them to 8.24.10 and 1.16.3.
-
-- **ESLint could not parse `backend/jest.config.js`:** the course's [`.eslintrc.json`](../.eslintrc.json) reads type information through `backend/tsconfig.json`, which holds only the TypeScript sources and tests. That file is Jest's own configuration, with no application code, so [`.codacy.yml`](../.codacy.yml) excludes it from analysis.
+Fixed for this run: Trivy's four dependency findings (`mongoose` updated to 8.24.10 and `follow-redirects` to 1.16.3 with `npm audit fix`), the Dockerfile's root user (the container now runs as `node`), and an ESLint parse error on Jest's configuration file, which has no application code and is excluded in [`.codacy.yml`](../.codacy.yml).
 
 ---
 
