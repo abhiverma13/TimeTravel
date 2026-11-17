@@ -91,9 +91,14 @@ export function createTripRouter(authService: AuthService, tripService: TripServ
     response.json(await tripService.adjustTrip(authenticatedUserId(response), request.params.tripId, change));
   });
 
-  router.delete('/:tripId', async (request, response) => {
-    await tripService.deleteTrip(authenticatedUserId(response), request.params.tripId);
-    response.status(204).end();
+  // Not async, so Codacy's no-misused-promises has nothing to flag; a failure still reaches the error handler
+  router.delete('/:tripId', (request, response, next) => {
+    tripService
+      .deleteTrip(authenticatedUserId(response), request.params.tripId)
+      .then(() => response.status(204).end())
+      .catch((error: unknown) => {
+        next(error);
+      });
   });
 
   return router;
