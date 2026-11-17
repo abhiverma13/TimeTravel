@@ -113,6 +113,8 @@ export interface TripSummaryDto {
   pace: Pace;
   stopCount: number;
   openToJoin: boolean;
+  /** True when the traveller planned this trip, so they may delete it. */
+  mine: boolean;
   createdAt: string;
 }
 
@@ -382,8 +384,18 @@ export class TripService {
       pace: trip.pace,
       stopCount: trip.days.reduce((count, day) => count + day.stops.length, 0),
       openToJoin: trip.openToJoin,
+      mine: trip.userId.toString() === userId,
       createdAt: trip.createdAt.toISOString(),
     }));
+  }
+
+  /** Deletes a trip the traveller planned; a group trip goes for every member. Anyone else may not delete it (403). */
+  async deleteTrip(userId: string, tripId: string): Promise<void> {
+    const trip = await this.findVisible(userId, tripId);
+    if (trip.userId.toString() !== userId) {
+      throw new HttpError(403, 'Only the traveller who planned this trip can delete it');
+    }
+    await TripModel.deleteOne({ _id: trip._id });
   }
 
   /** A frozen copy of a trip the traveller may see, for sharing it in a post. */

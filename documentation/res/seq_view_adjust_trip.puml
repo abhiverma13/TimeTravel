@@ -5,7 +5,7 @@ title View & Adjust Trip
 actor Traveller
 participant "Android App" as App
 participant "Trip\nEngine" as Engine
-participant "Trip Sync &\nDisruption Service" as Sync
+participant "Trip Sync\nService" as Sync
 database MongoDB
 participant "Other members'\nAndroid Apps" as Party
 

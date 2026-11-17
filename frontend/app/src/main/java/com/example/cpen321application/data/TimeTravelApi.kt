@@ -1,6 +1,7 @@
 package com.example.cpen321application.data
 
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -48,4 +49,7 @@ interface TimeTravelApi {
 
     @POST("api/trips/{tripId}/adjust")
     suspend fun adjustTrip(@Path("tripId") tripId: String, @Body body: AdjustRequest): Trip
+
+    @DELETE("api/trips/{tripId}")
+    suspend fun deleteTrip(@Path("tripId") tripId: String)
 }

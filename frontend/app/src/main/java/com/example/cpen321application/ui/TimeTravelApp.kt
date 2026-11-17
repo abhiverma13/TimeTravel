@@ -219,6 +219,7 @@ private fun NavGraphBuilder.tabScreens(
     composable(Routes.HOME) {
         val home = appViewModel { HomeViewModel(it.repository, it.liveEvents.events) }
         val recentTrips by home.recentTrips.collectAsState()
+        val deleteError by home.deleteError.collectAsState()
         LaunchedEffect(Unit) { home.refresh() }
         HomeScreen(
             user = session.user,
@@ -228,7 +229,9 @@ private fun NavGraphBuilder.tabScreens(
                 onPlanTrip = { navController.navigate(Routes.tripBuilder()) },
                 onGroups = { extras.selectTab(Routes.GROUPS) },
                 onOpenTrip = { navController.navigate(Routes.trip(it)) },
+                onDeleteTrip = home::deleteTrip,
             ),
+            deleteError = deleteError,
         )
     }
     composable(Routes.EXPLORE) {

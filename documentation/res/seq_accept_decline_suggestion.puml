@@ -4,36 +4,42 @@ title Accept or Decline Disruption Suggestion
 
 actor "Trip member" as Member
 participant "Members'\nAndroid Apps" as Apps
-participant "Trip Sync &\nDisruption Service" as Sync
+participant "Trip Sync\nService" as Sync
+participant "Disruption\nService" as Disruption
 participant "OpenWeather API" as Weather
 participant "Google Places API" as Places
 participant "Trip\nEngine" as Engine
 database MongoDB
 
-Sync -> Sync : every 30 minutes, checkActiveTrips()
-Sync -> MongoDB : findTrips(under way from yesterday to the day after tomorrow): Trip[]
+Disruption -> Disruption : every 30 minutes, checkActiveTrips()
+Disruption -> MongoDB : findTrips(under way from yesterday to the day after tomorrow): Trip[]
 loop for each trip (one trip's failure does not stop the others)
   opt an OpenWeather key is set
-    Sync -> Weather : GET forecast(lodging lat, lng): utcOffsetSeconds, 3-hour slots
+    Disruption -> Weather : GET forecast(lodging lat, lng): utcOffsetSeconds, 3-hour slots
     alt forecast unavailable
-      Sync -> Sync : checks closed venues only this time
+      Disruption -> Disruption : checks closed venues only this time
     end
   end
   loop for each stop starting in the next 36 hours
     opt venue status older than 6 hours
-      Sync -> Places : GET places/{placeId} (businessStatus)
-      Sync -> MongoDB : saveActivity(businessStatus, statusCheckedAt)
+      Disruption -> Places : GET places/{placeId} (businessStatus)
+      Disruption -> MongoDB : saveActivity(businessStatus, statusCheckedAt)
     end
     alt rain likely (60% or more) during an outdoor stop, or the venue is closed
-      Sync -> MongoDB : countWaitingSuggestions(tripId, activityId)
+      Disruption -> MongoDB : countWaitingSuggestions(tripId, activityId)
       opt none waiting
-        Sync -> Engine : proposeReplacement(tripId, dayIndex, activityId, indoor only if rain): ProposedDay | null
+        Disruption -> Engine : proposeReplacement(tripId, dayIndex, activityId, indoor only if rain): ProposedDay | null
         Engine -> MongoDB : findTrip, listActivities(city), cached travel times
-        Engine --> Sync : the day without the stop, its time given to another activity (not saved)
-        Sync -> MongoDB : saveSuggestion(proposed day, based on version, expires in 12 hours)
+        Engine --> Disruption : the day without the stop, its time given to another activity,\nor left free when nothing fits (not saved)
+        Disruption -> MongoDB : saveSuggestion(proposed day, based on version, expires in 12 hours)
+        Disruption -> Sync : suggestion added; live event for every member
         Sync -> Apps : Socket.io suggestionAdded { suggestion } to the trip's room
         Sync -> Apps : Socket.io liveEvent { type: suggestion } to every member, kept for the Trips tab's red dot
-        Apps --> Member : suggestion card: "Rain is likely at 10:45 during VanDusen Botanical Garden. Swap it for Canada Place?"\nwith a preview of the proposed day next to the day as it is
+        alt a member's app is offline or the trip is not open
+          Apps -> Disruption : GET /api/suggestions?tripId=<id> the next time they open the trip
+          Disruption --> Apps : 200 { suggestions }
+        end
+        Apps --> Member : suggestion card: "Rain is likely at 10:45 during VanDusen Botanical Garden. Swap it for Canada Place?"\n(or "Take it out and keep the time free?") with a preview of the proposed day next to the day as it is
       end
     end
   end
@@ -41,23 +47,23 @@ end
 
 alt the member taps Accept
   Member -> Apps : Accept
-  Apps -> Sync : POST /api/suggestions/{suggestionId}/accept
-  Sync -> Engine : applyProposedDay(userId, tripId, proposal, dayIndex, summary): TripDto
+  Apps -> Disruption : POST /api/suggestions/{suggestionId}/accept
+  Disruption -> Engine : applyProposedDay(userId, tripId, proposal, dayIndex, summary): TripDto
   alt the trip changed since the suggestion, or it expired
-    Engine --> Sync : 409
-    Sync -> MongoDB : markSuggestion(expired)
-    Sync --> Apps : 409 { error: "The trip changed since this suggestion; it no longer applies" }
+    Engine --> Disruption : 409
+    Disruption -> MongoDB : markSuggestion(expired)
+    Disruption --> Apps : 409 { error: "The trip changed since this suggestion; it no longer applies" }
   else
     Engine -> MongoDB : saveDay(if version unchanged), version + 1
     Engine -> Sync : trip changed (trip, actorId, summary)
     Sync -> Apps : Socket.io tripUpdated { trip, actorId, summary }
-    Sync -> MongoDB : markSuggestion(accepted)
-    Sync --> Apps : 200 TripDto
+    Disruption -> MongoDB : markSuggestion(accepted)
+    Disruption --> Apps : 200 TripDto
   end
 else the member taps Decline
   Member -> Apps : Decline
-  Apps -> Sync : POST /api/suggestions/{suggestionId}/decline
-  Sync -> MongoDB : markSuggestion(declined)
-  Sync --> Apps : 204; the trip stays as it is
+  Apps -> Disruption : POST /api/suggestions/{suggestionId}/decline
+  Disruption -> MongoDB : markSuggestion(declined)
+  Disruption --> Apps : 204; the trip stays as it is
 end
 @enduml

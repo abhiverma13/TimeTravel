@@ -278,11 +278,10 @@ private fun Summary(trip: Trip) {
                     color = Ink,
                 )
                 Box(Modifier.padding(vertical = 4.dp).fillMaxWidth().height(Neo.ThinBorder).background(Ink))
-                Text(
-                    text = "Highest-rated first, but only where the clock, the opening hours and the travel time allow it.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = InkSoft,
-                )
+                Text("How stops are picked", style = MaterialTheme.typography.labelMedium, color = Ink)
+                pickingRules(trip).forEach { rule ->
+                    Text("• $rule", style = MaterialTheme.typography.bodySmall, color = InkSoft)
+                }
                 Text(
                     text = "Planned in ${trip.generationMs} ms from ${trip.candidateCount} candidate activities.",
                     style = MaterialTheme.typography.labelSmall,
@@ -296,6 +295,18 @@ private fun Summary(trip: Trip) {
             }
         }
     }
+}
+
+// What the planner weighs, in the order it applies them, so the plan does not look arbitrary.
+private fun pickingRules(trip: Trip): List<String> {
+    val isGroup = trip.groupId != null
+    val interests = if (isGroup) "the interests most members picked" else "your interests"
+    val leftOut = if (isGroup) "avoided, vetoed and over-budget" else "avoided and over-budget"
+    return listOf(
+        "Community rating, raised for places matching $interests",
+        "Must-see places first; $leftOut places left out",
+        "Places within 25 km of ${trip.lodging.label}, fitted around opening hours and travel time",
+    )
 }
 
 /** "Day 2 of 3 · Vancouver". */

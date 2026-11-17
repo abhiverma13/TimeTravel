@@ -4,13 +4,19 @@ title Browse & Search Activities
 
 actor Traveller
 participant "Android App" as App
-participant "Auth & Profile\nService" as Auth
-participant "Activity & Review\nService" as Activities
+participant "User\nService" as Auth
+participant "Activity\nService" as Activities
 database MongoDB
 participant "Google Places API" as Places
 
 Traveller -> App : enters a city, picks an interest, taps Search
+alt the city field is empty
+  App --> Traveller : "Enter a city to explore."; nothing is sent
+end
 App -> Activities : GET /api/activities?city=<city>&interest=<tag>
+alt TimeTravel cannot be reached
+  App --> Traveller : "Couldn't reach TimeTravel. Check your connection and try again."
+end
 Activities -> Auth : verifySessionToken(token): userId
 alt session missing or invalid
   Activities --> App : 401 { error }

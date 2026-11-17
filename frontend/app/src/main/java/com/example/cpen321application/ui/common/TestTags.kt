@@ -77,6 +77,7 @@ object TestTags {
 
     const val HOME_PLAN_TRIP = "homePlanTrip"
     const val RECENT_TRIP = "recentTrip"
+    const val DELETE_TRIP = "deleteTrip"
 
     const val TRIP_CITY_FIELD = "tripCityField"
     const val TRIP_DATES_BUTTON = "tripDatesButton"

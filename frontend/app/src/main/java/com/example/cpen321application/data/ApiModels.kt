@@ -221,6 +221,8 @@ data class TripSummary(
     val createdAt: String,
     /** True when the group's owner opened the trip to travellers nearby. */
     val openToJoin: Boolean = false,
+    /** True when the traveller planned this trip, so they may delete it. */
+    val mine: Boolean = false,
 )
 
 data class TripsResponse(val trips: List<TripSummary>)

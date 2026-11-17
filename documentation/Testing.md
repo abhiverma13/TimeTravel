@@ -29,6 +29,7 @@
 | 2026-11-12 | 2.3, 2.4, 2.5, 3.2 | Completed for CP3: new coverage screenshots and the reasons for every uncovered line, and this commit's NFR logs. The text coverage tables were removed, since they only repeated the screenshots. |
 | 2026-11-12 | 3.2, 4.2 | The Android test logs come from the redesigned app: the tests find the same tags and labels, so none changed. |
 | 2026-11-17 | 4.2 | Removed the Plan Trip test for an unknown lodging (7b): Google Places now matches its made-up lodging to a real place, so it failed against the deployed back-end. |
+| 2026-11-17 | 2.1.1, 3, 4.2 | Added the tests of `DELETE /api/trips/:tripId`, renamed NFR 3 to Google Places cost, and made Cancel in Rate & Review a step of the main scenario, after CP2 feedback that it is not a failure. |
 
 ---
 
@@ -56,6 +57,7 @@
 | **POST /api/trips/generate** | [`backend/tests/no-mock/trips.test.ts#L38`](../backend/tests/no-mock/trips.test.ts#L38) | [`backend/tests/mock/trips.test.ts#L37`](../backend/tests/mock/trips.test.ts#L37), [`#L198`](../backend/tests/mock/trips.test.ts#L198) (Google Routes travel times, cache and failures), [`#L284`](../backend/tests/mock/trips.test.ts#L284) (through the production Google Routes client) | Google Places API (lodging lookup), Google Routes API, Trip DB |
 | **GET /api/trips/:tripId** | [`backend/tests/no-mock/trips.test.ts#L410`](../backend/tests/no-mock/trips.test.ts#L410) | [`backend/tests/mock/trips.test.ts#L136`](../backend/tests/mock/trips.test.ts#L136) | Trip DB |
 | **GET /api/trips** | [`backend/tests/no-mock/trips.test.ts#L459`](../backend/tests/no-mock/trips.test.ts#L459) | [`backend/tests/mock/trips.test.ts#L157`](../backend/tests/mock/trips.test.ts#L157) | Trip DB |
+| **DELETE /api/trips/:tripId** | [`backend/tests/no-mock/deleteTrip.test.ts#L16`](../backend/tests/no-mock/deleteTrip.test.ts#L16) | [`backend/tests/mock/deleteTrip.test.ts#L18`](../backend/tests/mock/deleteTrip.test.ts#L18) | Trip DB |
 | **POST /api/trips/:tripId/adjust** | [`backend/tests/no-mock/adjust.test.ts#L41`](../backend/tests/no-mock/adjust.test.ts#L41) | [`backend/tests/mock/adjust.test.ts#L32`](../backend/tests/mock/adjust.test.ts#L32) | Trip DB (a concurrent change saved first, write failure), Activity DB, live-update push |
 | **Socket.io trip updates** | [`backend/tests/no-mock/tripSync.test.ts#L41`](../backend/tests/no-mock/tripSync.test.ts#L41) | [`backend/tests/mock/tripSync.test.ts#L22`](../backend/tests/mock/tripSync.test.ts#L22) | Trip DB (access check on subscribe) |
 | **Socket.io location sharing** | [`backend/tests/no-mock/tripSync.test.ts#L150`](../backend/tests/no-mock/tripSync.test.ts#L150) | [`backend/tests/mock/tripSync.test.ts#L49`](../backend/tests/mock/tripSync.test.ts#L49) | User DB (looking up the sharer) |
@@ -169,7 +171,7 @@ Without mocks, the external service clients are not reached: Google Places (`pla
 | **NFR 1: Trip generation time** | [`backend/tests/nfr/tripGenerationTime.test.ts`](../backend/tests/nfr/tripGenerationTime.test.ts) |
 | **NFR 2: Live update latency** | [`backend/tests/nfr/liveUpdateLatency.test.ts`](../backend/tests/nfr/liveUpdateLatency.test.ts) |
 | **NFR 2: Live update latency, on the phone** | [`frontend/app/src/androidTest/java/com/example/cpen321application/nfr/LiveUpdateRenderTest.kt`](../frontend/app/src/androidTest/java/com/example/cpen321application/nfr/LiveUpdateRenderTest.kt) |
-| **NFR 3: Bounded Google Places usage** | [`backend/tests/nfr/placesUsage.test.ts`](../backend/tests/nfr/placesUsage.test.ts) |
+| **NFR 3: Google Places cost** | [`backend/tests/nfr/placesUsage.test.ts`](../backend/tests/nfr/placesUsage.test.ts) |
 
 ### 3.2. Test Verification and Logs
 
@@ -213,7 +215,7 @@ Without mocks, the external service clients are not reached: Google Places (`pla
     I NFR     : Live update on screen after 191 ms (limit 2000 ms)
     ```
 
-- **NFR 3: Bounded Google Places usage**
+- **NFR 3: Google Places cost**
 
   - **Verification:** The test runs the real Express app and an in-memory MongoDB with a fake Google Places client that counts every call, and a clock the test moves forward. For 6 days, two travellers search Vancouver four times a day and generate a 2-day trip once a day. The clock then passes 7 days for one more search, and a final trip is generated with a lodging. The test asserts 7 text searches (one per interest tag) for the first search, none over the 6 days, 7 for the refresh after 7 days, and exactly 1 for the lodging, and that every request succeeds. A second test covers an outage: the week runs out while Google fails, so the first search tries once (7 calls) and is served the stored catalogue; 20 more searches over the next 50 minutes make no calls; an hour after the failed try, Google is asked again and the city is fresh for another week.
   - **Log Output**
@@ -293,8 +295,7 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
     | ------------------ | ------------------- |
     | 1. On an activity's card in Explore & review, the traveller taps Rate. | Click the tab tagged `tabExplore`. Replace the text in `exploreCityField` with "Vancouver" and click `exploreSearchButton`. Wait until a node tagged `activityCard` is displayed (up to 10 s) and read the first card's activity name. Click the first `rateButton`. |
     | 2. The app opens a rating dialog with five stars, a review field and optional tags. Submit is disabled. | Check the text "Rate &lt;activity&gt;" is displayed. Check `submitRatingButton` is not enabled. |
-    | 4b. The traveller taps Cancel. | Click "Cancel". |
-    | 4b1. The dialog closes and nothing is saved. | Wait until `submitRatingButton` no longer exists. Click the first `rateButton` again. |
+    | 2. Cancel closes the dialog without saving. | Click "Cancel". Wait until `submitRatingButton` no longer exists. Click the first `rateButton` again. |
     | 3. The traveller selects a star rating. Submit becomes enabled. | Click `ratingStar4`. Check `submitRatingButton` is enabled. |
     | 4a. The traveller types more than 500 characters. | Type 520 characters into `reviewField`. |
     | 4a1. The review field stops accepting characters at 500. | Check `reviewField` holds exactly 500 characters. |

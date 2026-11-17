@@ -4,18 +4,25 @@ title Rate & Review Activity
 
 actor Traveller
 participant "Android App" as App
-participant "Auth & Profile\nService" as Auth
-participant "Activity & Review\nService" as Activities
+participant "User\nService" as Auth
+participant "Activity\nService" as Activities
 participant "Trip\nEngine" as Engine
 database MongoDB
 
 Traveller -> App : taps Rate on an activity
 App --> Traveller : rating dialog (Submit disabled until a star is chosen)
+opt the traveller taps Cancel
+  App --> Traveller : closes the dialog; nothing is saved
+end
 Traveller -> App : chooses 1-5 stars, optional review and tags, taps Submit
+note right of App : the review field stops accepting characters at 500
 opt location is allowed
   App -> App : reads the device's current position (Fused Location Provider)
 end
 App -> Activities : POST /api/activities/{activityId}/reviews { rating, comment, tags, location? }
+alt TimeTravel cannot be reached
+  App --> Traveller : shows the error; the dialog stays open to submit again
+end
 Activities -> Auth : verifySessionToken(token): userId
 alt rating, comment, tags or location invalid
   Activities --> App : 400 { error, details }

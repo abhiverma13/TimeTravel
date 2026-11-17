@@ -118,7 +118,7 @@ fun TripBuilderScreen(viewModel: TripBuilderViewModel, onBack: () -> Unit, onTri
 @Composable
 private fun TripBuilderDialogs(state: TripBuilderUiState, viewModel: TripBuilderViewModel, choosingDates: Boolean, onDatesClosed: () -> Unit) {
     state.placePicker?.let { picker ->
-        PlacePickerDialog(picker, state.placeChoices, onToggle = viewModel::cyclePlace, onDone = viewModel::closePlacePicker)
+        PlacePickerDialog(picker, state.placeChoices, onChoose = viewModel::choosePlace, onDone = viewModel::closePlacePicker)
     }
     if (choosingDates) {
         TripDatesDialog(

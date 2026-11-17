@@ -88,4 +88,7 @@ class TimeTravelRepository(
     /** View & Adjust Trip: locks, unlocks, removes or moves a stop, or re-plans a day; returns the new plan. */
     suspend fun adjustTrip(tripId: String, request: AdjustRequest): Result<Trip> =
         apiCall { api.adjustTrip(tripId, request) }
+
+    /** Deletes a trip the traveller planned. */
+    suspend fun deleteTrip(tripId: String): Result<Unit> = apiCall { api.deleteTrip(tripId) }
 }

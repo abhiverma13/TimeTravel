@@ -17,6 +17,8 @@ import kotlinx.coroutines.launch
 class HomeViewModel(private val repository: TimeTravelRepository, liveEvents: Flow<LiveEvent>) : ViewModel() {
     private val mutableRecentTrips = MutableStateFlow<List<TripSummary>>(emptyList())
     val recentTrips: StateFlow<List<TripSummary>> = mutableRecentTrips.asStateFlow()
+    private val mutableDeleteError = MutableStateFlow<String?>(null)
+    val deleteError: StateFlow<String?> = mutableDeleteError.asStateFlow()
 
     init {
         // Group trips appear or go as the traveller joins or loses a group.
@@ -27,6 +29,15 @@ class HomeViewModel(private val repository: TimeTravelRepository, liveEvents: Fl
     fun refresh() {
         viewModelScope.launch {
             repository.recentTrips().onSuccess { mutableRecentTrips.value = it }
+        }
+    }
+
+    fun deleteTrip(tripId: String) {
+        viewModelScope.launch {
+            mutableDeleteError.value = null
+            repository.deleteTrip(tripId)
+                .onSuccess { mutableRecentTrips.value = mutableRecentTrips.value.filterNot { it.id == tripId } }
+                .onFailure { mutableDeleteError.value = it.message ?: "Could not delete the trip." }
         }
     }
 }

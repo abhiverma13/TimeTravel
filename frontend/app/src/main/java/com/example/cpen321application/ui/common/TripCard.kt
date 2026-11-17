@@ -11,11 +11,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.cpen321application.data.TripSummary
 import com.example.cpen321application.ui.theme.Ink
@@ -43,10 +46,16 @@ fun tripDatesText(startDate: String, endDate: String): String {
 
 /**
  * A saved trip in a list, like a ticket: a stub with the first day's date (lime for a solo trip, lilac for a group's),
- * then the city, dates and number of stops, and a sticker on a group trip.
+ * then the city, dates and number of stops, and a sticker on a group trip. With `onDelete`, a delete button at the end.
  */
 @Composable
-fun TripCard(trip: TripSummary, onClick: () -> Unit, modifier: Modifier = Modifier, isNew: Boolean = false) {
+fun TripCard(
+    trip: TripSummary,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isNew: Boolean = false,
+    onDelete: (() -> Unit)? = null,
+) {
     val isGroup = trip.groupId != null
     val start = LocalDate.parse(trip.startDate)
     NeoCard(onClick = onClick, modifier = modifier.fillMaxWidth()) {
@@ -76,6 +85,17 @@ fun TripCard(trip: TripSummary, onClick: () -> Unit, modifier: Modifier = Modifi
                     color = InkSoft,
                     modifier = Modifier.padding(top = 4.dp),
                 )
+            }
+            if (onDelete != null) {
+                Box(Modifier.fillMaxHeight().padding(end = 12.dp), contentAlignment = Alignment.Center) {
+                    NeoIconButton(
+                        Icons.Outlined.Delete,
+                        contentDescription = "Delete trip",
+                        onClick = onDelete,
+                        size = 36.dp,
+                        modifier = Modifier.testTag(TestTags.DELETE_TRIP),
+                    )
+                }
             }
         }
     }

@@ -110,8 +110,8 @@ class TripBuilderViewModel(
 
     fun closePlacePicker() = mutableState.update { it.copy(placePicker = null) }
 
-    fun cyclePlace(activityId: String) = mutableState.update {
-        val next = (it.placeChoices[activityId] ?: PlaceChoice.NEUTRAL).next()
+    fun choosePlace(activityId: String, choice: PlaceChoice) = mutableState.update {
+        val next = (it.placeChoices[activityId] ?: PlaceChoice.NEUTRAL).toggled(choice)
         it.copy(placeChoices = if (next == PlaceChoice.NEUTRAL) it.placeChoices - activityId else it.placeChoices + (activityId to next))
     }
 

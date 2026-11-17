@@ -9,11 +9,7 @@ val BUDGETS = listOf("any" to "Any", "low" to "$", "medium" to "$$")
 /** What the traveller wants done with one place in the must-see and avoid picker. */
 enum class PlaceChoice { NEUTRAL, MUST_SEE, AVOID }
 
-/** Tapping a place cycles it: no preference, then must-see, then avoid, then back. */
-fun PlaceChoice.next(): PlaceChoice = when (this) {
-    PlaceChoice.NEUTRAL -> PlaceChoice.MUST_SEE
-    PlaceChoice.MUST_SEE -> PlaceChoice.AVOID
-    PlaceChoice.AVOID -> PlaceChoice.NEUTRAL
-}
+/** Tapping Must-see or Avoid picks it; tapping the one already picked clears it. */
+fun PlaceChoice.toggled(choice: PlaceChoice): PlaceChoice = if (this == choice) PlaceChoice.NEUTRAL else choice
 
 fun labelFor(options: List<Pair<String, String>>, value: String): String = options.firstOrNull { it.first == value }?.second ?: value

@@ -4,19 +4,31 @@ title Plan Trip
 
 actor "Trip Organizer" as Organizer
 participant "Android App" as App
-participant "Auth & Profile\nService" as Auth
+participant "User\nService" as Auth
 participant "Trip\nEngine" as Engine
 participant "Group\nService" as Groups
-participant "Activity & Review\nService" as Activities
+participant "Activity\nService" as Activities
 database MongoDB
 participant "Google Places API" as Places
 participant "Google Routes API" as Routes
 
+opt the organizer taps Choose places
+  alt no destination yet
+    App --> Organizer : "Enter a destination city."; the list does not open
+  else
+    App -> Activities : GET /api/activities?city=<city>
+    Activities --> App : 200 { city, activities }
+    App --> Organizer : a searchable list; each place can be marked Must-see or Avoid
+  end
+end
 Organizer -> App : fills in the Trip Builder, taps Generate trip
 alt no city, no dates, longer than 7 days, or a day shorter than 2 hours
   App --> Organizer : explains what to fix; nothing is sent
 end
 App -> Engine : POST /api/trips/generate { city, startDate, endDate, dayStart, dayEnd,\n arrivalTime, departureTime, interests, pace, lodging, transportMode, budget,\n mustSeeIds, avoidIds, groupId? }
+alt TimeTravel cannot be reached
+  App --> Organizer : "Couldn't reach TimeTravel. Check your connection and try again."
+end
 Engine -> Auth : verifySessionToken(token): userId
 opt a group trip
   Engine -> Groups : tripPreferences(userId, groupId): interest shares, vetoes
@@ -50,9 +62,12 @@ opt pairs missing and a Google key is set
 end
 loop for each trip day
   Engine -> Engine : planDay: greedy insertion by score density (3 starts),\nthen reorder and swap moves within 200 ms
+  alt no activity fits the day
+    Engine -> Engine : leaves the day empty; warns if no day has a stop
+  end
 end
 Engine -> Engine : adds a warning for each must-see that could not be included
 Engine -> MongoDB : saveTrip(userId, groupId, trip, days, warnings): Trip
 Engine --> App : 201 TripDto
-App --> Organizer : day-by-day timeline with travel times and warnings
+App --> Organizer : day-by-day timeline with travel times, warnings and how the stops were picked
 @enduml

@@ -66,6 +66,7 @@ const adjustBody = z.union([
  * GET  /api/trips?groupId=
  * GET  /api/trips/:tripId
  * POST /api/trips/:tripId/adjust
+ * DELETE /api/trips/:tripId
  */
 export function createTripRouter(authService: AuthService, tripService: TripService): Router {
   const router = Router();
@@ -88,6 +89,11 @@ export function createTripRouter(authService: AuthService, tripService: TripServ
   router.post('/:tripId/adjust', async (request, response) => {
     const change = adjustBody.parse(request.body);
     response.json(await tripService.adjustTrip(authenticatedUserId(response), request.params.tripId, change));
+  });
+
+  router.delete('/:tripId', async (request, response) => {
+    await tripService.deleteTrip(authenticatedUserId(response), request.params.tripId);
+    response.status(204).end();
   });
 
   return router;
