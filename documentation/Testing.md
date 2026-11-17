@@ -103,7 +103,7 @@ The tests without mocks run against a real in-memory MongoDB (`backend/tests/hel
 
 #### 2.1.2. Commit Hash Where Tests Run
 
-`ceec5d99d70ad8d0d26c8d107e0d631a3d966fd9`
+`c8a650cfdb8219d9c664edb325538bcdad687282`
 
 #### 2.1.3. Explanation on How to Run the Tests
 
