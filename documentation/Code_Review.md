@@ -10,7 +10,7 @@
 | 2026-11-02 | All | Shortened the wording after CP1 feedback. |
 | 2026-11-12 | 2 | CP3: Codacy is to run with only detekt, ESLint and Trivy and the repository's configuration files, as the peer review pointed out; the Dockerfile finding is fixed rather than justified, and every justification cites its sources. |
 | 2026-11-12 | 3 | CP3: recorded our review of Fabricate, Donut's review of TimeTravel, and what we changed in response. |
-| 2026-11-17 | 2 | CP3: recorded Codacy's run on `0cd318e` (121 issues), after fixing Trivy's findings and excluding Jest's configuration file. Shortened the justifications after CP2 feedback, and added `npm run lint:types` to check the type-aware rules locally. |
+| 2026-11-17 | 2 | CP3: recorded Codacy's run on `049527f` (121 issues), after fixing Trivy's findings and excluding Jest's configuration file. Shortened the justifications after CP2 feedback, and added `npm run lint:types` to check the type-aware rules locally. |
 | 2026-11-17 | 3.3 | Plan Trip now has five end-to-end tests: the unknown-lodging test was removed (Testing.md 4.2 explains why). |
 
 ---
@@ -23,7 +23,7 @@ Locally, ESLint with the course's [`.eslintrc.json`](../.eslintrc.json) over `ba
 
 ### 2.1. Commit Hash Where Codacy Ran
 
-`0cd318e1c21d6f8725b8ff3b56c31a4a68ee27d7`
+`049527f96d34ce8c869de37c5ff209ee59b30573`
 
 ### 2.2. Unfixed Issues per Codacy Category
 
