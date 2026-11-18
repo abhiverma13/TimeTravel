@@ -34,6 +34,7 @@
 | 2026-11-17 | 3.7, 4.7 | After CP2 feedback, NFR 2 explains its 2 seconds, and NFR 3 states the cost limit it was written for; caching is how 4.7 meets it. |
 | 2026-11-17 | 3.2, 4.1, 4.4, 4.5, 4.6 | After CP2 feedback that "and" in a component's name mixes concerns, each component is named for one job: the User Service, the Activity Service, and the Trip Sync Service and Disruption Service, split as they are in the code. The dependency diagram shows names only, the use case diagram has larger text, and each sequence diagram shows every failure scenario of its specification. |
 | 2026-11-17 | 3.6 | Retook the Trips, Trip and Group screens to show deleting a trip and how a trip's stops were picked. |
+| 2026-11-17 | 3.6 | Retook the Trip screen: "Live" is now a small tag, and the planning time and candidate count are gone. |
 
 ---
 

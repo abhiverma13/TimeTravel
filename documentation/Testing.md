@@ -31,6 +31,7 @@
 | 2026-11-17 | 4.2 | Removed the Plan Trip test for an unknown lodging (7b): Google Places now matches its made-up lodging to a real place, so it failed against the deployed back-end. |
 | 2026-11-17 | 2.1.1, 3, 4.2 | Added the tests of `DELETE /api/trips/:tripId`, renamed NFR 3 to Google Places cost, and made Cancel in Rate & Review a step of the main scenario, after CP2 feedback that it is not a failure. |
 | 2026-11-17 | 2.1.2, 2.3, 2.4, 2.5, 3.2 | Recorded the back-end run on `d7fdffb`, the commit with Delete Trip: its coverage screenshots, the uncovered lines of `tripService.ts` (moved by the new code) and the NFR 1 and NFR 2 logs. |
+| 2026-11-17 | 2.1.1, 4.2 | Fixed the links to the `DELETE /api/trips/:tripId` tests. The trip screen now shows a small "Live" tag, so the View & Adjust Trip test waits for it. |
 
 ---
 
@@ -58,7 +59,7 @@
 | **POST /api/trips/generate** | [`backend/tests/no-mock/trips.test.ts#L38`](../backend/tests/no-mock/trips.test.ts#L38) | [`backend/tests/mock/trips.test.ts#L37`](../backend/tests/mock/trips.test.ts#L37), [`#L198`](../backend/tests/mock/trips.test.ts#L198) (Google Routes travel times, cache and failures), [`#L284`](../backend/tests/mock/trips.test.ts#L284) (through the production Google Routes client) | Google Places API (lodging lookup), Google Routes API, Trip DB |
 | **GET /api/trips/:tripId** | [`backend/tests/no-mock/trips.test.ts#L410`](../backend/tests/no-mock/trips.test.ts#L410) | [`backend/tests/mock/trips.test.ts#L136`](../backend/tests/mock/trips.test.ts#L136) | Trip DB |
 | **GET /api/trips** | [`backend/tests/no-mock/trips.test.ts#L459`](../backend/tests/no-mock/trips.test.ts#L459) | [`backend/tests/mock/trips.test.ts#L157`](../backend/tests/mock/trips.test.ts#L157) | Trip DB |
-| **DELETE /api/trips/:tripId** | [`backend/tests/no-mock/deleteTrip.test.ts#L16`](../backend/tests/no-mock/deleteTrip.test.ts#L16) | [`backend/tests/mock/deleteTrip.test.ts#L18`](../backend/tests/mock/deleteTrip.test.ts#L18) | Trip DB |
+| **DELETE /api/trips/:tripId** | [`backend/tests/no-mock/deleteTrip.test.ts#L18`](../backend/tests/no-mock/deleteTrip.test.ts#L18) | [`backend/tests/mock/deleteTrip.test.ts#L20`](../backend/tests/mock/deleteTrip.test.ts#L20) | Trip DB |
 | **POST /api/trips/:tripId/adjust** | [`backend/tests/no-mock/adjust.test.ts#L41`](../backend/tests/no-mock/adjust.test.ts#L41) | [`backend/tests/mock/adjust.test.ts#L32`](../backend/tests/mock/adjust.test.ts#L32) | Trip DB (a concurrent change saved first, write failure), Activity DB, live-update push |
 | **Socket.io trip updates** | [`backend/tests/no-mock/tripSync.test.ts#L41`](../backend/tests/no-mock/tripSync.test.ts#L41) | [`backend/tests/mock/tripSync.test.ts#L22`](../backend/tests/mock/tripSync.test.ts#L22) | Trip DB (access check on subscribe) |
 | **Socket.io location sharing** | [`backend/tests/no-mock/tripSync.test.ts#L150`](../backend/tests/no-mock/tripSync.test.ts#L150) | [`backend/tests/mock/tripSync.test.ts#L49`](../backend/tests/mock/tripSync.test.ts#L49) | User DB (looking up the sharer) |
@@ -325,7 +326,7 @@ The tests find elements by stable test tags ([`ui/common/TestTags.kt`](../fronte
     | ------------------ | ------------------- |
     | (Set-up: a trip to adjust.) | Click `homePlanTrip`. Replace the text in `tripCityField` with "Vancouver". Choose a start date 10 days from today and an end date a day later. Open the "Start" dropdown and choose 11:00. Click `generateButton`, wait until a node tagged `tripDay` is displayed, and go back to home. |
     | 1. The traveller opens a trip from the home screen's recent trips. | Click the first node tagged `recentTrip` (the newest trip). |
-    | 2. The app shows the trip timeline, connects to live updates and shows "Live". | Wait until `liveStatus` contains "LIVE:" and a stop's "HH:MM to HH:MM" line is displayed. Read the first two stops' names (from their menu buttons, "Options for &lt;stop&gt;") and the first stop's times. |
+    | 2. The app shows the trip timeline, connects to live updates and shows "Live". | Wait until `liveStatus` shows "LIVE" and a stop's "HH:MM to HH:MM" line is displayed. Read the first two stops' names (from their menu buttons, "Options for &lt;stop&gt;") and the first stop's times. |
     | 3. The traveller opens a stop's menu and locks it. | Click the first `stopActionsButton`, then `stopActionLock`. |
     | 4-5. The system re-plans; locked stops keep their times, and the traveller's app shows the change. | Wait until a node tagged `stopLocked` is displayed. Check the first stop's times are unchanged. |
     | 4a. No feasible plan keeps the requested change. | Click the second `stopActionsButton`, then `stopActionMoveEarlier`. (The second stop would have to fit before the locked first stop, which starts as soon as the day does.) |

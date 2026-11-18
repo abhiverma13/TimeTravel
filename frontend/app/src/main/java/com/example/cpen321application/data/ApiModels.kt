@@ -151,10 +151,8 @@ data class Trip(
     val travelTimeSource: String,
     val lodging: Lodging,
     val days: List<TripDay>,
-    val candidateCount: Int,
     val unscheduledCount: Int,
     val warnings: List<String>,
-    val generationMs: Int,
     /** Sent back with every adjustment, so an out-of-date copy cannot overwrite someone else's change. */
     val version: Int,
     val createdAt: String,

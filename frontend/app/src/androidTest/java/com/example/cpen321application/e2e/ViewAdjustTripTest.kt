@@ -42,7 +42,7 @@ class ViewAdjustTripTest : E2eTest() {
         // 1-2. Open it from the recent trips; the timeline shows and is live.
         waitFor(hasTestTag(TestTags.RECENT_TRIP))
         compose.onAllNodesWithTag(TestTags.RECENT_TRIP).onFirst().performScrollTo().performClick()
-        waitFor(hasTestTag(TestTags.LIVE_STATUS) and hasText("LIVE:", substring = true))
+        waitFor(hasTestTag(TestTags.LIVE_STATUS) and hasText("LIVE"))
         waitFor(stopTime())
         val first = stopName(0)
         val second = stopName(1)

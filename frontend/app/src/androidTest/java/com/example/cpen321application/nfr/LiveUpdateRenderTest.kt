@@ -47,7 +47,7 @@ class LiveUpdateRenderTest : E2eTest() {
         chooseTripDates(firstDay, firstDay.plusDays(1))
         chooseTime("Start", "11:00")
         clickTag(TestTags.GENERATE_BUTTON)
-        waitFor(hasTestTag(TestTags.LIVE_STATUS) and hasText("LIVE:", substring = true))
+        waitFor(hasTestTag(TestTags.LIVE_STATUS) and hasText("LIVE"))
         waitFor(stopTime())
 
         // The trip's first stop, as the server has it, on screen.

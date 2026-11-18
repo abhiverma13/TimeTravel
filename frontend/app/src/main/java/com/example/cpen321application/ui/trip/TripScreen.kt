@@ -210,26 +210,22 @@ private fun TripTopBar(trip: Trip?, onBack: () -> Unit, onOpenMap: () -> Unit, o
     }
 }
 
-// Whether everyone's edits are arriving live (a lime strip with a beating dot), or the device is waiting to reconnect.
+// A small lime "Live" tag with a beating dot while everyone's edits arrive live, or a strip while the device is offline.
 @Composable
 private fun LiveBanner(live: LiveStatus) {
-    val (text, fill) = when (live) {
-        LiveStatus.LIVE -> "Live: everyone in the trip sees changes as they happen" to Lime
-        LiveStatus.CONNECTING -> "Connecting to live updates..." to Card
-        LiveStatus.OFFLINE -> "Offline: live updates will resume when you reconnect" to ErrorWash
-    }
+    if (live == LiveStatus.CONNECTING) return
+    val isLive = live == LiveStatus.LIVE
     Row(
         modifier = Modifier
-            .fillMaxWidth()
             .padding(bottom = 16.dp)
-            .neoBlock(Neo.ButtonShape, fill, Neo.TinyShadow, Neo.TinyShadow, border = Neo.ThinBorder)
+            .neoBlock(Neo.ButtonShape, if (isLive) Lime else ErrorWash, Neo.TinyShadow, Neo.TinyShadow, border = Neo.ThinBorder)
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        BeatingDot(beating = live == LiveStatus.LIVE)
+        BeatingDot(beating = isLive)
         Text(
-            text = text.uppercase(Locale.ROOT),
+            text = (if (isLive) "Live" else "Offline: live updates will resume when you reconnect").uppercase(Locale.ROOT),
             style = MaterialTheme.typography.labelSmall,
             color = Ink,
             modifier = Modifier.testTag(TestTags.LIVE_STATUS),
@@ -282,11 +278,6 @@ private fun Summary(trip: Trip) {
                 pickingRules(trip).forEach { rule ->
                     Text("• $rule", style = MaterialTheme.typography.bodySmall, color = InkSoft)
                 }
-                Text(
-                    text = "Planned in ${trip.generationMs} ms from ${trip.candidateCount} candidate activities.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = InkSoft,
-                )
             }
         }
         trip.warnings.forEach { warning ->
